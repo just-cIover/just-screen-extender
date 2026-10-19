@@ -357,9 +357,7 @@ class StartFollower:
                 return
             now = time.monotonic()
             if event == EVENT_SYSTEM_FOREGROUND:
-                if process_name(hwnd) in START_HOSTS:
-                    self.start_mon = user32.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)
-                    self.start_at = now
+                self._check_start(hwnd)
                 return
             if (event == EVENT_OBJECT_SHOW and self.start_mon and now - self.start_at < START_WINDOW
                     and hwnd not in self.watch and _app_window(hwnd) and process_name(hwnd) not in START_HOSTS):
@@ -367,6 +365,22 @@ class StartFollower:
                 self._place(hwnd, first=True)
         except Exception as e:  # mai far cadere il controllo per una finestra strana
             self.log(f'Controllo dello Start: {e!r}')
+
+    def _check_start(self, hwnd):
+        """Se in primo piano c'è lo Start (o la ricerca), ricordo su quale schermo è aperto."""
+        if not hwnd or process_name(hwnd) not in START_HOSTS:
+            return
+        # conta il rettangolo della finestra: lo Start si apre sullo schermo da cui l'hai chiamato
+        rc = wintypes.RECT()
+        user32.GetWindowRect(hwnd, ctypes.byref(rc))
+        mon = user32.MonitorFromRect(ctypes.byref(rc), MONITOR_DEFAULTTONEAREST)
+        if mon != self.start_mon or time.monotonic() - self.start_at > START_WINDOW:
+            dev = _monitor_rects(mon)[0]
+            primary = user32.MonitorFromPoint(wintypes.POINT(0, 0), 1)
+            if mon != primary:
+                self.log(f'Start aperto sullo schermo {dev}: le app che lanci compariranno lì')
+        self.start_mon = mon
+        self.start_at = time.monotonic()
 
     def _place(self, hwnd, first=False):
         if user32.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) == self.start_mon:
@@ -380,6 +394,8 @@ class StartFollower:
         cb = WINEVENTPROC(self._on_event)  # riferimento tenuto vivo finché il ciclo gira
         hooks = [user32.SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, None, cb, 0, 0, 0),
                  user32.SetWinEventHook(EVENT_OBJECT_SHOW, EVENT_OBJECT_SHOW, None, cb, 0, 0, 0)]
+        if not all(hooks):
+            self.log('Controllo dello Start: Windows non accetta gli avvisi, controllo a intervalli')
         msg = wintypes.MSG()
         try:
             while not (stop and stop.is_set()):
@@ -387,6 +403,7 @@ class StartFollower:
                 while user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, 1):  # PM_REMOVE
                     user32.TranslateMessage(ctypes.byref(msg))
                     user32.DispatchMessageW(ctypes.byref(msg))
+                self._check_start(user32.GetForegroundWindow())  # di riserva, se un avviso si perde
                 now = time.monotonic()
                 for hwnd, until in list(self.watch.items()):
                     if now > until or not user32.IsWindow(hwnd):
