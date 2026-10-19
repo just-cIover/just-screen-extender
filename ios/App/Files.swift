@@ -339,7 +339,7 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
     }
 
     /// Copia l'originale di una foto o di un video in una cartella temporanea (il file del sistema sparisce subito).
-    private static func copy(_ provider: NSItemProvider) async -> URL? {
+    static func copy(_ provider: NSItemProvider) async -> URL? {
         let types = provider.registeredTypeIdentifiers
         let type = types.first { UTType($0)?.conforms(to: .movie) == true }
             ?? types.first { UTType($0)?.conforms(to: .image) == true }

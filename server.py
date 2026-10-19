@@ -389,6 +389,8 @@ class Session:
                     self.name)
         elif t == 'tasto':
             inject.press(str(d.get('k', '')))
+        elif t == 'deposita':
+            asyncio.create_task(self.app.drop_file(self, d.get('nome', ''), d.get('x'), d.get('y')))
         elif t == 'parola':
             asyncio.create_task(self.select_word(c, d.get('x'), d.get('y'), bool(d.get('gia'))))
         elif t == 'diag':
@@ -571,6 +573,25 @@ class App:
             return
         log(f'aperto file {name} sul PC, sul suo schermo', s.name)
         await asyncio.to_thread(finestre.open_on, path, m, log, 12, os.path.join(HERE, '.edge-profilo'))
+
+    async def drop_file(self, s, name, nx, ny):
+        """File trascinato dal dispositivo sul suo schermo: si apre nel programma su cui è stato lasciato
+        (o con il suo programma, se è il desktop o Esplora file), sempre su quello schermo."""
+        path = self.exchange.path_of(str(name))
+        if not path:
+            return
+        if not sicurezza.safe_to_open(path):
+            log(f'ha lasciato {name} sullo schermo: è nella cartella condivisa, ma questo tipo di file non lo apro '
+                'da solo (potrebbe essere un programma)', s.name)
+            return
+        m = s.monitor
+        pt = s.pad.point(nx, ny) if isinstance(nx, (int, float)) and isinstance(ny, (int, float)) else None
+        if not m or not s.capture_key or not pt:
+            return
+        program = finestre.program_at(*pt)
+        where = f'con {os.path.basename(program)}' if program else 'con il suo programma'
+        log(f'ha lasciato {name} sullo schermo: lo apro {where}', s.name)
+        await asyncio.to_thread(finestre.open_on, path, m, log, 12, os.path.join(HERE, '.edge-profilo'), program)
 
     # ---- schermi ----
     async def display_change(self, what, fn, *args):
