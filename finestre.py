@@ -273,15 +273,16 @@ def _ink_apps():
 
 
 def ink_app_at(x, y):
-    """True se nel punto c'è un programma da disegno/scrittura (o un PDF aperto nel browser)."""
+    """(sì/no, programma): se nel punto c'è un programma da disegno/scrittura (o un PDF nel browser)."""
     hwnd = user32.WindowFromPoint(wintypes.POINT(x, y))
     if not hwnd:
-        return False
+        return False, ''
     root = user32.GetAncestor(hwnd, 2) or hwnd  # GA_ROOT
-    names = {process_name(hwnd), process_name(root)}  # app moderne: la finestra figlia è del programma vero
-    if names & _ink_apps():
-        return True
-    return bool(names & BROWSER_EXES) and '.pdf' in _title(root).lower()
+    child, top = process_name(hwnd), process_name(root)  # app moderne: la finestra figlia è del programma vero
+    name = child or top
+    if {child, top} & _ink_apps():
+        return True, name
+    return bool({child, top} & BROWSER_EXES) and '.pdf' in _title(root).lower(), name
 
 
 # --- app aperte dallo Start sullo schermo dove le hai cercate ----------------------------
@@ -324,42 +325,77 @@ def move_to_monitor(hwnd, hmon):
     return bool(ok)
 
 
+WINEVENTPROC = ctypes.WINFUNCTYPE(None, wintypes.HANDLE, wintypes.DWORD, wintypes.HWND, wintypes.LONG,
+                                  wintypes.LONG, wintypes.DWORD, wintypes.DWORD)
+EVENT_SYSTEM_FOREGROUND, EVENT_OBJECT_SHOW = 0x0003, 0x8002
+WS_CAPTION = 0x00C00000
+
+
+def _app_window(hwnd):
+    """Finestra principale di un programma (non menu, suggerimenti, finestre interne)."""
+    if user32.GetAncestor(hwnd, 2) != hwnd or not user32.IsWindowVisible(hwnd):
+        return False
+    if _class(hwnd) in SKIP_CLASSES or user32.GetWindowLongPtrW(hwnd, GWL_EXSTYLE) & WS_EX_TOOLWINDOW:
+        return False
+    return bool(user32.GetWindowLongPtrW(hwnd, -16) & WS_CAPTION)  # GWL_STYLE
+
+
 class StartFollower:
     """Ricorda su quale schermo hai aperto lo Start; le finestre nuove che compaiono subito dopo su
-    un altro schermo le porta lì. Chiamare tick() più volte al secondo."""
+    un altro schermo le porta lì. Windows avvisa appena una finestra compare (niente attese);
+    per 2 s la ricontrollo, perché alcuni programmi si rimettono dove erano l'ultima volta."""
 
     def __init__(self, log=print):
         self.log = log
-        self.known = _all_windows()
         self.start_mon = None
-        self.start_dev = ''
         self.start_at = 0.0
-        self.seen = {}  # finestra nuova -> volta in cui l'ho vista (la sposto dal secondo giro)
+        self.watch = {}  # finestra spostata -> fino a quando ricontrollarla
 
-    def tick(self):
-        now = time.monotonic()
-        fg = user32.GetForegroundWindow()
-        if fg and process_name(fg) in START_HOSTS:
-            self.start_mon = user32.MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST)
-            self.start_dev = _monitor_rects(self.start_mon)[0]
-            self.start_at = now
-        current = _all_windows()
-        for hwnd in current - self.known:
-            first = self.seen.setdefault(hwnd, now)
-            if now - first < 0.3:
-                continue  # lascio finire al programma il suo posizionamento
-            self.known.add(hwnd)
-            self.seen.pop(hwnd, None)
-            if not self.start_mon or now - self.start_at > START_WINDOW:
-                continue
-            if process_name(hwnd) in START_HOSTS:
-                continue
-            here = user32.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)
-            if here != self.start_mon and move_to_monitor(hwnd, self.start_mon):
-                self.log(f'"{_title(hwnd)}" aperta dallo Start: spostata sullo schermo dove l\'hai cercata')
-        self.known &= current
-        for gone in [h for h in self.seen if h not in current]:
-            self.seen.pop(gone)
+    def _on_event(self, hook, event, hwnd, obj, child, thread, ms):
+        try:
+            if obj != 0 or child != 0 or not hwnd:  # solo eventi della finestra intera
+                return
+            now = time.monotonic()
+            if event == EVENT_SYSTEM_FOREGROUND:
+                if process_name(hwnd) in START_HOSTS:
+                    self.start_mon = user32.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)
+                    self.start_at = now
+                return
+            if (event == EVENT_OBJECT_SHOW and self.start_mon and now - self.start_at < START_WINDOW
+                    and hwnd not in self.watch and _app_window(hwnd) and process_name(hwnd) not in START_HOSTS):
+                self.watch[hwnd] = now + 2.0
+                self._place(hwnd, first=True)
+        except Exception as e:  # mai far cadere il controllo per una finestra strana
+            self.log(f'Controllo dello Start: {e!r}')
+
+    def _place(self, hwnd, first=False):
+        if user32.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) == self.start_mon:
+            return
+        if move_to_monitor(hwnd, self.start_mon) and first:
+            self.log(f'"{_title(hwnd) or process_name(hwnd)}" aperta dallo Start: '
+                     "messa sullo schermo dove l'hai cercata")
+
+    def run(self, stop=None):
+        """Ciclo del thread: riceve gli avvisi di Windows e ricontrolla le finestre appena spostate."""
+        cb = WINEVENTPROC(self._on_event)  # riferimento tenuto vivo finché il ciclo gira
+        hooks = [user32.SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, None, cb, 0, 0, 0),
+                 user32.SetWinEventHook(EVENT_OBJECT_SHOW, EVENT_OBJECT_SHOW, None, cb, 0, 0, 0)]
+        msg = wintypes.MSG()
+        try:
+            while not (stop and stop.is_set()):
+                user32.MsgWaitForMultipleObjects(0, None, False, 150, 0x04FF)  # QS_ALLINPUT
+                while user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, 1):  # PM_REMOVE
+                    user32.TranslateMessage(ctypes.byref(msg))
+                    user32.DispatchMessageW(ctypes.byref(msg))
+                now = time.monotonic()
+                for hwnd, until in list(self.watch.items()):
+                    if now > until or not user32.IsWindow(hwnd):
+                        self.watch.pop(hwnd, None)
+                    else:
+                        self._place(hwnd)
+        finally:
+            for h in hooks:
+                user32.UnhookWinEvent(h)
 
 
 if __name__ == '__main__':

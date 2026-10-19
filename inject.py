@@ -84,6 +84,7 @@ class Pad:
         self.hub = hub
         self.rect = None
         self.pen_as_finger = False
+        self.pen_app = ''  # programma sotto la punta all'ultimo appoggio
 
     def set_monitor(self, m):
         self.rect = (m['x'], m['y'], m['w'], m['h']) if m else None
@@ -107,7 +108,8 @@ class Pad:
         x, y = _px(self.rect, nx, ny)
         if ev == 'd':
             # automatica: scrive solo nei programmi da disegno, altrove fa da dito (scorre e tocca)
-            self.pen_as_finger = auto and not finestre.ink_app_at(x, y)
+            ink, self.pen_app = finestre.ink_app_at(x, y) if auto else (True, '')
+            self.pen_as_finger = not ink
         if self.pen_as_finger:
             self.hub.touch(ev, (id(self), 'penna'), x, y)
             return 'dito' if ev == 'd' else None

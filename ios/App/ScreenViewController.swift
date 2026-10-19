@@ -241,7 +241,8 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
     func connectionReady(_ c: Connection) {
         pinAlert?.dismiss(animated: true)
         UIApplication.shared.isIdleTimerDisabled = true  // l'iPad non va in standby mentre fa da schermo
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let info = Bundle.main.infoDictionary
+        let version = "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
         c.send(["t": "diag", "motore": "nativo", "avvio": true, "ua": "Schermo Esteso iOS \(version), \(UIDevice.current.model) iPadOS \(UIDevice.current.systemVersion)"])
         // tutto lo schermo è disponibile: lo schermo virtuale prende esattamente le sue misure
         let px = UIScreen.main.nativeBounds.size

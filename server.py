@@ -14,6 +14,7 @@ import json
 import os
 import socket
 import sys
+import threading
 import time
 
 from aiohttp import WSMsgType, web
@@ -300,6 +301,10 @@ class Session:
         elif t == 'pen':
             use = pad.pen(d['e'], d['x'], d['y'], float(d.get('p', 0.5)), d.get('tx', 0), d.get('ty', 0),
                           bool(d.get('er')), bool(d.get('auto')))
+            if use and (use, pad.pen_app) != getattr(self, 'pen_seen', None):
+                self.pen_seen = (use, pad.pen_app)
+                where = f' in {pad.pen_app}' if pad.pen_app else ''
+                log(f'Pencil{where}: ' + ('scrive' if use == 'penna' else 'fa da dito (scorre e tocca)'), self.name)
             if use:  # al dispositivo: se in questo tratto la Pencil scrive o fa da dito (niente inchiostro)
                 c.queue.appendleft(json.dumps({'t': 'penna', 'uso': use}))
                 c.wake.set()
@@ -710,14 +715,13 @@ async def ca_certificate(request):
 
 async def follow_start():
     """Le app aperte dallo Start compaiono sullo schermo dove hai aperto lo Start."""
-    follower = await asyncio.to_thread(finestre.StartFollower, log)
-    while True:
-        await asyncio.sleep(0.25)
-        try:
-            await asyncio.to_thread(follower.tick)
-        except Exception as e:  # una finestra sparita a metà controllo: riprovo al giro dopo
-            log(f'Controllo dello Start: {e!r}')
-            await asyncio.sleep(5)
+    loop = asyncio.get_running_loop()
+    stop = threading.Event()
+    follower = finestre.StartFollower(lambda msg: loop.call_soon_threadsafe(log, msg))
+    try:
+        await asyncio.to_thread(follower.run, stop)
+    finally:
+        stop.set()
 
 
 async def watch_addresses(ctx, panel, port):
