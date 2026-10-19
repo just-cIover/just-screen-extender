@@ -758,7 +758,9 @@ async def main():
     app.exchange = exchange
     exchange.routes(web_app.router)  # prima dei file statici, che prendono tutto il resto
     ips = lan_ips()
-    ctx = await asyncio.to_thread(certificati.ssl_context, ips)
+    ctx = await asyncio.to_thread(certificati.ssl_context, ips,
+                                  lambda alert: log(f'Connessione cifrata rifiutata da un dispositivo: {alert} '
+                                                    '(di solito: certificato del PC non attendibile sul dispositivo)'))
     urls = [f'https://{ip}:{port}' for ip in ips]
     panel = Panel(app, log, LOG_LINES, LOG_LISTENERS, FOLDER, urls, ui_mode, exchange)
     panel.routes(web_app.router)

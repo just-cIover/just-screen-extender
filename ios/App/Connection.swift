@@ -85,7 +85,27 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         if !pairing && Date().timeIntervalSince(lastMessage) > 4 { lost() }
     }
 
-    private func lost() {
+    /// Spiegazione leggibile dell'errore, con il codice tecnico per capire la causa.
+    private func describe(_ error: Error) -> String {
+        let ns = error as NSError
+        let hint: String
+        switch ns.code {
+        case NSURLErrorServerCertificateUntrusted, NSURLErrorServerCertificateHasUnknownRoot,
+             NSURLErrorServerCertificateNotYetValid, NSURLErrorServerCertificateHasBadDate, NSURLErrorSecureConnectionFailed:
+            hint = "Certificato del PC non attendibile: installalo e attivalo in Impostazioni → Generali → Info → Impostazioni attendibilità certificati."
+        case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost:
+            hint = "L'iPad non raggiunge la rete: controlla il Wi-Fi e il permesso Rete locale (Impostazioni → Privacy e sicurezza → Rete locale)."
+        case NSURLErrorCannotConnectToHost, NSURLErrorTimedOut, NSURLErrorCannotFindHost:
+            hint = "Il PC non risponde: Schermo Esteso è aperto sul PC? L'indirizzo è giusto? PC e iPad sono sulla stessa rete?"
+        case NSURLErrorBadServerResponse:
+            hint = "Il PC ha rifiutato il collegamento."
+        default:
+            hint = ns.localizedDescription
+        }
+        return "\(hint)\n(\(ns.domain) \(ns.code))"
+    }
+
+    private func lost(_ error: Error? = nil) {
         let wasPairing = pairing
         close()
         pairing = false
@@ -96,7 +116,8 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
             return
         }
         retry += 1
-        delegate?.connection(self, status: "Connessione persa, riprovo…")
+        let reason = error.map { describe($0) } ?? "Nessun dato dal PC da 4 secondi."
+        delegate?.connection(self, status: "Connessione persa, riprovo…\n\n\(reason)")
         DispatchQueue.main.asyncAfter(deadline: .now() + min(0.3 * Double(retry), 2)) { [weak self] in
             guard let self, self.task == nil else { return }
             self.connect()
@@ -107,8 +128,8 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         task?.receive { [weak self] result in
             guard let self, gen == self.generation else { return }
             switch result {
-            case .failure:
-                self.lost()
+            case .failure(let error):
+                self.lost(error)
             case .success(let message):
                 self.lastMessage = Date()
                 switch message {
