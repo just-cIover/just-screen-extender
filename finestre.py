@@ -179,77 +179,22 @@ def _associated_exe(path):
     return buf.value
 
 
-# programmi a cui non passo mai un file trascinato (potrebbero eseguirlo, o non c'entrano):
-# in quel caso il file si apre con il suo programma predefinito
-NEVER_WITH = {'explorer.exe', 'cmd.exe', 'powershell.exe', 'pwsh.exe', 'powershell_ise.exe', 'wt.exe',
-              'windowsterminal.exe', 'openconsole.exe', 'conhost.exe', 'wscript.exe', 'cscript.exe', 'mshta.exe',
-              'rundll32.exe', 'regsvr32.exe', 'regedit.exe', 'bash.exe', 'wsl.exe', 'python.exe', 'pythonw.exe',
-              'python3.11.exe', 'pythonw3.11.exe', 'py.exe', 'pyw.exe', 'node.exe', 'java.exe', 'javaw.exe',
-              'msiexec.exe', 'applicationframehost.exe', 'shellexperiencehost.exe', 'searchhost.exe',
-              'startmenuexperiencehost.exe', 'textinputhost.exe', 'taskmgr.exe', 'mmc.exe', 'control.exe'}
-
-
-def program_at(x, y):
-    """Percorso del programma della finestra nel punto (None per desktop, Esplora file e programmi esclusi)."""
-    hwnd = user32.WindowFromPoint(wintypes.POINT(x, y))
-    if not hwnd:
-        return None
-    root = user32.GetAncestor(hwnd, 2) or hwnd
-    for h in (hwnd, root):  # app moderne: la finestra figlia è del programma vero
-        pid = wintypes.DWORD()
-        user32.GetWindowThreadProcessId(h, ctypes.byref(pid))
-        hp = kernel32.OpenProcess(0x1000, False, pid.value)  # PROCESS_QUERY_LIMITED_INFORMATION
-        if not hp:
-            continue
-        try:
-            buf = ctypes.create_unicode_buffer(1024)
-            n = wintypes.DWORD(len(buf))
-            if kernel32.QueryFullProcessImageNameW(hp, 0, buf, ctypes.byref(n)):
-                if os.path.basename(buf.value).lower() in NEVER_WITH:
-                    return None
-                return buf.value
-        finally:
-            kernel32.CloseHandle(hp)
-    return None
-
-
-def _launchable(exe):
-    """Le app dello Store (cartella WindowsApps) non si avviano dal loro percorso: uso il loro alias
-    in %LOCALAPPDATA%\\Microsoft\\WindowsApps, se esiste."""
-    if '\\windowsapps\\' not in exe.lower():
-        return exe
-    alias = os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Microsoft', 'WindowsApps', os.path.basename(exe))
-    return alias if os.path.exists(alias) else None
-
-
-def open_on(path, monitor, log=print, wait=12, edge_profile=None, program=None):
-    """Apre il file con il suo programma (o con program, percorso di un .exe) e porta la nuova finestra,
-    ingrandita, sullo schermo indicato. monitor = {'x', 'y', 'w', 'h'}. Restituisce True se la finestra
-    è stata spostata. Si sposta solo una finestra che prima non esisteva: mai una già aperta dall'utente."""
+def open_on(path, monitor, log=print, wait=12, edge_profile=None):
+    """Apre il file con il suo programma e porta la nuova finestra, ingrandita, sullo schermo indicato.
+    monitor = {'x', 'y', 'w', 'h'}. Restituisce True se la finestra è stata spostata.
+    Si sposta solo una finestra che prima non esisteva: mai una finestra già aperta dall'utente."""
     before = _every_window()
-    started = False
-    if program:
-        exe = _launchable(program)
-        try:
-            if not exe:
-                raise OSError('app dello Store senza collegamento')
-            subprocess.Popen([exe, path])
-            started = True
-        except OSError as e:
-            log(f'{os.path.basename(path)}: non riesco ad aprirlo con {os.path.basename(program)} ({e}), '
-                'uso il suo programma')
-    if not started:
-        exe = _associated_exe(path)
-        name = os.path.basename(exe or '').lower()
-        if name == 'msedge.exe' and edge_profile:
-            # profilo separato dell'app (senza account): il file non finisce tra le schede del tuo Edge
-            subprocess.Popen([exe, '--user-data-dir=' + edge_profile, '--new-window', '--no-first-run',
-                              '--no-default-browser-check', '--disable-sync',
-                              '--disable-features=msImplicitSignin,msEdgeImplicitSignin,msAutoSignIn', path])
-        elif name in BROWSERS:  # altri browser: almeno una finestra nuova invece di una scheda
-            subprocess.Popen([exe, BROWSERS[name], path])
-        else:
-            os.startfile(path)
+    exe = _associated_exe(path)
+    name = os.path.basename(exe or '').lower()
+    if name == 'msedge.exe' and edge_profile:
+        # profilo separato dell'app (senza account): il file non finisce tra le schede del tuo Edge
+        subprocess.Popen([exe, '--user-data-dir=' + edge_profile, '--new-window', '--no-first-run',
+                          '--no-default-browser-check', '--disable-sync',
+                          '--disable-features=msImplicitSignin,msEdgeImplicitSignin,msAutoSignIn', path])
+    elif name in BROWSERS:  # altri browser: almeno una finestra nuova invece di una scheda
+        subprocess.Popen([exe, BROWSERS[name], path])
+    else:
+        os.startfile(path)
     deadline = time.monotonic() + wait
     hwnd = None
     while time.monotonic() < deadline and not hwnd:

@@ -227,6 +227,8 @@ AltServer → *Install AltStore* → iPhone, poi *Sideload .ipa*.
   fondo, o dal menu *Torna al 100%*, torni alla vista intera. Al 100% due dita che si muovono
   insieme scorrono le pagine di Windows; un tocco con due dita è un clic destro.
 - **Trascinare file:** trascina un file o una foto da un'altra app (File, Foto, Safari) e lascialo
-  sullo schermo: va nella cartella condivisa e si apre nel programma su cui l'hai lasciato (sul
-  desktop o in Esplora file: con il suo programma). Si aprono solo documenti e file multimediali,
-  mai programmi o script, e mai dentro finestre di comandi.
+  sullo schermo: arriva nella cartella condivisa e sul PC parte un trascinamento vero nello stesso
+  punto, come se l'avessi trascinato con il mouse. Decide il programma che sta lì: una cartella di
+  Esplora file o il desktop lo copiano, Obsidian lo mette nella cartella del vault, Word o una chat
+  lo inseriscono. Se nessun programma lo prende, si apre con il suo programma (solo documenti e
+  file multimediali, mai programmi o script). Serve il pacchetto `pywin32` (`pip install pywin32`).

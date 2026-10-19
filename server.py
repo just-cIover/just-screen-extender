@@ -23,6 +23,7 @@ import appunti
 import certificati
 import qualita
 import sicurezza
+import trascina
 import finestre
 import monitors
 import vdd
@@ -575,23 +576,29 @@ class App:
         await asyncio.to_thread(finestre.open_on, path, m, log, 12, os.path.join(HERE, '.edge-profilo'))
 
     async def drop_file(self, s, name, nx, ny):
-        """File trascinato dal dispositivo sul suo schermo: si apre nel programma su cui è stato lasciato
-        (o con il suo programma, se è il desktop o Esplora file), sempre su quello schermo."""
+        """File trascinato dal dispositivo sul suo schermo: sul PC faccio un trascinamento vero nello stesso
+        punto, così decide il programma che sta lì (Esplora file e desktop lo copiano, Obsidian lo mette
+        nella cartella del vault, Word lo inserisce…). Se nessuno lo prende, lo apro col suo programma."""
         path = self.exchange.path_of(str(name))
-        if not path:
-            return
-        if not sicurezza.safe_to_open(path):
-            log(f'ha lasciato {name} sullo schermo: è nella cartella condivisa, ma questo tipo di file non lo apro '
-                'da solo (potrebbe essere un programma)', s.name)
-            return
         m = s.monitor
         pt = s.pad.point(nx, ny) if isinstance(nx, (int, float)) and isinstance(ny, (int, float)) else None
-        if not m or not s.capture_key or not pt:
+        if not path or not m or not s.capture_key or not pt:
             return
-        program = finestre.program_at(*pt)
-        where = f'con {os.path.basename(program)}' if program else 'con il suo programma'
-        log(f'ha lasciato {name} sullo schermo: lo apro {where}', s.name)
-        await asyncio.to_thread(finestre.open_on, path, m, log, 12, os.path.join(HERE, '.edge-profilo'), program)
+        under = finestre.process_name(finestre.user32.WindowFromPoint(finestre.wintypes.POINT(*pt))) or 'il desktop'
+        try:
+            effect = await asyncio.to_thread(trascina.drop_at, path, *pt)
+        except Exception as e:
+            log(f'Trascinamento di {name} non riuscito: {e!r}')
+            effect = None
+        if effect:
+            log(f'ha trascinato {name} su {under}: {effect}', s.name)
+            return
+        if not sicurezza.safe_to_open(path):
+            log(f'ha trascinato {name} su {under}, che non lo ha preso. È nella cartella condivisa (questo tipo '
+                'di file non lo apro da solo: potrebbe essere un programma)', s.name)
+            return
+        log(f'ha trascinato {name} su {under}, che non lo ha preso: lo apro con il suo programma', s.name)
+        await asyncio.to_thread(finestre.open_on, path, m, log, 12, os.path.join(HERE, '.edge-profilo'))
 
     # ---- schermi ----
     async def display_change(self, what, fn, *args):
