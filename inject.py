@@ -248,10 +248,17 @@ def type_text(text):
     _send_keys(events)
 
 
+COMBOS = {'copia': ord('C'), 'taglia': ord('X'), 'incolla': ord('V'), 'tutto': ord('A')}  # con Ctrl
+VK_CONTROL = 0x11
+
+
 def press(name):
     vk = KEYS.get(name)
     if vk:
         _send_keys([(vk, 0, 0), (vk, 0, KEY_UP)])
+    elif name in COMBOS:
+        k = COMBOS[name]
+        _send_keys([(VK_CONTROL, 0, 0), (k, 0, 0), (k, 0, KEY_UP), (VK_CONTROL, 0, KEY_UP)])
 
 
 # --- penna (Apple Pencil -> penna di Windows, con pressione e inclinazione) -----------

@@ -196,3 +196,11 @@ Menu → **Inserisci password…**: tocca prima sul PC il campo della password, 
 la password salvata con la chiave sopra la tastiera (Face ID). Viene digitata solo in quel campo:
 niente appunti, niente console. Con il nome utente compilato scrive nome, Tab e password.
 **Scrivi sul PC…** fa lo stesso con un testo qualsiasi (accenti ed emoji compresi).
+
+## Selezionare e copiare
+
+**Doppio tocco** su una parola (con il dito, o con la Pencil dove fa da dito): sul PC la parola
+si seleziona, anche nei browser, e sull'iPad compare il fumetto **Copia · Taglia · Incolla ·
+Seleziona tutto**. *Copia* la mette negli appunti del PC e, con gli appunti condivisi, anche in
+quelli dell'iPad. *Incolla* porta prima sul PC gli appunti dell'iPad. Nell'app web compare un
+avviso con il pulsante *Copia*.

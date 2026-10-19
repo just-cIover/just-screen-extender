@@ -78,7 +78,7 @@ final class InkView: UIView {
     }
 }
 
-final class ScreenViewController: UIViewController, ConnectionDelegate {
+final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMenuInteractionDelegate {
     let connection = Connection()
     private let video = VideoView()
     private let ink = InkView()
@@ -107,6 +107,10 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
     private var penUpAt: CFTimeInterval = 0
     private var lastPenPoint: CGPoint?
     private var penFinger = false  // in automatica: in questo tratto la Pencil fa da dito (niente inchiostro)
+    // doppio tocco = seleziona la parola (come sull'iPad)
+    private var tapStarts: [ObjectIdentifier: (time: CFTimeInterval, point: CGPoint)] = [:]
+    private var lastTap: (time: CFTimeInterval, point: CGPoint)?
+    private var editMenu: UIEditMenuInteraction?
     // modalità mouse con le dita
     private var mouseFingers: [UITouch] = []
     private var dragging = false
@@ -130,6 +134,10 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
             self.penFinger = use == "dito"
             if self.penFinger { self.ink.clear() }
         }
+
+        let menu = UIEditMenuInteraction(delegate: self)
+        view.addInteraction(menu)
+        editMenu = menu
 
         ink.frame = view.bounds
         ink.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -317,7 +325,11 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
     // MARK: tocchi
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        editMenu?.dismissMenu()
         for t in touches {
+            if t.type != .pencil && Settings.touchMode != "mouse" && !penBusy {
+                tapStarts[ObjectIdentifier(t)] = (CACurrentMediaTime(), t.location(in: view))
+            }
             if t.type == .pencil {
                 penBegan(t)
             } else if penBusy {
@@ -362,6 +374,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
             } else if let f = fingers.removeValue(forKey: ObjectIdentifier(t)) {
                 let n = norm(t.location(in: view))
                 connection.send(["t": "p", "e": cancelled ? "c" : "u", "id": f.id, "x": n.x, "y": n.y])
+                tapEnded(t, valid: !cancelled && fingers.isEmpty && touches.count == 1)
             }
         }
     }
@@ -392,6 +405,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
         fingers.removeAll()
         penTouch = t
         penFinger = false
+        tapStarts[ObjectIdentifier(t)] = (CACurrentMediaTime(), t.location(in: view))
         sendPen("d", t)
         lastPenPoint = t.preciseLocation(in: view)
     }
@@ -425,6 +439,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
             connection.send(["t": "m", "e": "u", "b": 0, "x": n.x, "y": n.y])
         } else {
             sendPen(cancelled ? "c" : "u", t)
+            tapEnded(t, valid: !cancelled && penFinger)  // solo dove la Pencil fa da dito, non mentre disegna
         }
         penTouch = nil
         penUpAt = CACurrentMediaTime()
@@ -630,6 +645,42 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
                 self?.showToast("Invio non riuscito: \(error.localizedDescription)")
             }
         })
+    }
+
+    // MARK: doppio tocco: seleziona la parola e mostra Copia / Incolla
+
+    private func tapEnded(_ t: UITouch, valid: Bool) {
+        guard let start = tapStarts.removeValue(forKey: ObjectIdentifier(t)) else { return }
+        let now = CACurrentMediaTime(), p = t.location(in: view)
+        guard valid, now - start.time < 0.35, hypot(p.x - start.point.x, p.y - start.point.y) < 12 else {
+            lastTap = nil
+            return
+        }
+        if let last = lastTap, now - last.time < 0.45, hypot(p.x - last.point.x, p.y - last.point.y) < 30 {
+            lastTap = nil
+            let n = norm(p)
+            connection.send(["t": "parola", "x": n.x, "y": n.y])
+            // il PC seleziona dopo ~0,6 s: il fumetto arriva quando la parola è già evidenziata
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+                self?.editMenu?.presentEditMenu(with: UIEditMenuConfiguration(identifier: nil, sourcePoint: p))
+            }
+        } else {
+            lastTap = (now, p)
+        }
+    }
+
+    func editMenuInteraction(_ interaction: UIEditMenuInteraction, menuFor configuration: UIEditMenuConfiguration,
+                             suggestedActions: [UIMenuElement]) -> UIMenu? {
+        let key = { [weak self] (k: String) in self?.connection.send(["t": "tasto", "k": k]) }
+        return UIMenu(children: [
+            UIAction(title: "Copia") { _ in key("copia") },
+            UIAction(title: "Taglia") { _ in key("taglia") },
+            UIAction(title: "Incolla") { [weak self] _ in
+                self?.clipboardToPC(force: false)  // prima porto sul PC quello che c'è negli appunti dell'iPad
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { key("incolla") }
+            },
+            UIAction(title: "Seleziona tutto") { _ in key("tutto") },
+        ])
     }
 
     // MARK: scrivere sul PC (anche password dal Portachiavi dell'iPad)

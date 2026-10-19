@@ -304,6 +304,17 @@ class Session:
             log(f'qualità {QUALITY_LABELS[level]} ({source}): riavvio la cattura', self.name)
             self.capture.restart()
 
+    async def select_word(self, x, y):
+        """Doppio tocco sul dispositivo: doppio clic del mouse nello stesso punto, così la parola si
+        seleziona anche nei browser (che con il tocco non lo fanno). Aspetto un attimo: subito dopo
+        un tocco Edge ignora i clic del mouse."""
+        if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+            return
+        await asyncio.sleep(0.6)
+        for _ in range(2):
+            self.pad.mouse('click', 0, x, y)
+            await asyncio.sleep(0.03)
+
     def check_quality(self, stats=None):
         """Qualità automatica: chiamata a ogni statistica del dispositivo (circa ogni 2 s) e, se il
         dispositivo tace, dal controllo periodico."""
@@ -365,6 +376,8 @@ class Session:
                     self.name)
         elif t == 'tasto':
             inject.press(str(d.get('k', '')))
+        elif t == 'parola':
+            asyncio.create_task(self.select_word(d.get('x'), d.get('y')))
         elif t == 'diag':
             d.pop('t', None)
             log(f'info: {json.dumps(d, ensure_ascii=False)}', self.name)

@@ -350,7 +350,8 @@ function mid() {
 // (firma nei PDF di Edge, disegno, appunti, scrittura a mano). Mentre la Pencil scrive, i tocchi
 // del palmo appoggiato vengono ignorati.
 let penId = null, penUpAt = 0;
-let penFinger = false; // in automatica: in questo tratto la Pencil fa da dito (niente inchiostro)
+let penFinger = false;
+let penTap = null; // inizio dell'ultimo appoggio della Pencil (per il doppio tocco) // in automatica: in questo tratto la Pencil fa da dito (niente inchiostro)
 
 // Inchiostro immediato: il tratto compare subito sull'iPad e sfuma quando arriva quello vero dal PC
 // (rete + compressione + decodifica). Così la scrittura sembra senza ritardo.
@@ -402,6 +403,7 @@ function penDown(e) {
   if (pointers.size) cancelAll(); // il palmo era già appoggiato: annullo quei tocchi
   penId = e.pointerId;
   penFinger = false;
+  penTap = { t0: performance.now(), x0: e.clientX, y0: e.clientY };
   sendPen('d', e);
   inkPoint(e, true);
 }
@@ -414,6 +416,7 @@ function penMove(e) {
 function penUp(e) {
   if (e.pointerId !== penId) return;
   sendPen(e.type === 'pointercancel' ? 'c' : 'u', e);
+  if (penFinger && e.type !== 'pointercancel' && penTap) tapUp(penTap.t0, penTap.x0, penTap.y0, e);
   penId = null; penUpAt = performance.now();
   inkLast = null;
 }
@@ -427,7 +430,7 @@ function onDown(e) {
   closeMenu();
   try { stage.setPointerCapture(e.pointerId); } catch { /* tocco già terminato */ }
   const n = norm(e);
-  pointers.set(e.pointerId, { ...n, cx: e.clientX, cy: e.clientY });
+  pointers.set(e.pointerId, { ...n, cx: e.clientX, cy: e.clientY, t0: performance.now(), x0: e.clientX, y0: e.clientY });
   if (pointers.size === 3) { cancelAll(); openMenu(); return; }
 
   if (e.pointerType === 'pen' || mode === 'mouse') {
@@ -483,6 +486,22 @@ function onUp(e) {
     } else if (!pointers.size) gesture = null;
   } else {
     send({ t: 'p', e: e.type === 'pointercancel' ? 'c' : 'u', id: e.pointerId, x: n.x, y: n.y });
+    if (e.type !== 'pointercancel' && !pointers.size) tapUp(p.t0, p.x0, p.y0, e);
+  }
+}
+
+// Doppio tocco (dito, o Pencil dove fa da dito): il PC seleziona la parola con un doppio clic
+let lastTap = null;
+function tapUp(t0, x0, y0, e) {
+  const now = performance.now();
+  if (now - t0 > 350 || Math.hypot(e.clientX - x0, e.clientY - y0) > 12) { lastTap = null; return; }
+  if (lastTap && now - lastTap.t < 450 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
+    lastTap = null;
+    const n = norm(e);
+    send({ t: 'parola', x: n.x, y: n.y });
+    notice('Parola selezionata sul PC', 'Copia', () => send({ t: 'tasto', k: 'copia' }), 6000);
+  } else {
+    lastTap = { t: now, x: e.clientX, y: e.clientY };
   }
 }
 
