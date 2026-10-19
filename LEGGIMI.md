@@ -169,3 +169,30 @@ Menu (☰) → **File condivisi**: i file della cartella `download` del PC.
 - **Carica** (in alto a destra): da *Foto e video* o *Da File*, anche più elementi insieme.
 - Da un'altra app (File, Safari, Mail…): *Condividi* → **Schermo Esteso** (o *Apri in…*): il file
   va subito al PC. Se l'icona non compare tra le app suggerite, scorri la fila fino a *Altro*.
+
+## Appunti condivisi
+
+Quello che copi sul PC (testo o immagine) arriva sui dispositivi, e viceversa.
+- **App nativa:** tutto in automatico. Quello che copi sul PC è subito negli appunti dell'iPad;
+  quello che copi in un'altra app dell'iPad passa al PC quando torni su Schermo Esteso. iPadOS può
+  chiedere *Consentire di incollare?*: per non vederlo più, *Impostazioni → Schermo Esteso →
+  Incolla da altre app → Consenti*. Menu → *Appunti* per spegnerli o inviarli a mano.
+- **App web (Safari):** compare l'avviso *Appunti dal PC* con il pulsante **Copia**; nel menu,
+  *Invia appunti al PC* (Safari non permette di farlo senza un tocco).
+- Gli appunti che i gestori di password segnano come privati non vengono mai mandati, e la
+  console non mostra mai il contenuto. Pulsante **Appunti condivisi** nella finestra del PC per
+  spegnerli del tutto.
+
+## Qualità automatica
+
+Pulsante **Auto** accanto ai livelli di qualità nella finestra del PC (attivo di base). Se il
+dispositivo non regge (ritardo oltre 250 ms, fotogrammi persi, statistiche che non arrivano), il
+PC abbassa la qualità di un livello; dopo un minuto fluido la rialza, mai oltre quella scelta a
+mano (bordo tratteggiato). Se rialzando non regge, la volta dopo aspetta di più.
+
+## Scrivere sul PC e password
+
+Menu → **Inserisci password…**: tocca prima sul PC il campo della password, poi sull'iPad scegli
+la password salvata con la chiave sopra la tastiera (Face ID). Viene digitata solo in quel campo:
+niente appunti, niente console. Con il nome utente compilato scrive nome, Tab e password.
+**Scrivi sul PC…** fa lo stesso con un testo qualsiasi (accenti ed emoji compresi).

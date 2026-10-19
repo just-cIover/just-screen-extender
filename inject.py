@@ -218,6 +218,42 @@ class Injector:
             _mouse(M_HWHEEL, int(dx))
 
 
+# --- tastiera: testo scritto sull'iPad (anche password dal Portachiavi) ------------------
+KEY_UP, KEY_UNICODE = 0x2, 0x4
+KEYS = {'invio': 0x0D, 'tab': 0x09, 'canc': 0x08, 'esc': 0x1B}
+MAX_TYPE = 10_000
+
+
+def _send_keys(events):
+    """events = [(tasto virtuale, carattere UTF-16, flag)], mandati a blocchi."""
+    for i in range(0, len(events), 64):
+        block = events[i:i + 64]
+        arr = (INPUT * len(block))()
+        for k, (vk, scan, flags) in enumerate(block):
+            arr[k].type = 1  # INPUT_KEYBOARD
+            arr[k].u.ki = KEYBDINPUT(vk, scan, flags, 0, 0)
+        user32.SendInput(len(block), arr, ctypes.sizeof(INPUT))
+
+
+def type_text(text):
+    """Scrive il testo nel campo selezionato sul PC, carattere per carattere (qualsiasi lingua o emoji)."""
+    events = []
+    data = text[:MAX_TYPE].replace('\r\n', '\n').replace('\r', '\n').encode('utf-16-le')
+    for i in range(0, len(data), 2):
+        unit = int.from_bytes(data[i:i + 2], 'little')
+        if unit == 10:  # a capo = Invio
+            events += [(KEYS['invio'], 0, 0), (KEYS['invio'], 0, KEY_UP)]
+        else:
+            events += [(0, unit, KEY_UNICODE), (0, unit, KEY_UNICODE | KEY_UP)]
+    _send_keys(events)
+
+
+def press(name):
+    vk = KEYS.get(name)
+    if vk:
+        _send_keys([(vk, 0, 0), (vk, 0, KEY_UP)])
+
+
 # --- penna (Apple Pencil -> penna di Windows, con pressione e inclinazione) -----------
 # Windows 10 1809+ permette di creare una penna "sintetica": i programmi la vedono come una
 # penna vera (Windows Ink), quindi pressione nei programmi di disegno, firma nei PDF di Edge,

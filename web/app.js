@@ -45,6 +45,7 @@ function safeTop() {
 function sendArea() {
   const standalone = navigator.standalone || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
   if (!standalone || innerWidth < innerHeight) return;
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') return; // tastiera aperta: niente cambi
   const dpr = window.devicePixelRatio || 1;
   const top = document.body.classList.contains('sottoBarra') ? safeTop() : 0;
   send({ t: 'area', w: Math.round(innerWidth * dpr), h: Math.round((innerHeight - top) * dpr) });
@@ -835,6 +836,20 @@ function clipFromPC(m) {
     });
   }
 }
+// Scrivere sul PC: testo o credenziali (anche scelte dalle Password dell'iPad) nel campo selezionato sul PC
+function typeOnPC(enter) {
+  const user = $('typeUser').value, pass = $('typePass').value, text = $('typeText').value;
+  if (text) send({ t: 'scrivi', testo: text });
+  if (user) { send({ t: 'scrivi', testo: user }); if (pass) send({ t: 'tasto', k: 'tab' }); }
+  if (pass) send({ t: 'scrivi', testo: pass, segreto: true });
+  if (enter) send({ t: 'tasto', k: 'invio' });
+  for (const id of ['typeUser', 'typePass', 'typeText']) $(id).value = '';
+  document.activeElement.blur();
+  if (user || pass || text) notice('Scritto sul PC', null, null, 3000);
+}
+$('typeGo').addEventListener('click', () => typeOnPC(false));
+$('typeEnter').addEventListener('click', () => typeOnPC(true));
+
 $('clipSend').addEventListener('click', async () => {
   try {
     for (const item of await navigator.clipboard.read()) {

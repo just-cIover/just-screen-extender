@@ -28,6 +28,7 @@ import monitors
 import vdd
 from capture import Capture
 from devices import MAX_DEVICES, Devices
+import inject
 from inject import Injector, Pad
 from pannello import Panel
 from scambio import FOLDER, Exchange
@@ -355,6 +356,15 @@ class Session:
             self.set_quality(d.get('level', 0), 'dal dispositivo')
         elif t == 'appunti':
             self.app.clipboard.from_device_text(self, d.get('testo'))
+        elif t == 'scrivi':
+            text = d.get('testo')
+            if isinstance(text, str) and text:
+                inject.type_text(text)
+                # mai il contenuto nella console: per le password neanche la lunghezza
+                log('password digitata sul PC' if d.get('segreto') else f'testo digitato sul PC ({len(text)} caratteri)',
+                    self.name)
+        elif t == 'tasto':
+            inject.press(str(d.get('k', '')))
         elif t == 'diag':
             d.pop('t', None)
             log(f'info: {json.dumps(d, ensure_ascii=False)}', self.name)
