@@ -8,6 +8,8 @@ Le coordinate arrivano normalizzate (0..1) e vengono riportate sul monitor dell'
 import ctypes
 from ctypes import wintypes
 
+import time
+
 import finestre
 import monitors  # imposta anche la DPI awareness
 
@@ -84,12 +86,14 @@ class Pad:
         self.hub = hub
         self.rect = None
         self.pen_as_finger = False
+        self.last_touch = 0.0  # ultimo tocco mandato a Windows (time.monotonic)
         self.pen_app = ''  # programma sotto la punta all'ultimo appoggio
 
     def set_monitor(self, m):
         self.rect = (m['x'], m['y'], m['w'], m['h']) if m else None
 
     def touch(self, ev, pid, nx, ny):
+        self.last_touch = time.monotonic()
         if self.rect:
             self.hub.touch(ev, (id(self), pid), *_px(self.rect, nx, ny))
 
@@ -111,6 +115,7 @@ class Pad:
             ink, self.pen_app = finestre.ink_app_at(x, y) if auto else (True, '')
             self.pen_as_finger = not ink
         if self.pen_as_finger:
+            self.last_touch = time.monotonic()
             self.hub.touch(ev, (id(self), 'penna'), x, y)
             return 'dito' if ev == 'd' else None
         if not self.hub.pen.ok:  # niente penna di Windows: faccio da mouse

@@ -304,16 +304,19 @@ class Session:
             log(f'qualità {QUALITY_LABELS[level]} ({source}): riavvio la cattura', self.name)
             self.capture.restart()
 
-    async def select_word(self, x, y):
+    async def select_word(self, c, x, y):
         """Doppio tocco sul dispositivo: doppio clic del mouse nello stesso punto, così la parola si
         seleziona anche nei browser (che con il tocco non lo fanno). Aspetto un attimo: subito dopo
         un tocco Edge ignora i clic del mouse."""
         if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
             return
-        await asyncio.sleep(0.6)
+        # Edge conta i clic del mouse insieme ai tocchi arrivati da meno di ~0,5 s: aspetto solo il necessario
+        await asyncio.sleep(max(0.0, 0.55 - (time.monotonic() - self.pad.last_touch)))
         for _ in range(2):
             self.pad.mouse('click', 0, x, y)
             await asyncio.sleep(0.03)
+        c.queue.appendleft(json.dumps({'t': 'parola_ok'}))  # ora il dispositivo mostra Copia/Incolla
+        c.wake.set()
 
     def check_quality(self, stats=None):
         """Qualità automatica: chiamata a ogni statistica del dispositivo (circa ogni 2 s) e, se il
@@ -377,7 +380,7 @@ class Session:
         elif t == 'tasto':
             inject.press(str(d.get('k', '')))
         elif t == 'parola':
-            asyncio.create_task(self.select_word(d.get('x'), d.get('y')))
+            asyncio.create_task(self.select_word(c, d.get('x'), d.get('y')))
         elif t == 'diag':
             d.pop('t', None)
             log(f'info: {json.dumps(d, ensure_ascii=False)}', self.name)

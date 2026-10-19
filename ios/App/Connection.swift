@@ -23,7 +23,8 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
     weak var delegate: ConnectionDelegate?
     var onPenUse: ((String) -> Void)?
     var onClipboard: (([String: Any]) -> Void)?  // appunti copiati sul PC
-    var onNotice: ((String) -> Void)?            // avvisi brevi (es. qualità cambiata in automatico)   // "penna" o "dito": come il PC usa la Pencil nel tratto in corso
+    var onNotice: ((String) -> Void)?
+    var onWordSelected: (() -> Void)?            // il PC ha selezionato la parola (doppio tocco)            // avvisi brevi (es. qualità cambiata in automatico)   // "penna" o "dito": come il PC usa la Pencil nel tratto in corso
     private(set) var ready = false
     private(set) var rtt: Double?          // ritardo di andata e ritorno in ms
     private(set) var pairing = false
@@ -194,6 +195,8 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
                     onNotice?("Qualità \(names[max(0, min(level, 3))]): impostata in automatico dal PC")
                 }
             }
+        case "parola_ok":
+            onWordSelected?()
         case "appunti":
             onClipboard?(m)
         case "penna":

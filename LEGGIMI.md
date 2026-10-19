@@ -204,3 +204,6 @@ si seleziona, anche nei browser, e sull'iPad compare il fumetto **Copia · Tagli
 Seleziona tutto**. *Copia* la mette negli appunti del PC e, con gli appunti condivisi, anche in
 quelli dell'iPad. *Incolla* porta prima sul PC gli appunti dell'iPad. Nell'app web compare un
 avviso con il pulsante *Copia*.
+
+**Tieni premuto** (mezzo secondo, senza muovere il dito): compare lo stesso fumetto, con in più
+*Altro (clic destro)* per il menu di Windows.
