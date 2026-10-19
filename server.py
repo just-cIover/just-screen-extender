@@ -39,6 +39,7 @@ DEFAULTS = {
     'bufsize': '1M',    # buffer piccolo = meno ritardo
     'encoder': 'auto',  # auto | qsv | x264
 }
+QUALITY_LABELS = ['Massima', 'Fluida', 'Media', 'Leggera']
 MAX_QUEUE = 8        # fotogrammi in coda per client oltre i quali salto al prossimo fotogramma completo
 GRACE = 15           # secondi dopo la chiusura dell'app prima di spegnere il suo schermo
 STARTUP_GRACE = 20   # all'avvio aspetto un po' i dispositivi prima di spegnere gli schermi senza nessuno
@@ -265,6 +266,24 @@ class Session:
         self.app.devices.update(self.id, risoluzione=[w, h], configurato=False)
         self.app.kick.set()
 
+    def set_quality(self, level, source):
+        """Qualità (fotogrammi al secondo e risoluzione). La ricorda il PC: la può cambiare il dispositivo
+        dal suo menu oppure il PC, che la impone anche se il dispositivo è troppo lento per rispondere."""
+        try:
+            level = int(level)
+        except (TypeError, ValueError):
+            return
+        old = self.capture.level
+        level = self.capture.apply_level(level)
+        self.app.devices.update(self.id, qualita=level)
+        msg = json.dumps({'t': 'quality', 'level': level})
+        for c in self.clients:
+            c.queue.appendleft(msg)  # prima del video in coda: arriva subito anche se la rete è intasata
+            c.wake.set()
+        if level != old:
+            log(f'qualità {QUALITY_LABELS[level]} ({source}): riavvio la cattura', self.name)
+            self.capture.restart()
+
     def handle(self, c, d):
         t = d.get('t')
         pad = self.pad
@@ -286,12 +305,7 @@ class Session:
         elif t == 'key':
             self.send_gop(c)
         elif t == 'quality':
-            lv = int(d.get('level', 0))
-            if lv != self.capture.level:
-                self.capture.apply_level(lv)
-                self.app.devices.update(self.id, qualita=self.capture.level)
-                log(f'chiesta qualità livello {self.capture.level}: riavvio la cattura', self.name)
-                self.capture.restart()
+            self.set_quality(d.get('level', 0), 'dal dispositivo')
         elif t == 'diag':
             d.pop('t', None)
             log(f'info: {json.dumps(d, ensure_ascii=False)}', self.name)
@@ -353,6 +367,7 @@ class App:
         self.kick.set()
         s.start_capture()
         s.send_gop(c)
+        c.queue.appendleft(json.dumps({'t': 'quality', 'level': s.capture.level}))  # la qualità la ricorda il PC
         c.queue.appendleft(json.dumps({'t': 'hello', 'nome': s.name}))  # per primo, prima del video
         c.wake.set()
         sender = asyncio.create_task(c.sender())

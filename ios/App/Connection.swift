@@ -161,6 +161,9 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
             guard let w = m["w"] as? Int, let h = m["h"] as? Int,
                   let b64 = m["desc"] as? String, let avcC = Data(base64Encoded: b64) else { return }
             delegate?.connection(self, config: VideoConfig(width: w, height: h, fps: m["fps"] as? Int ?? 30, avcC: avcC))
+        case "quality":
+            // la qualità la ricorda il PC (e la può imporre): la tengo allineata nel menu
+            if let level = m["level"] as? Int { Settings.quality = level }
         case "pong":
             if let ts = m["ts"] as? Double { rtt = CACurrentMediaTime() * 1000 - ts }
         case "file":

@@ -98,7 +98,8 @@ class Panel:
                 screen = 'spento'
             row = {'id': dev_id, 'nome': d.get('nome'), 'online': online, 'ip': d.get('ip'),
                    'visto': d.get('visto'), 'schermo': screen, 'numero': (slot or 0) + 1,
-                   'ris': 'x'.join(map(str, d.get('risoluzione', []))) or None}
+                   'ris': 'x'.join(map(str, d.get('risoluzione', []))) or None,
+                   'livello': s.capture.level if s else d.get('qualita', 1)}
             if s:
                 t0, f0, b0 = self.prev.get(dev_id, (now, s.sent_frames, s.sent_bytes))
                 dt = max(now - t0, 0.001)
@@ -163,6 +164,8 @@ class Panel:
                     os.startfile(self.folder)
                 elif t == 'apri':
                     self.exchange.open_file(d.get('nome', ''))
+                elif t == 'qualita':
+                    self.force_quality(d.get('id', ''), d.get('livello', 1))
                 elif t == 'dimentica':
                     await self.forget(d.get('id', ''))
                 elif t == 'esci':
@@ -178,6 +181,14 @@ class Panel:
             if not self.clients:
                 self.last_client = time.monotonic()
         return ws
+
+    def force_quality(self, dev_id, level):
+        """Qualità decisa dal PC: vale subito se il dispositivo è collegato, altrimenti al prossimo collegamento."""
+        s = self.app.sessions.get(dev_id)
+        if s:
+            s.set_quality(level, 'dal PC')
+        elif self.app.devices.get(dev_id):
+            self.app.devices.update(dev_id, qualita=max(0, min(int(level), len(QUALITY_NAMES) - 1)))
 
     async def forget(self, dev_id):
         d = self.app.devices.get(dev_id)

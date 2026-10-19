@@ -97,6 +97,9 @@
   .card.compact { padding: 9px 12px; }
   .card.compact h3 { margin: 0; }
   .card .essential { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .levels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 10px; }
+  .levels button { font-size: 12px; padding: 5px 0; }
+  .levels button[aria-pressed="true"] { background: var(--accent); color: #1a1405; border-color: var(--accent); }
   .gpu { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
   .gpu .sub { margin-bottom: 8px; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
@@ -323,6 +326,15 @@ function deviceCard(d, fresh) {
         metric('Salti', d.salti, '', d.salti ? 'warn' : '')),
       spark(h, 30));
   }
+  // qualità decisa dal PC: arriva al dispositivo anche se è troppo lento per usare il suo menu
+  const levels = el('div', { className: 'levels', role: 'group', ariaLabel: 'Qualità di ' + d.nome },
+    ...['Massima', 'Fluida', 'Media', 'Leggera'].map((name, i) => {
+      const b = el('button', { textContent: name, title: ['60 fps', '30 fps', '30 fps, 75%', '30 fps, 50%'][i] });
+      b.setAttribute('aria-pressed', d.livello === i);
+      b.addEventListener('click', () => send({ t: 'qualita', id: d.id, livello: i }));
+      return b;
+    }));
+  card.append(levels);
   card.append(el('div', { className: 'foot' }, el('span', { textContent: d.ip || '' }), forget));
   return card;
 }

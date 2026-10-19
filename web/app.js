@@ -147,10 +147,16 @@ function onMessage(ev) {
   if (typeof ev.data === 'string') {
     const m = JSON.parse(ev.data);
     if (m.t === 'config') configure(m);
+    else if (m.t === 'quality') {
+      // decisa dal PC (o confermata): aggiorno il menu senza rimandarla indietro
+      quality = m.level; store.set('quality', String(quality));
+      document.querySelectorAll('#quality button').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.q === quality));
+    }
     else if (m.t === 'hello') {
       // riconosciuto dal PC
       pairing = false; $('pinBox').classList.remove('show');
-      send({ t: 'quality', level: quality });
+      // la qualità la ricorda il PC (arriva subito dopo); la mando solo se l'ho abbassata io dopo un crash
+      if (crashed) send({ t: 'quality', level: quality });
       report({ avvio: true, qualita: QUALITY_NAMES[quality], dopoCrash: crashed, schermo: screenInfo() });
       sendArea();
       crashed = null;
