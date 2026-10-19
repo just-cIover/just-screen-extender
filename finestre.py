@@ -285,6 +285,17 @@ def ink_app_at(x, y):
     return bool({child, top} & BROWSER_EXES) and '.pdf' in _title(root).lower(), name
 
 
+def browser_at(x, y):
+    """True se nel punto c'è una pagina di Chromium/Edge/Electron o Firefox: lì il doppio tocco non
+    seleziona la parola, serve un doppio clic del mouse."""
+    hwnd = user32.WindowFromPoint(wintypes.POINT(x, y))
+    if not hwnd:
+        return False
+    root = user32.GetAncestor(hwnd, 2) or hwnd
+    classes = (_class(hwnd), _class(root))
+    return any(c.startswith(('Chrome_', 'Mozilla')) for c in classes)
+
+
 # --- app aperte dallo Start sullo schermo dove le hai cercate ----------------------------
 START_HOSTS = {'startmenuexperiencehost.exe', 'searchhost.exe', 'searchapp.exe'}
 START_WINDOW = 20  # secondi dopo lo Start in cui una finestra nuova la considero "aperta da lì"

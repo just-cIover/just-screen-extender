@@ -498,7 +498,7 @@ function tapUp(t0, x0, y0, e) {
   if (lastTap && now - lastTap.t < 450 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
     lastTap = null;
     const n = norm(e);
-    send({ t: 'parola', x: n.x, y: n.y });
+    send({ t: 'parola', x: n.x, y: n.y, gia: true }); // i due tocchi sono già arrivati a Windows
     notice('Parola selezionata sul PC', 'Copia', () => send({ t: 'tasto', k: 'copia' }), 6000);
   } else {
     lastTap = { t: now, x: e.clientX, y: e.clientY };

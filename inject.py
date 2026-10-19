@@ -89,6 +89,10 @@ class Pad:
         self.last_touch = 0.0  # ultimo tocco mandato a Windows (time.monotonic)
         self.pen_app = ''  # programma sotto la punta all'ultimo appoggio
 
+    def point(self, nx, ny):
+        """Coordinate sullo schermo (pixel) di un punto normalizzato, o None se lo schermo è spento."""
+        return _px(self.rect, nx, ny) if self.rect else None
+
     def set_monitor(self, m):
         self.rect = (m['x'], m['y'], m['w'], m['h']) if m else None
 
