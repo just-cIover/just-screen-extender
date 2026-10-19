@@ -219,3 +219,14 @@ La stessa app nativa (`ipa\SchermoEsteso.ipa`) funziona anche su iPhone: ha il s
 virtuale e il suo PIN. In orizzontale lo schermo virtuale esclude ai lati la tacca o la Dynamic
 Island, così niente finisce sotto la fotocamera. Installazione come per l'iPad: iPhone col cavo,
 AltServer → *Install AltStore* → iPhone, poi *Sideload .ipa*.
+
+## Zoom e file trascinati (app nativa)
+
+- **Zoom:** allarga o stringi due dita per ingrandire solo l'immagine sul dispositivo (fino a 5
+  volte), Windows non cambia. Con l'immagine ingrandita due dita la spostano; stringendo fino in
+  fondo, o dal menu *Torna al 100%*, torni alla vista intera. Al 100% due dita che si muovono
+  insieme scorrono le pagine di Windows; un tocco con due dita è un clic destro.
+- **Trascinare file:** trascina un file o una foto da un'altra app (File, Foto, Safari) e lascialo
+  sullo schermo: va nella cartella condivisa e si apre nel programma su cui l'hai lasciato (sul
+  desktop o in Esplora file: con il suo programma). Si aprono solo documenti e file multimediali,
+  mai programmi o script, e mai dentro finestre di comandi.
