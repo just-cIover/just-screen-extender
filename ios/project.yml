@@ -46,6 +46,16 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        # compare nel foglio Condividi delle altre app: il file arriva qui e va al PC
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Qualsiasi file
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - public.item
+              - public.data
+              - public.content
+        LSSupportsOpeningDocumentsInPlace: false
+        NSPhotoLibraryUsageDescription: "Serve per scegliere foto e video da inviare al PC."
         NSLocalNetworkUsageDescription: "Serve per collegarsi al PC con Schermo Esteso sulla tua rete."
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
