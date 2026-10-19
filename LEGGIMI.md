@@ -31,6 +31,11 @@ dove si trova lo schermo dell'iPad (*Impostazioni → Sistema → Schermo*).
 - *Apri qui* apre sul PC solo documenti e file multimediali, mai programmi o script. I file
   arrivati dai dispositivi sono marcati come "scaricati da Internet" (SmartScreen, Office).
 
+- Firewall (`strumentiirewall.ps1`, da amministratore): la porta 8770 è aperta solo sulle reti
+  **Private** e solo ai dispositivi della stessa rete locale. Su una rete nuova (es. l'hotspot del
+  telefono) impostala come privata: *Impostazioni → Rete e Internet → Wi-Fi → nome rete → Rete
+  privata*, altrimenti i dispositivi non si collegano. Sulle reti pubbliche il PC resta chiuso.
+
 ## Più dispositivi e chiusura dell'app
 
 - Ogni dispositivo ha il suo schermo virtuale, sempre lo stesso: Windows ricorda per ognuno
