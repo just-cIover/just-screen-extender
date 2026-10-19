@@ -1,0 +1,7 @@
+{
+  "port": 8770,
+  "porta_locale": 8769,
+  "quality": 1,
+  "bufsize": "1M",
+  "encoder": "auto"
+}

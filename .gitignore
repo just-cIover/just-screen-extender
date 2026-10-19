@@ -1,0 +1,13 @@
+# segreti e dati personali: non vanno mai su GitHub
+certs/
+dispositivi.json
+download/
+download-info.json
+server.log
+.edge-profilo/
+# generati
+__pycache__/
+ios/build/
+ios/*.xcodeproj/
+*.ipa
+Payload/

@@ -1,0 +1,45 @@
+# Compila l'app per iPad su un Mac nel cloud di GitHub e la pubblica come file .ipa.
+# L'app esce senza firma: la firma la fa AltStore/SideStore con l'Apple ID, sull'iPad.
+name: App iPad
+
+on:
+  push:
+    paths: ['ios/**', '.github/workflows/ios.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installa XcodeGen
+        run: brew install xcodegen
+
+      - name: Genera il progetto Xcode
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Compila
+        working-directory: ios
+        run: |
+          xcodebuild -quiet -project SchermoEsteso.xcodeproj -scheme SchermoEsteso \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+
+      - name: Crea il file .ipa
+        run: |
+          mkdir -p Payload
+          cp -R ios/build/Build/Products/Release-iphoneos/SchermoEsteso.app Payload/
+          zip -qry SchermoEsteso.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SchermoEsteso-ipa
+          path: SchermoEsteso.ipa
+          retention-days: 30

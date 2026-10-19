@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schermo Esteso</title>
+<link rel="icon" href="/icon.png">
+<style>
+  :root {
+    --bg: #0b0c10;
+    --panel: #14161c;
+    --panel2: #1a1d25;
+    --line: #262a34;
+    --text: #e9ecf1;
+    --muted: #8b93a1;
+    --accent: #f2b84b;
+    --ok: #57d18b;
+    --bad: #ff6b6b;
+    --mono: "Cascadia Mono", "Cascadia Code", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.45 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+  body { display: flex; flex-direction: column; overflow: hidden; }
+  button { font: inherit; font-weight: 600; color: var(--text); background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button:hover { border-color: #3a404d; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary { background: var(--accent); color: #1a1405; border-color: var(--accent); }
+  button.danger { color: var(--bad); }
+
+  /* testata */
+  header { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  header img { width: 28px; height: 28px; border-radius: 7px; }
+  header h1 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  .pill.off::before { background: var(--bad); }
+  .addr { display: flex; gap: 6px; flex-wrap: wrap; margin-left: 8px; }
+  .addr button { font-family: var(--mono); font-weight: 500; font-size: 13px; }
+  .spacer { flex: 1; }
+
+  /* PIN */
+  #pins:empty { display: none; }
+  .pinbar { display: flex; align-items: center; gap: 16px; margin: 12px 16px 0; padding: 12px 16px;
+    border: 1px solid var(--accent); border-radius: 12px; background: rgba(242, 184, 75, .08); }
+  .pinbar .code { font-family: var(--mono); font-size: 30px; font-weight: 700; letter-spacing: .12em; color: var(--accent); }
+  .pinbar small { color: var(--muted); display: block; }
+
+  /* corpo: console 2/3, prestazioni 1/3 */
+  main { flex: 1; min-height: 0; display: grid; grid-template-columns: 2fr 1fr; gap: 12px; padding: 12px 16px 16px; }
+  section { min-height: 0; display: flex; flex-direction: column; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  section > h2 { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; font-size: 12px;
+    font-weight: 650; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); border-bottom: 1px solid var(--line); }
+  section > h2 .spacer { flex: 1; }
+  section > h2 button { font-size: 12px; padding: 3px 10px; text-transform: none; letter-spacing: 0; }
+
+  #log { flex: 1; overflow-y: auto; padding: 8px 0; font: 12.5px/1.55 var(--mono); user-select: text; }
+  #log div { padding: 0 12px; white-space: pre-wrap; word-break: break-word; }
+  #log div:hover { background: rgba(255, 255, 255, .025); }
+  #log .t { color: #5f6775; margin-right: 10px; }
+  #log .who { display: inline-block; margin-right: 8px; padding: 0 6px; border-radius: 4px; font-weight: 700;
+    color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
+  #log .pin { color: var(--accent); font-weight: 700; }
+  #log .err { color: var(--bad); }
+  #log .ok { color: var(--ok); }
+  #log .soft { color: var(--muted); }
+  #follow[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+
+  .col { min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+  .col .grow { flex: 3; }
+  #filesec { flex: 2; }
+  .drop { margin: 10px 12px 6px; padding: 12px; border: 2px dashed var(--line); border-radius: 10px; text-align: center; font-size: 13px; }
+  .drop small { display: block; color: var(--muted); margin-top: 2px; }
+  .progress { position: relative; height: 22px; margin-top: 8px; border-radius: 6px; background: #0c0d11; overflow: hidden; }
+  .progress i { position: absolute; inset: 0 auto 0 0; width: 0; background: rgba(242, 184, 75, .35); }
+  .progress span { position: relative; line-height: 22px; font-size: 12px; }
+  #flist { list-style: none; margin: 0; padding: 0 12px 10px; overflow-y: auto; flex: 1; }
+  #flist li { display: flex; align-items: center; gap: 8px; padding: 7px 4px; border-top: 1px solid var(--line); cursor: default; border-radius: 6px; }
+  #flist li:hover { background: rgba(255, 255, 255, .03); }
+  #flist .info { flex: 1; min-width: 0; }
+  #flist .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #flist .meta { color: var(--muted); font-size: 12px; }
+  #flist button { font-size: 12px; padding: 3px 10px; }
+  #dropcover { position: fixed; inset: 0; display: none; place-items: center; z-index: 10;
+    background: rgba(11, 12, 16, .8); border: 3px dashed var(--accent); font-size: 20px; font-weight: 650; color: var(--accent); pointer-events: none; }
+  body.dragging #dropcover { display: grid; }
+  #side { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .card.offline { opacity: .55; }
+  .card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 2px; font-size: 15px; }
+  .card h3 button.fold { all: unset; display: flex; align-items: center; gap: 8px; flex: 1; cursor: pointer; border-radius: 6px; }
+  .card h3 button.fold:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .card h3 .chev { margin-left: auto; color: var(--muted); font-size: 12px; transition: transform .2s; }
+  .card.compact h3 .chev { transform: rotate(-90deg); }
+  .card.compact { padding: 9px 12px; }
+  .card.compact h3 { margin: 0; }
+  .card .essential { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .gpu { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .gpu .sub { margin-bottom: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.on { background: var(--ok); box-shadow: 0 0 0 3px rgba(87, 209, 139, .15); }
+  .sub { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+  .m small { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  .m b { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .m b.warn { color: var(--accent); }
+  .m b.bad { color: var(--bad); }
+  .m span { color: var(--muted); font-size: 12px; margin-left: 3px; }
+  .bar { height: 6px; border-radius: 3px; background: #0c0d11; overflow: hidden; margin-top: 4px; }
+  .bar i { display: block; height: 100%; background: var(--accent); transition: width .4s; }
+  svg.spark { display: block; width: 100%; height: 34px; margin-top: 10px; }
+  .foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; color: var(--muted); font-size: 12px; }
+  .foot button { font-size: 12px; padding: 3px 10px; }
+  .empty { color: var(--muted); font-size: 13px; padding: 4px 2px; }
+
+  /* server non raggiungibile */
+  #down { position: fixed; inset: 0; display: none; place-items: center; background: rgba(11, 12, 16, .92); text-align: center; }
+  #down.show { display: grid; }
+  #down p { color: var(--muted); }
+
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; grid-template-rows: 2fr 1fr; } .addr { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <img src="/icon.png" alt="">
+  <h1>Schermo Esteso</h1>
+  <span class="pill" id="state">Attivo</span>
+  <div class="addr" id="addr" title="Indirizzo da aprire in Safari sul dispositivo (clic per copiarlo)"></div>
+  <div class="spacer"></div>
+  <button id="folder">Cartella download</button>
+  <button id="quit">Chiudi</button>
+</header>
+
+<div id="pins"></div>
+
+<main>
+  <section aria-label="Console">
+    <h2>Console<span class="spacer"></span>
+      <button id="follow" aria-pressed="true" title="Scorre da sola fino all'ultima riga">Segui</button>
+      <button id="clear">Pulisci</button>
+    </h2>
+    <div id="log" role="log" aria-live="polite"></div>
+  </section>
+  <div class="col">
+    <section aria-label="Prestazioni" class="grow">
+      <h2>Prestazioni<span class="spacer"></span><button id="compactAll" title="Mostra solo l'essenziale">Riduci tutto</button></h2>
+      <div id="side"></div>
+    </section>
+    <section aria-label="File condivisi" id="filesec">
+      <h2>File condivisi<span class="spacer"></span><button id="folder2">Apri cartella</button></h2>
+      <div class="drop" id="drop">
+        <b>Trascina qui i file</b> (o in qualsiasi punto della finestra)
+        <small>Li vedono tutti i dispositivi. Si tolgono solo cancellandoli dalla cartella.</small>
+        <div class="progress" id="up" hidden><i></i><span></span></div>
+      </div>
+      <ul id="flist"></ul>
+    </section>
+  </div>
+</main>
+<div id="dropcover"><div>Rilascia per condividere con i dispositivi</div></div>
+
+<div id="down"><div><h2>Il server non risponde</h2><p>Riaprilo dal menu Start: <b>Schermo Esteso</b>.</p></div></div>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+const history = {}; // dispositivo -> ultimi 60 valori di fotogrammi al secondo
+const cpuHist = [];
+let ws = null, follow = true, closing = false;
+
+/* ---------- console ---------- */
+// un colore fisso per ogni dispositivo (PC sempre grigio-azzurro)
+const TAG_COLORS = ['#f2b84b', '#57d1c4', '#b48cff', '#ff8fb1', '#7fb2ff', '#9be36d'];
+function tagColor(name) {
+  if (name === 'PC') return '#9fb3c8';
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+  return TAG_COLORS[h % TAG_COLORS.length];
+}
+function kind(text) {
+  if (text.includes('***')) return 'pin';
+  if (/errore|non riuscit|rifiutat|ffmpeg:|traceback/i.test(text)) return 'err';
+  if (/^(collegato da|abbinato) |è attivo/i.test(text)) return 'ok';
+  if (/cattura (avviata|fermata)|non ancora pronto/i.test(text)) return 'soft';
+  return '';
+}
+function addLines(lines) {
+  const log = $('log');
+  const frag = document.createDocumentFragment();
+  for (const line of lines) {
+    if (!line.trim() || /^\d\d:\d\d:\d\d\s*$/.test(line)) continue;
+    const m = line.match(/^(\d\d:\d\d:\d\d) (.*)$/s);
+    let text = m ? m[2] : line;
+    const tag = text.match(/^\[([^\]]{1,40})\] (.*)$/s);  // [iPad] azione
+    const row = el('div', {}, el('span', { className: 't', textContent: m ? m[1] : '' }));
+    if (tag) { row.append(el('span', { className: 'who', textContent: tag[1], style: `--c:${tagColor(tag[1])}` })); text = tag[2]; }
+    row.className = kind(text);
+    row.append(text);
+    frag.append(row);
+  }
+  log.append(frag);
+  while (log.childElementCount > 3000) log.firstElementChild.remove();
+  if (follow) log.scrollTop = log.scrollHeight;
+}
+$('log').addEventListener('scroll', () => {
+  const log = $('log');
+  const atEnd = log.scrollHeight - log.scrollTop - log.clientHeight < 30;
+  if (atEnd !== follow) { follow = atEnd; $('follow').setAttribute('aria-pressed', follow); }
+});
+$('follow').addEventListener('click', () => {
+  follow = !follow; $('follow').setAttribute('aria-pressed', follow);
+  if (follow) $('log').scrollTop = $('log').scrollHeight;
+});
+$('clear').addEventListener('click', () => $('log').replaceChildren());
+
+/* ---------- prestazioni ---------- */
+function spark(values, max) {
+  const w = 300, h = 34;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`); svg.setAttribute('preserveAspectRatio', 'none');
+  svg.classList.add('spark'); svg.setAttribute('aria-hidden', 'true');
+  if (values.length > 1) {
+    const top = Math.max(max, ...values, 1);
+    const pts = values.map((v, i) => `${(i / 59) * w},${h - 2 - (v / top) * (h - 4)}`);
+    const area = document.createElementNS(svg.namespaceURI, 'polyline');
+    area.setAttribute('points', `${pts[0].split(',')[0]},${h} ${pts.join(' ')} ${pts.at(-1).split(',')[0]},${h}`);
+    area.setAttribute('fill', 'rgba(242,184,75,.12)'); area.setAttribute('stroke', 'none');
+    const line = document.createElementNS(svg.namespaceURI, 'polyline');
+    line.setAttribute('points', pts.join(' '));
+    line.setAttribute('fill', 'none'); line.setAttribute('stroke', '#f2b84b'); line.setAttribute('stroke-width', '1.5');
+    line.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.append(area, line);
+  }
+  return svg;
+}
+const metric = (label, value, unit = '', cls = '') =>
+  el('div', { className: 'm' }, el('small', { textContent: label }),
+    el('b', { className: cls, textContent: value ?? '–' }), unit && value != null ? el('span', { textContent: unit }) : '');
+
+/* schede riducibili: con un clic sul titolo resta solo l'essenziale (ricordato tra un'apertura e l'altra) */
+const compact = new Set(JSON.parse(localStorage.getItem('compatte') || '[]'));
+function setCompact(id, on) {
+  on ? compact.add(id) : compact.delete(id);
+  try { localStorage.setItem('compatte', JSON.stringify([...compact])); } catch {}
+}
+function cardHead(id, dotOn, title, essential) {
+  const btn = el('button', { className: 'fold' }, el('span', { className: 'dot' + (dotOn ? ' on' : '') }), title,
+    el('span', { className: 'essential', textContent: compact.has(id) ? essential : '' }),
+    el('span', { className: 'chev', textContent: '▾' }));
+  btn.setAttribute('aria-expanded', !compact.has(id));
+  btn.addEventListener('click', () => { setCompact(id, !compact.has(id)); if (lastState) render(lastState, false); });
+  return el('h3', {}, btn);
+}
+let lastState = null;
+$('compactAll').addEventListener('click', () => {
+  const ids = ['pc', ...(lastState?.dispositivi || []).map((d) => d.id)];
+  const all = ids.every((id) => compact.has(id));
+  ids.forEach((id) => setCompact(id, !all));
+  if (lastState) render(lastState, false);
+});
+
+function pcCard(pc, fresh) {
+  if (fresh && pc.cpu != null) { cpuHist.push(pc.cpu); if (cpuHist.length > 60) cpuHist.shift(); }
+  const g = pc.gpu;
+  const essential = `CPU ${pc.cpu ?? '–'}% · RAM ${pc.ram}%` + (g ? ` · GPU ${g.uso}%` : '');
+  if (compact.has('pc')) return el('div', { className: 'card compact' }, cardHead('pc', true, 'Questo PC', essential));
+  const cpu = el('div', { className: 'm' }, el('small', { textContent: 'Processore' }),
+    el('b', { textContent: pc.cpu ?? '–' }), el('span', { textContent: '%' }),
+    el('div', { className: 'bar' }, el('i', { style: `width:${pc.cpu || 0}%` })));
+  const ram = el('div', { className: 'm' }, el('small', { textContent: 'Memoria' }),
+    el('b', { textContent: pc.ramGb }), el('span', { textContent: `/ ${pc.ramTot} GB` }),
+    el('div', { className: 'bar' }, el('i', { style: `width:${pc.ram}%` })));
+  const card = el('div', { className: 'card' }, cardHead('pc', true, 'Questo PC', essential),
+    el('div', { className: 'sub', textContent: 'Uso negli ultimi 60 secondi' }),
+    el('div', { className: 'grid' }, cpu, ram), spark(cpuHist, 100));
+  if (g) {
+    const bar = (label, v, title) => el('div', { className: 'm', title }, el('small', { textContent: label }),
+      el('b', { textContent: v }), el('span', { textContent: '%' }),
+      el('div', { className: 'bar' }, el('i', { style: `width:${v}%` })));
+    card.append(el('div', { className: 'gpu' },
+      el('div', { className: 'sub', textContent: g.nome }),
+      el('div', { className: 'grid' },
+        bar('Scheda grafica', g.uso, 'Il motore più carico della scheda, come in Gestione attività'),
+        bar('Motore video', g.codifica, 'Compressione degli schermi mandati ai dispositivi (e video riprodotti sul PC)'),
+        metric('Memoria grafica', g.memGb, 'GB'))));
+  }
+  return card;
+}
+
+function deviceCard(d, fresh) {
+  const h = (history[d.id] ||= []);
+  if (fresh) h.push(d.online ? (d.fps ?? d.fpsInviati ?? 0) : 0); if (h.length > 60) h.shift();
+  const rttCls = d.rtt > 120 ? 'bad' : d.rtt > 50 ? 'warn' : '';
+  const forget = el('button', { className: 'danger', textContent: 'Dimentica' });
+  forget.addEventListener('click', () => {
+    if (confirm(`Dimenticare ${d.nome}? Per ricollegarlo servirà di nuovo il PIN.`)) send({ t: 'dimentica', id: d.id });
+  });
+  const sub = d.online
+    ? `Schermo ${d.numero} · ${d.schermo}${d.ris ? ' · ' + d.ris.replace('x', '×') : ''}`
+    : `Non collegato${d.visto ? ' · ultima volta ' + d.visto.slice(8, 10) + '/' + d.visto.slice(5, 7) + d.visto.slice(10) : ''}`;
+  const essential = d.online
+    ? `${d.fps ?? d.fpsInviati ?? '–'} fps · ${d.rtt ?? '–'} ms · ${d.mbit ?? '–'} Mbit/s`
+    : 'non collegato';
+  if (compact.has(d.id)) {
+    return el('div', { className: 'card compact' + (d.online ? '' : ' offline') }, cardHead(d.id, d.online, d.nome, essential));
+  }
+  const card = el('div', { className: 'card' + (d.online ? '' : ' offline') },
+    cardHead(d.id, d.online, d.nome, essential),
+    el('div', { className: 'sub', textContent: sub }));
+  if (d.online) {
+    card.append(
+      el('div', { className: 'grid' },
+        metric('Fotogrammi', d.fps ?? d.fpsInviati, d.fps != null ? `/ ${d.fpsInviati} al s` : 'al s'),
+        metric('Ritardo rete', d.rtt, 'ms', rttCls),
+        metric('Dati', d.mbit, 'Mbit/s'),
+        metric('Qualità', d.qualita),
+        metric('Motore', d.motore ? d.motore.split('/')[0] : null),
+        metric('Salti', d.salti, '', d.salti ? 'warn' : '')),
+      spark(h, 30));
+  }
+  card.append(el('div', { className: 'foot' }, el('span', { textContent: d.ip || '' }), forget));
+  return card;
+}
+
+function size(f) { return f.dim; }
+function when(t) {
+  const d = new Date(t * 1000), now = new Date();
+  const hm = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  return d.toDateString() === now.toDateString() ? 'oggi ' + hm : d.toLocaleDateString('it-IT') + ' ' + hm;
+}
+let filesKey = '';
+function renderFiles(files) {
+  const key = JSON.stringify(files);
+  if (key === filesKey) return; // invariato: non ridisegno (non perdo lo scorrimento)
+  filesKey = key;
+  if (!files.length) {
+    $('flist').replaceChildren(el('li', { className: 'empty', textContent: 'Nessun file nella cartella download.' }));
+    return;
+  }
+  $('flist').replaceChildren(...files.map((f) => {
+    const open = el('button', { textContent: 'Apri' });
+    open.addEventListener('click', () => send({ t: 'apri', nome: f.nome }));
+    const li = el('li', { title: 'Doppio clic per aprirlo' },
+      el('div', { className: 'info' }, el('div', { className: 'n', textContent: f.nome }),
+        el('div', { className: 'meta', textContent: `${size(f)} · da ${f.da} · ${when(f.ora)}` })), open);
+    li.addEventListener('dblclick', () => send({ t: 'apri', nome: f.nome }));
+    return li;
+  }));
+}
+
+/* ---------- trascinamento file ---------- */
+let depth = 0;
+const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+addEventListener('dragenter', (e) => { if (hasFiles(e)) { e.preventDefault(); depth++; document.body.classList.add('dragging'); } });
+addEventListener('dragover', (e) => { if (hasFiles(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; document.body.classList.remove('dragging'); } });
+addEventListener('drop', (e) => {
+  e.preventDefault(); depth = 0; document.body.classList.remove('dragging');
+  const list = [...(e.dataTransfer?.files || [])].filter((f) => f.size || f.type);
+  if (!list.length) { addLines([`${new Date().toTimeString().slice(0, 8)} Le cartelle non si possono condividere: trascina i file.`]); return; }
+  const form = new FormData();
+  for (const f of list) form.append('file', f, f.name);
+  const bar = $('up'), fill = bar.firstElementChild, label = bar.lastElementChild;
+  bar.hidden = false; fill.style.width = '0'; label.textContent = 'Copia…';
+  const x = new XMLHttpRequest();
+  x.open('POST', '/pc/invia');
+  x.upload.onprogress = (ev) => { if (ev.lengthComputable) { const p = Math.round(ev.loaded / ev.total * 100); fill.style.width = p + '%'; label.textContent = `Copia… ${p}%`; } };
+  x.onload = () => { fill.style.width = '100%'; label.textContent = x.status === 200 ? `Condivisi ${list.length} file` : 'Copia non riuscita'; setTimeout(() => (bar.hidden = true), 2500); };
+  x.onerror = () => { label.textContent = 'Copia non riuscita'; };
+  x.send(form);
+});
+
+function render(st, fresh = true) {
+  lastState = st;
+  $('compactAll').textContent = ['pc', ...st.dispositivi.map((d) => d.id)].every((id) => compact.has(id)) ? 'Espandi tutto' : 'Riduci tutto';
+  renderFiles(st.file || []);
+  const side = $('side');
+  const kids = [pcCard(st.pc, fresh)];
+  if (!st.dispositivi.length) kids.push(el('div', { className: 'empty', textContent: 'Nessun dispositivo abbinato. Apri l\u2019indirizzo in alto in Safari sul dispositivo.' }));
+  for (const d of st.dispositivi) kids.push(deviceCard(d, fresh));
+  const top = side.scrollTop;
+  side.replaceChildren(...kids);
+  side.scrollTop = top;
+  $('pins').replaceChildren(...st.pin.map((p) => el('div', { className: 'pinbar' },
+    el('div', {}, el('b', { textContent: `${p.nome} vuole collegarsi` }),
+      el('small', { textContent: `Inserisci questo PIN sul dispositivo · scade tra ${Math.floor(p.secondi / 60)}:${String(p.secondi % 60).padStart(2, '0')}` })),
+    el('span', { className: 'code', textContent: p.pin.slice(0, 3) + ' ' + p.pin.slice(3) }))));
+}
+
+/* ---------- collegamento al server ---------- */
+function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/pc/ws`);
+  ws.onopen = () => { $('down').classList.remove('show'); $('state').classList.remove('off'); $('state').textContent = 'Attivo'; };
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (m.t === 'inizio') {
+      $('log').replaceChildren(); addLines(m.righe);
+      $('addr').replaceChildren(...m.indirizzi.map((u) => {
+        const b = el('button', { textContent: u.replace('http://', '') });
+        b.addEventListener('click', () => { navigator.clipboard?.writeText(u); b.textContent = 'Copiato'; setTimeout(() => (b.textContent = u.replace('http://', '')), 1200); });
+        return b;
+      }));
+    } else if (m.t === 'righe') addLines(m.righe);
+    else if (m.t === 'stato') render(m);
+  };
+  ws.onclose = () => {
+    $('state').classList.add('off'); $('state').textContent = 'Non attivo';
+    if (closing) { window.close(); return; }
+    $('down').classList.add('show');
+    setTimeout(connect, 1500);
+  };
+}
+$('folder').addEventListener('click', () => send({ t: 'cartella' }));
+$('folder2').addEventListener('click', () => send({ t: 'cartella' }));
+$('quit').addEventListener('click', () => {
+  if (!confirm('Chiudere Schermo Esteso? Gli schermi virtuali si spengono e le loro finestre tornano sul monitor principale.')) return;
+  closing = true; send({ t: 'esci' });
+});
+connect();
+</script>
+</body>
+</html>
