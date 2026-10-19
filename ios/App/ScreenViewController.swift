@@ -235,7 +235,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
 
     func connectionNeedsPin(_ c: Connection, message: String?) {
         hideStatus()
-        let text = (message.map { $0 + "\n\n" } ?? "") + "Questo iPad è nuovo per il PC: inserisci il PIN di 6 cifre che compare ora nella finestra di Schermo Esteso."
+        let text = (message.map { $0 + "\n\n" } ?? "") + "Questo \(UIDevice.current.model) è nuovo per il PC: inserisci il PIN di 6 cifre che compare ora nella finestra di Schermo Esteso."
         if let alert = pinAlert {
             alert.message = text
             alert.textFields?.first?.text = ""
@@ -266,13 +266,28 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             pendingShared = []
             receiveShared(waiting)
         }
-        UIApplication.shared.isIdleTimerDisabled = true  // l'iPad non va in standby mentre fa da schermo
+        UIApplication.shared.isIdleTimerDisabled = true  // il dispositivo non va in standby mentre fa da schermo
         let info = Bundle.main.infoDictionary
         let version = "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
-        c.send(["t": "diag", "motore": "nativo", "avvio": true, "ua": "Schermo Esteso iOS \(version), \(UIDevice.current.model) iPadOS \(UIDevice.current.systemVersion)"])
-        // tutto lo schermo è disponibile: lo schermo virtuale prende esattamente le sue misure
-        let px = UIScreen.main.nativeBounds.size
-        c.send(["t": "area", "w": Int(max(px.width, px.height)), "h": Int(min(px.width, px.height))])
+        let device = UIDevice.current
+        c.send(["t": "diag", "motore": "nativo", "avvio": true,
+                "ua": "Schermo Esteso iOS \(version), \(device.model) \(device.systemName) \(device.systemVersion)"])
+        sendArea()
+    }
+
+    /// Pixel utili: tutto lo schermo, tranne ai lati la tacca o la Dynamic Island dell'iPhone in orizzontale.
+    /// Lo schermo virtuale prende esattamente queste misure (su iPad = tutto lo schermo).
+    private func sendArea() {
+        guard connection.ready else { return }
+        let b = view.bounds, i = view.safeAreaInsets, scale = UIScreen.main.nativeScale
+        let w = (b.width - i.left - i.right) * scale, h = b.height * scale
+        let even = { (v: CGFloat) in Int(v.rounded()) & ~1 }  // la codifica video vuole misure pari
+        connection.send(["t": "area", "w": even(max(w, h)), "h": even(min(w, h))])
+    }
+
+    override func viewSafeAreaInsetsDidChange() {
+        super.viewSafeAreaInsetsDidChange()
+        sendArea()
     }
 
     func connection(_ c: Connection, config: VideoConfig) {
@@ -837,13 +852,13 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         if m["tipo"] as? String == "testo", let text = m["testo"] as? String {
             UIPasteboard.general.string = text
             Settings.pasteboardSeen = UIPasteboard.general.changeCount  // non lo rimando indietro
-            showToast("Appunti dal PC copiati sull'iPad")
+            showToast("Appunti dal PC copiati su \(UIDevice.current.model)")
         } else if m["tipo"] as? String == "immagine" {
             Task { @MainActor in
                 guard let data = try? await FileAPI.clipboardImage(), let image = UIImage(data: data) else { return }
                 UIPasteboard.general.image = image
                 Settings.pasteboardSeen = UIPasteboard.general.changeCount
-                showToast("Immagine dagli appunti del PC copiata sull'iPad")
+                showToast("Immagine dagli appunti del PC copiata su \(UIDevice.current.model)")
             }
         }
     }
@@ -858,18 +873,18 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         guard connection.ready else { return }
         if pb.hasStrings, let text = pb.string, !text.isEmpty {
             connection.send(["t": "appunti", "testo": text])
-            showToast("Appunti dell'iPad copiati sul PC")
+            showToast("Appunti di \(UIDevice.current.model) copiati sul PC")
         } else if pb.hasImages, let png = pb.image?.pngData() {
             Task { @MainActor in
                 do {
                     try await FileAPI.sendClipboardImage(png)
-                    showToast("Immagine dell'iPad copiata negli appunti del PC")
+                    showToast("Immagine di \(UIDevice.current.model) copiata negli appunti del PC")
                 } catch {
                     showToast("Appunti non inviati: \(error.localizedDescription)")
                 }
             }
         } else if force {
-            showToast("Gli appunti dell'iPad sono vuoti")
+            showToast("Gli appunti di \(UIDevice.current.model) sono vuoti")
         }
     }
 

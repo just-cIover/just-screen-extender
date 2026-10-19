@@ -16,7 +16,7 @@ enum FileError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noPC: return "Prima collega l'app al PC."
-        case .server(403): return "Il PC non riconosce più questo iPad: abbinalo di nuovo dal menu."
+        case .server(403): return "Il PC non riconosce più questo dispositivo: abbinalo di nuovo dal menu."
         case .server(404): return "Il file non c'è più sul PC."
         case .server(let code): return "Il PC ha risposto con un errore (\(code))."
         case .bad: return "Risposta del PC non valida."
