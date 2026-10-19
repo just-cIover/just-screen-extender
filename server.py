@@ -298,7 +298,11 @@ class Session:
         elif t == 'apri':
             asyncio.create_task(self.app.open_here(self, str(d.get('nome', ''))))
         elif t == 'pen':
-            pad.pen(d['e'], d['x'], d['y'], float(d.get('p', 0.5)), d.get('tx', 0), d.get('ty', 0), bool(d.get('er')))
+            use = pad.pen(d['e'], d['x'], d['y'], float(d.get('p', 0.5)), d.get('tx', 0), d.get('ty', 0),
+                          bool(d.get('er')), bool(d.get('auto')))
+            if use:  # al dispositivo: se in questo tratto la Pencil scrive o fa da dito (niente inchiostro)
+                c.queue.appendleft(json.dumps({'t': 'penna', 'uso': use}))
+                c.wake.set()
         elif t == 'ping':
             c.push_text(json.dumps({'t': 'pong', 'ts': d.get('ts'), 'drop': c.dropped,
                                     'restarts': self.capture.restarts}))
@@ -704,6 +708,18 @@ async def ca_certificate(request):
                         headers={'Content-Disposition': 'attachment; filename="Schermo Esteso.crt"'})
 
 
+async def follow_start():
+    """Le app aperte dallo Start compaiono sullo schermo dove hai aperto lo Start."""
+    follower = await asyncio.to_thread(finestre.StartFollower, log)
+    while True:
+        await asyncio.sleep(0.25)
+        try:
+            await asyncio.to_thread(follower.tick)
+        except Exception as e:  # una finestra sparita a metà controllo: riprovo al giro dopo
+            log(f'Controllo dello Start: {e!r}')
+            await asyncio.sleep(5)
+
+
 async def watch_addresses(ctx, panel, port):
     """Se cambia la rete (es. hotspot del telefono), rifaccio il certificato per il nuovo indirizzo."""
     while True:
@@ -777,7 +793,8 @@ async def main():
 
     tasks = [asyncio.create_task(app.keepalive()), asyncio.create_task(app.watch_monitors()),
              asyncio.create_task(app.reconciler()), asyncio.create_task(exchange.watch()),
-             asyncio.create_task(panel.watch_window()), asyncio.create_task(watch_addresses(ctx, panel, port))]
+             asyncio.create_task(panel.watch_window()), asyncio.create_task(watch_addresses(ctx, panel, port)),
+             asyncio.create_task(follow_start())]
     stopper = asyncio.create_task(app.stop.wait())
     try:
         await asyncio.wait([stopper, *tasks], return_when=asyncio.FIRST_COMPLETED)

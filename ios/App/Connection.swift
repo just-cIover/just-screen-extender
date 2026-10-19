@@ -21,6 +21,7 @@ protocol ConnectionDelegate: AnyObject {
 /// Collegamento cifrato (WebSocket su HTTPS) con il server sul PC: stesso protocollo dell'app web.
 final class Connection: NSObject, URLSessionWebSocketDelegate {
     weak var delegate: ConnectionDelegate?
+    var onPenUse: ((String) -> Void)?   // "penna" o "dito": come il PC usa la Pencil nel tratto in corso
     private(set) var ready = false
     private(set) var rtt: Double?          // ritardo di andata e ritorno in ms
     private(set) var pairing = false
@@ -185,6 +186,8 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         case "quality":
             // la qualità la ricorda il PC (e la può imporre): la tengo allineata nel menu
             if let level = m["level"] as? Int { Settings.quality = level }
+        case "penna":
+            if let use = m["uso"] as? String { onPenUse?(use) }
         case "pong":
             if let ts = m["ts"] as? Double { rtt = CACurrentMediaTime() * 1000 - ts }
         case "file":

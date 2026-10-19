@@ -18,7 +18,7 @@ let lastMsg = 0;
 let retry = 0;
 let retryTimer = null;
 let mode = store.get('mode', 'touch');
-let penMode = store.get('penMode', 'penna'); // penna | gomma | mouse
+let penMode = store.get('penMode2', 'auto'); // auto | penna | gomma | mouse
 let pairing = false; // in attesa del PIN: niente controllo "nessun dato da 4 s"
 let pairHold = 0;     // abbinamenti bloccati dal PC fino a quest'ora: niente tentativi a raffica
 
@@ -147,6 +147,11 @@ function onMessage(ev) {
   if (typeof ev.data === 'string') {
     const m = JSON.parse(ev.data);
     if (m.t === 'config') configure(m);
+    else if (m.t === 'penna') {
+      // il PC ha deciso: sotto la punta non c'è un programma da disegno, quindi scorre e tocca
+      penFinger = m.uso === 'dito';
+      if (penFinger) { strokes.length = 0; inkLast = null; ictx.clearRect(0, 0, ink.width, ink.height); }
+    }
     else if (m.t === 'quality') {
       // decisa dal PC (o confermata): aggiorno il menu senza rimandarla indietro
       quality = m.level; store.set('quality', String(quality));
@@ -341,6 +346,7 @@ function mid() {
 // (firma nei PDF di Edge, disegno, appunti, scrittura a mano). Mentre la Pencil scrive, i tocchi
 // del palmo appoggiato vengono ignorati.
 let penId = null, penUpAt = 0;
+let penFinger = false; // in automatica: in questo tratto la Pencil fa da dito (niente inchiostro)
 
 // Inchiostro immediato: il tratto compare subito sull'iPad e sfuma quando arriva quello vero dal PC
 // (rete + compressione + decodifica). Così la scrittura sembra senza ritardo.
@@ -358,7 +364,7 @@ window.addEventListener('resize', sizeInk);
 sizeInk();
 const inkLife = () => Math.min(600, Math.max(150, (stat.rtt || 60) + 120)); // quanto resta visibile
 function inkPoint(e, start) {
-  if (!inkOn || penMode !== 'penna') return;
+  if (!inkOn || penFinger || (penMode !== 'penna' && penMode !== 'auto')) return;
   const r = ink.getBoundingClientRect();
   const x = e.clientX - r.left, y = e.clientY - r.top;
   if (!start && inkLast) strokes.push({ x0: inkLast.x, y0: inkLast.y, x1: x, y1: y, w: 0.8 + (e.pressure || 0.5) * 2.4, t: performance.now() });
@@ -384,13 +390,14 @@ const penBusy = () => penId !== null || performance.now() - penUpAt < 600;
 function sendPen(kind, e) {
   const n = norm(e);
   send({ t: 'pen', e: kind, x: n.x, y: n.y, p: kind === 'u' ? 0 : (e.pressure || 0.5),
-    tx: e.tiltX || 0, ty: e.tiltY || 0, er: penMode === 'gomma' });
+    tx: e.tiltX || 0, ty: e.tiltY || 0, er: penMode === 'gomma', auto: penMode === 'auto' });
 }
 function penDown(e) {
   keepAwake(); closeMenu();
   try { stage.setPointerCapture(e.pointerId); } catch { /* tocco già terminato */ }
   if (pointers.size) cancelAll(); // il palmo era già appoggiato: annullo quei tocchi
   penId = e.pointerId;
+  penFinger = false;
   sendPen('d', e);
   inkPoint(e, true);
 }
@@ -515,6 +522,7 @@ document.querySelectorAll('#engine button').forEach((b) => {
 });
 
 const PEN_HINTS = {
+  auto: 'Nei programmi da disegno (Paint, OneNote, Lavagna, Word, PDF…) la Pencil scrive; altrove fa da dito: trascinando scorri le pagine, toccando fai clic.',
   penna: 'La Pencil è una penna di Windows con pressione: per firmare un PDF aprilo in Edge e usa "Disegna".',
   gomma: 'La Pencil cancella, nei programmi che supportano la gomma della penna (Edge, OneNote, Paint…).',
   mouse: 'La Pencil fa da mouse preciso, come prima.',
@@ -531,7 +539,7 @@ setOption('optInk', 'ink', inkOn, () => {});
 setOption('optBar', 'sottoBarra', store.get('sottoBarra', '1') === '1', applyBar);
 
 function setPenMode(m) {
-  penMode = m; store.set('penMode', m);
+  penMode = m; store.set('penMode2', m);
   document.querySelectorAll('#penMode button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.p === m));
   $('penHint').textContent = PEN_HINTS[m];
 }

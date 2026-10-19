@@ -8,6 +8,7 @@ Le coordinate arrivano normalizzate (0..1) e vengono riportate sul monitor dell'
 import ctypes
 from ctypes import wintypes
 
+import finestre
 import monitors  # imposta anche la DPI awareness
 
 user32 = ctypes.windll.user32
@@ -82,6 +83,7 @@ class Pad:
     def __init__(self, hub):
         self.hub = hub
         self.rect = None
+        self.pen_as_finger = False
 
     def set_monitor(self, m):
         self.rect = (m['x'], m['y'], m['w'], m['h']) if m else None
@@ -98,12 +100,22 @@ class Pad:
         if self.rect:
             self.hub.wheel(*_px(self.rect, nx, ny), dx, dy)
 
-    def pen(self, ev, nx, ny, pressure, tx, ty, eraser):
+    def pen(self, ev, nx, ny, pressure, tx, ty, eraser, auto=False):
+        """Restituisce, all'appoggio della punta, 'penna' o 'dito': come viene usata in questo tratto."""
         if not self.rect:
-            return
+            return None
+        x, y = _px(self.rect, nx, ny)
+        if ev == 'd':
+            # automatica: scrive solo nei programmi da disegno, altrove fa da dito (scorre e tocca)
+            self.pen_as_finger = auto and not finestre.ink_app_at(x, y)
+        if self.pen_as_finger:
+            self.hub.touch(ev, (id(self), 'penna'), x, y)
+            return 'dito' if ev == 'd' else None
         if not self.hub.pen.ok:  # niente penna di Windows: faccio da mouse
-            return self.hub.mouse(ev, 0, *_px(self.rect, nx, ny))
-        self.hub.pen.event(id(self), ev, *_px(self.rect, nx, ny), pressure, tx, ty, eraser)
+            self.hub.mouse(ev, 0, x, y)
+        else:
+            self.hub.pen.event(id(self), ev, x, y, pressure, tx, ty, eraser)
+        return 'penna' if ev == 'd' else None
 
     def release_all(self):
         self.hub.release_all(id(self))

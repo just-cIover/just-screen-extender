@@ -35,6 +35,9 @@ final class InkView: UIView {
 
     func endStroke() { predicted = []; setNeedsDisplay() }
 
+    /// Toglie subito tutto l'inchiostro (la Pencil sta scorrendo, non scrivendo).
+    func clear() { segments = []; predicted = []; setNeedsDisplay() }
+
     private func run() {
         if link == nil {
             link = CADisplayLink(target: self, selector: #selector(step))
@@ -101,6 +104,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
     private var penTouch: UITouch?
     private var penUpAt: CFTimeInterval = 0
     private var lastPenPoint: CGPoint?
+    private var penFinger = false  // in automatica: in questo tratto la Pencil fa da dito (niente inchiostro)
     // modalità mouse con le dita
     private var mouseFingers: [UITouch] = []
     private var dragging = false
@@ -116,6 +120,12 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
         view.isMultipleTouchEnabled = true
         video.display.videoGravity = .resizeAspect
         connection.delegate = self
+        connection.onPenUse = { [weak self] use in
+            // il PC ha deciso: sotto la punta non c'è un programma da disegno, quindi scorre e tocca
+            guard let self else { return }
+            self.penFinger = use == "dito"
+            if self.penFinger { self.ink.clear() }
+        }
 
         ink.frame = view.bounds
         ink.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -368,6 +378,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
         for f in fingers.values { connection.send(["t": "p", "e": "c", "id": f.id, "x": f.x, "y": f.y]) }
         fingers.removeAll()
         penTouch = t
+        penFinger = false
         sendPen("d", t)
         lastPenPoint = t.preciseLocation(in: view)
     }
@@ -381,7 +392,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
         }
         // la Pencil misura fino a 240 punti al secondo: li mando tutti, la linea viene più fluida
         let points = event?.coalescedTouches(for: t) ?? [t]
-        let drawInk = Settings.instantInk && Settings.penMode == "penna"
+        let drawInk = Settings.instantInk && !penFinger && (Settings.penMode == "penna" || Settings.penMode == "auto")
         for c in points {
             sendPen("m", c)
             let p = c.preciseLocation(in: view)
@@ -422,7 +433,8 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
         let tiltY = atan(sin(azimuth) * cot) * 180 / .pi
         connection.send(["t": "pen", "e": kind, "x": n.x, "y": n.y,
                          "p": kind == "u" ? 0 : Double(pressure(t)),
-                         "tx": Int(tiltX), "ty": Int(tiltY), "er": Settings.penMode == "gomma"])
+                         "tx": Int(tiltX), "ty": Int(tiltY), "er": Settings.penMode == "gomma",
+                         "auto": Settings.penMode == "auto"])
     }
 
     // MARK: dita in modalità mouse
@@ -501,7 +513,8 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
             }
         })
         let pencil = UIMenu(title: "Apple Pencil", image: UIImage(systemName: "pencil.tip"),
-                            children: [("penna", "Penna con pressione"), ("gomma", "Gomma"), ("mouse", "Mouse")].map { key, name in
+                            children: [("auto", "Automatica (scrive o scorre)"), ("penna", "Penna con pressione"),
+                                       ("gomma", "Gomma"), ("mouse", "Mouse")].map { key, name in
             UIAction(title: name, state: Settings.penMode == key ? .on : .off) { _ in Settings.penMode = key }
         })
         let ink = UIAction(title: "Inchiostro immediato", image: UIImage(systemName: "scribble"),

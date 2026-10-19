@@ -219,6 +219,149 @@ def open_on(path, monitor, log=print, wait=12, edge_profile=None):
     user32.SetForegroundWindow(hwnd)
     return True
 
+
+# --- programma sotto un punto --------------------------------------------------------
+kernel32 = ctypes.windll.kernel32
+user32.WindowFromPoint.restype = wintypes.HWND
+user32.WindowFromPoint.argtypes = [wintypes.POINT]
+user32.GetAncestor.restype = wintypes.HWND
+user32.GetForegroundWindow.restype = wintypes.HWND
+user32.MonitorFromWindow.restype = wintypes.HMONITOR
+kernel32.OpenProcess.restype = wintypes.HANDLE
+
+# programmi in cui la Pencil deve scrivere (in tutti gli altri fa da dito: scorre e tocca)
+INK_APPS = {'mspaint.exe', 'onenote.exe', 'onenoteim.exe', 'whiteboard.exe', 'winword.exe', 'powerpnt.exe',
+            'acrobat.exe', 'acrord32.exe', 'krita.exe', 'photoshop.exe', 'inkscape.exe', 'clipstudiopaint.exe',
+            'xournalpp.exe', 'journal.exe', 'sketchbook.exe', 'drawboardpdf.exe', 'snippingtool.exe',
+            'screensketch.exe', 'freshpaint.exe', 'paintdotnet.exe', 'gimp.exe', 'mypaint.exe', 'blender.exe',
+            'zoomit.exe', 'zoomit64.exe', 'goodnotes.exe', 'notability.exe'}
+BROWSER_EXES = {'msedge.exe', 'chrome.exe', 'brave.exe', 'firefox.exe', 'opera.exe', 'vivaldi.exe'}
+# altri programmi da disegno: uno per riga in programmi-penna.txt (es. "notepad3.exe"), senza toccare il codice
+INK_APPS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'programmi-penna.txt')
+
+
+def process_name(hwnd):
+    pid = wintypes.DWORD()
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    h = kernel32.OpenProcess(0x1000, False, pid.value)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        return ''
+    try:
+        buf = ctypes.create_unicode_buffer(1024)
+        n = wintypes.DWORD(len(buf))
+        if not kernel32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(n)):
+            return ''
+        return os.path.basename(buf.value).lower()
+    finally:
+        kernel32.CloseHandle(h)
+
+
+_extra = (0.0, set())
+
+
+def _ink_apps():
+    global _extra
+    try:
+        t = os.path.getmtime(INK_APPS_FILE)
+    except OSError:
+        return INK_APPS
+    if t != _extra[0]:
+        with open(INK_APPS_FILE, encoding='utf-8') as f:
+            names = {l.strip().lower() for l in f if l.strip() and not l.startswith('#')}
+        _extra = (t, {n if n.endswith('.exe') else n + '.exe' for n in names})
+    return INK_APPS | _extra[1]
+
+
+def ink_app_at(x, y):
+    """True se nel punto c'è un programma da disegno/scrittura (o un PDF aperto nel browser)."""
+    hwnd = user32.WindowFromPoint(wintypes.POINT(x, y))
+    if not hwnd:
+        return False
+    root = user32.GetAncestor(hwnd, 2) or hwnd  # GA_ROOT
+    names = {process_name(hwnd), process_name(root)}  # app moderne: la finestra figlia è del programma vero
+    if names & _ink_apps():
+        return True
+    return bool(names & BROWSER_EXES) and '.pdf' in _title(root).lower()
+
+
+# --- app aperte dallo Start sullo schermo dove le hai cercate ----------------------------
+START_HOSTS = {'startmenuexperiencehost.exe', 'searchhost.exe', 'searchapp.exe'}
+START_WINDOW = 20  # secondi dopo lo Start in cui una finestra nuova la considero "aperta da lì"
+
+
+def _monitor_rects(hmon):
+    mi = monitors.MONITORINFOEXW(); mi.cbSize = ctypes.sizeof(mi)
+    user32.GetMonitorInfoW(hmon, ctypes.byref(mi))
+    return mi.szDevice, mi.rcMonitor, mi.rcWork
+
+
+def move_to_monitor(hwnd, hmon):
+    """Sposta una finestra sullo schermo indicato mantenendo dimensioni e posizione in proporzione."""
+    wp = WINDOWPLACEMENT(); wp.length = ctypes.sizeof(wp)
+    if not user32.GetWindowPlacement(hwnd, ctypes.byref(wp)):
+        return False
+    rc = wintypes.RECT()
+    user32.GetWindowRect(hwnd, ctypes.byref(rc))
+    _, src, _ = _monitor_rects(user32.MonitorFromRect(ctypes.byref(rc), MONITOR_DEFAULTTONEAREST))
+    _, _, dst = _monitor_rects(hmon)
+    (_, _, _, _), (offx, offy) = _primary_work()
+    n = wp.rcNormalPosition
+    ww, wh = dst.right - dst.left, dst.bottom - dst.top
+    w, h = min(n.right - n.left, ww), min(n.bottom - n.top, wh)
+    fx = (n.left + offx - src.left) / max(src.right - src.left - w, 1)
+    fy = (n.top + offy - src.top) / max(src.bottom - src.top - h, 1)
+    nx = dst.left + round(min(max(fx, 0), 1) * (ww - w))
+    ny = dst.top + round(min(max(fy, 0), 1) * (wh - h))
+    maximized = wp.showCmd == SW_SHOWMAXIMIZED
+    if maximized:  # un passaggio da "normale" sposta davvero anche le finestre ingrandite
+        user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+    wp.rcNormalPosition = wintypes.RECT(nx - offx, ny - offy, nx - offx + w, ny - offy + h)
+    wp.showCmd = 1  # SW_SHOWNORMAL
+    wp.flags = 0
+    ok = user32.SetWindowPlacement(hwnd, ctypes.byref(wp))
+    if maximized:
+        user32.ShowWindow(hwnd, SW_MAXIMIZE)
+    return bool(ok)
+
+
+class StartFollower:
+    """Ricorda su quale schermo hai aperto lo Start; le finestre nuove che compaiono subito dopo su
+    un altro schermo le porta lì. Chiamare tick() più volte al secondo."""
+
+    def __init__(self, log=print):
+        self.log = log
+        self.known = _all_windows()
+        self.start_mon = None
+        self.start_dev = ''
+        self.start_at = 0.0
+        self.seen = {}  # finestra nuova -> volta in cui l'ho vista (la sposto dal secondo giro)
+
+    def tick(self):
+        now = time.monotonic()
+        fg = user32.GetForegroundWindow()
+        if fg and process_name(fg) in START_HOSTS:
+            self.start_mon = user32.MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST)
+            self.start_dev = _monitor_rects(self.start_mon)[0]
+            self.start_at = now
+        current = _all_windows()
+        for hwnd in current - self.known:
+            first = self.seen.setdefault(hwnd, now)
+            if now - first < 0.3:
+                continue  # lascio finire al programma il suo posizionamento
+            self.known.add(hwnd)
+            self.seen.pop(hwnd, None)
+            if not self.start_mon or now - self.start_at > START_WINDOW:
+                continue
+            if process_name(hwnd) in START_HOSTS:
+                continue
+            here = user32.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)
+            if here != self.start_mon and move_to_monitor(hwnd, self.start_mon):
+                self.log(f'"{_title(hwnd)}" aperta dallo Start: spostata sullo schermo dove l\'hai cercata')
+        self.known &= current
+        for gone in [h for h in self.seen if h not in current]:
+            self.seen.pop(gone)
+
+
 if __name__ == '__main__':
     for m in monitors.list_monitors():
         print(m['device'], [(_title(h) or _class(h)) for h in windows_on(m['device'])])

@@ -64,8 +64,23 @@ Ogni file è visibile a **tutti** i dispositivi, anche a quelli che si collegher
 ## Apple Pencil
 
 La Pencil è una **penna vera di Windows** (Windows Ink): pressione e inclinazione arrivano ai
-programmi. Nel menu, sezione *Apple Pencil*: **Penna**, **Gomma** oppure **Mouse** (come prima).
-Mentre scrivi con la Pencil, i tocchi del palmo appoggiato vengono ignorati.
+programmi. Nel menu, sezione *Apple Pencil*:
+- **Automatica** (consigliata): sopra un programma da disegno o scrittura (Paint, OneNote,
+  Lavagna, Word, PowerPoint, Acrobat, Krita, un PDF aperto nel browser…) la Pencil scrive; sopra
+  tutto il resto fa da **dito**: trascinando scorri le pagine, toccando fai clic. Per aggiungere
+  un programma all'elenco scrivi il nome del suo .exe (uno per riga) in `programmi-penna.txt`.
+- **Penna**: scrive sempre (sul desktop o in una pagina web seleziona e trascina, non disegna).
+- **Gomma**: come girare dal lato gomma una penna per PC. Cancella i tratti solo nei programmi
+  che gestiscono la gomma (OneNote, Lavagna, Word, Paint, PDF in Edge); altrove non fa niente.
+- **Mouse**: la Pencil fa da mouse preciso.
+
+Mentre scrivi con la Pencil, i tocchi del palmo appoggiato vengono ignorati. In Windows la penna
+lascia il segno solo nei programmi fatti per l'inchiostro.
+
+## App aperte dallo Start
+
+Se apri lo Start sullo schermo dell'iPad (o su un altro schermo) e lanci un'app, la sua finestra
+compare su quello schermo invece che sul monitor principale.
 
 Cosa ci si può fare: firmare o annotare PDF in Edge (*Disegna*), disegnare in Paint, Photoshop o
 Krita, scrivere a mano in OneNote o Whiteboard, scrivere a mano nelle caselle di testo (Windows
