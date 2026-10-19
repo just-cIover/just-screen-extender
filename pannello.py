@@ -55,6 +55,7 @@ class Panel:
     def __init__(self, app, log, lines, listeners, folder, urls, ui_mode, exchange):
         self.app = app
         self.exchange = exchange
+        self.on_setting = lambda key, value: None  # salvataggio delle impostazioni (lo collega server.py)
         self.log = log
         self.lines = lines          # ultime righe della console
         self.listeners = listeners  # funzioni chiamate a ogni riga nuova
@@ -99,7 +100,8 @@ class Panel:
             row = {'id': dev_id, 'nome': d.get('nome'), 'online': online, 'ip': d.get('ip'),
                    'visto': d.get('visto'), 'schermo': screen, 'numero': (slot or 0) + 1,
                    'ris': 'x'.join(map(str, d.get('risoluzione', []))) or None,
-                   'livello': s.capture.level if s else d.get('qualita', 1)}
+                   'livello': s.capture.level if s else d.get('qualita', 1),
+                   'auto': d.get('qualita_auto', True), 'scelta': d.get('qualita_scelta', d.get('qualita', 1))}
             if s:
                 t0, f0, b0 = self.prev.get(dev_id, (now, s.sent_frames, s.sent_bytes))
                 dt = max(now - t0, 0.001)
@@ -123,6 +125,7 @@ class Panel:
 
     def status(self):
         return {'t': 'stato', 'pc': self.pc.read(), 'dispositivi': self.devices(), 'pin': self.pins(),
+                'appunti': self.app.clipboard.enabled,
                 'file': self.exchange.files()}
 
     # ---- websocket della finestra ----
@@ -166,6 +169,17 @@ class Panel:
                     self.exchange.open_file(d.get('nome', ''))
                 elif t == 'qualita':
                     self.force_quality(d.get('id', ''), d.get('livello', 1))
+                elif t == 'appunti':
+                    on = bool(d.get('on'))
+                    self.app.clipboard.enabled = on
+                    self.on_setting('appunti', on)
+                    self.log(f'appunti condivisi {"attivi" if on else "spenti"}', 'PC')
+                elif t == 'qualita_auto':
+                    dev = self.app.devices.get(d.get('id', ''))
+                    if dev:
+                        on = bool(d.get('on'))
+                        self.app.devices.update(d['id'], qualita_auto=on)
+                        self.log(f'qualità automatica {"attiva" if on else "spenta"} per {dev.get("nome")}', 'PC')
                 elif t == 'dimentica':
                     await self.forget(d.get('id', ''))
                 elif t == 'esci':
@@ -188,7 +202,8 @@ class Panel:
         if s:
             s.set_quality(level, 'dal PC')
         elif self.app.devices.get(dev_id):
-            self.app.devices.update(dev_id, qualita=max(0, min(int(level), len(QUALITY_NAMES) - 1)))
+            level = max(0, min(int(level), len(QUALITY_NAMES) - 1))
+            self.app.devices.update(dev_id, qualita=level, qualita_scelta=level)
 
     async def forget(self, dev_id):
         d = self.app.devices.get(dev_id)

@@ -43,6 +43,18 @@ enum Settings {
         set { d.set(newValue, forKey: "penMode2") }
     }
 
+    /// Appunti condivisi con il PC.
+    static var clipboardSync: Bool {
+        get { d.object(forKey: "clipboardSync") as? Bool ?? true }
+        set { d.set(newValue, forKey: "clipboardSync") }
+    }
+
+    /// Ultimo stato degli appunti dell'iPad già visto (per mandare al PC solo le copie nuove).
+    static var pasteboardSeen: Int {
+        get { d.object(forKey: "pasteboardSeen") as? Int ?? -1 }
+        set { d.set(newValue, forKey: "pasteboardSeen") }
+    }
+
     /// Inchiostro immediato: il tratto della Pencil compare subito, prima che arrivi quello vero dal PC.
     static var instantInk: Bool {
         get { d.object(forKey: "instantInk") as? Bool ?? true }

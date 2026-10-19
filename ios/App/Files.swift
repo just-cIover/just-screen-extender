@@ -26,7 +26,7 @@ enum FileError: LocalizedError {
 
 /// Le stesse richieste dell'app web: elenco, download e caricamento, con la chiave del dispositivo.
 enum FileAPI {
-    private static func url(_ path: String, _ extra: [URLQueryItem] = []) throws -> URL {
+    static func url(_ path: String, _ extra: [URLQueryItem] = []) throws -> URL {
         let host = Settings.host
         guard !host.isEmpty, !Settings.token.isEmpty else { throw FileError.noPC }
         var c = URLComponents()
@@ -70,6 +70,22 @@ enum FileAPI {
         try? FileManager.default.removeItem(at: dest)
         try FileManager.default.moveItem(at: tmp, to: dest)
         return dest
+    }
+
+    /// Immagine negli appunti del PC.
+    static func clipboardImage() async throws -> Data {
+        let (data, response) = try await URLSession.shared.data(from: url("/api/appunti/immagine"))
+        try check(response)
+        return data
+    }
+
+    /// Immagine copiata sull'iPad -> appunti del PC.
+    static func sendClipboardImage(_ png: Data) async throws {
+        var request = URLRequest(url: try url("/api/appunti/immagine"))
+        request.httpMethod = "POST"
+        request.setValue("image/png", forHTTPHeaderField: "Content-Type")
+        let (_, response) = try await URLSession.shared.upload(for: request, from: png)
+        try check(response)
     }
 
     /// Manda i file al PC in una sola richiesta. progress va da 0 a 1.

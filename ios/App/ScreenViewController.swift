@@ -122,6 +122,8 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
         view.isMultipleTouchEnabled = true
         video.display.videoGravity = .resizeAspect
         connection.delegate = self
+        connection.onClipboard = { [weak self] m in self?.clipboardFromPC(m) }
+        connection.onNotice = { [weak self] text in self?.showToast(text) }
         connection.onPenUse = { [weak self] use in
             // il PC ha deciso: sotto la punta non c'è un programma da disegno, quindi scorre e tocca
             guard let self else { return }
@@ -191,6 +193,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
     func resume() {
         guard !active else { return }
         active = true
+        if connection.ready { clipboardToPC(force: false) }
         if Settings.host.isEmpty {
             askHost()
         } else {
@@ -242,6 +245,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
 
     func connectionReady(_ c: Connection) {
         pinAlert?.dismiss(animated: true)
+        clipboardToPC(force: false)
         if !pendingShared.isEmpty {
             let waiting = pendingShared
             pendingShared = []
@@ -531,6 +535,14 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
         let files = UIAction(title: "File condivisi", image: UIImage(systemName: "folder")) { [weak self] _ in
             self?.showFiles()
         }
+        let clipSync = UIAction(title: "Appunti condivisi con il PC", image: UIImage(systemName: "doc.on.clipboard"),
+                                state: Settings.clipboardSync ? .on : .off) { _ in
+            Settings.clipboardSync.toggle()
+            if Settings.clipboardSync { Settings.pasteboardSeen = UIPasteboard.general.changeCount }
+        }
+        let clipSend = UIAction(title: "Invia appunti al PC", image: UIImage(systemName: "arrow.up.doc.on.clipboard")) { [weak self] _ in
+            self?.clipboardToPC(force: true)
+        }
         let reconnect = UIAction(title: "Ricollega", image: UIImage(systemName: "arrow.clockwise")) { [weak self] _ in
             self?.connection.connect()
         }
@@ -540,7 +552,8 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
         let host = UIAction(title: "Cambia PC…", image: UIImage(systemName: "desktopcomputer")) { [weak self] _ in
             self?.askHost()
         }
-        return [state, files, quality, fingersMenu, pencil, ink,
+        return [state, files, UIMenu(title: "Appunti", image: UIImage(systemName: "doc.on.clipboard"), children: [clipSync, clipSend]),
+                quality, fingersMenu, pencil, ink,
                 UIMenu(options: .displayInline, children: [reconnect, repair, host])]
     }
 
@@ -610,6 +623,50 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
                 self?.showToast("Invio non riuscito: \(error.localizedDescription)")
             }
         })
+    }
+
+    // MARK: appunti
+
+    /// Testo o immagine copiati sul PC: vanno direttamente negli appunti dell'iPad.
+    private func clipboardFromPC(_ m: [String: Any]) {
+        guard Settings.clipboardSync else { return }
+        if m["tipo"] as? String == "testo", let text = m["testo"] as? String {
+            UIPasteboard.general.string = text
+            Settings.pasteboardSeen = UIPasteboard.general.changeCount  // non lo rimando indietro
+            showToast("Appunti dal PC copiati sull'iPad")
+        } else if m["tipo"] as? String == "immagine" {
+            Task { @MainActor in
+                guard let data = try? await FileAPI.clipboardImage(), let image = UIImage(data: data) else { return }
+                UIPasteboard.general.image = image
+                Settings.pasteboardSeen = UIPasteboard.general.changeCount
+                showToast("Immagine dagli appunti del PC copiata sull'iPad")
+            }
+        }
+    }
+
+    /// Appunti dell'iPad -> PC. In automatico solo se sono cambiati da quando li ho visti l'ultima volta
+    /// (iPadOS può chiedere "Consentire di incollare?": in Impostazioni → Schermo Esteso si può scegliere Consenti).
+    private func clipboardToPC(force: Bool) {
+        let pb = UIPasteboard.general
+        if Settings.pasteboardSeen < 0 { Settings.pasteboardSeen = pb.changeCount }  // prima volta: niente invii
+        guard force || (Settings.clipboardSync && pb.changeCount != Settings.pasteboardSeen) else { return }
+        Settings.pasteboardSeen = pb.changeCount
+        guard connection.ready else { return }
+        if pb.hasStrings, let text = pb.string, !text.isEmpty {
+            connection.send(["t": "appunti", "testo": text])
+            showToast("Appunti dell'iPad copiati sul PC")
+        } else if pb.hasImages, let png = pb.image?.pngData() {
+            Task { @MainActor in
+                do {
+                    try await FileAPI.sendClipboardImage(png)
+                    showToast("Immagine dell'iPad copiata negli appunti del PC")
+                } catch {
+                    showToast("Appunti non inviati: \(error.localizedDescription)")
+                }
+            }
+        } else if force {
+            showToast("Gli appunti dell'iPad sono vuoti")
+        }
     }
 
     // MARK: messaggi a schermo

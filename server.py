@@ -19,7 +19,9 @@ import time
 
 from aiohttp import WSMsgType, web
 
+import appunti
 import certificati
+import qualita
 import sicurezza
 import finestre
 import monitors
@@ -39,6 +41,7 @@ DEFAULTS = {
     'quality': 1,       # livello di partenza per i dispositivi nuovi (0 Massima .. 3 Leggera)
     'bufsize': '1M',    # buffer piccolo = meno ritardo
     'encoder': 'auto',  # auto | qsv | x264
+    'appunti': True,    # appunti condivisi tra PC e dispositivi
 }
 QUALITY_LABELS = ['Massima', 'Fluida', 'Media', 'Leggera']
 MAX_QUEUE = 8        # fotogrammi in coda per client oltre i quali salto al prossimo fotogramma completo
@@ -79,6 +82,14 @@ def load_config():
     with open(CONFIG, 'w', encoding='utf-8') as f:
         json.dump(cfg, f, indent=2)
     return cfg
+
+
+def save_setting(key, value):
+    """Cambia una sola impostazione in config.json (dalla finestra del PC)."""
+    cfg = load_config()
+    cfg[key] = value
+    with open(CONFIG, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, indent=2)
 
 
 def lan_ips():
@@ -169,6 +180,8 @@ class Session:
         self.stats = {}
         self.sent_frames = 0  # per le prestazioni nella finestra del PC
         self.sent_bytes = 0
+        self.auto = qualita.AutoQuality(time.monotonic())
+        self.judged = (time.monotonic(), 0, 0)  # (ora, fotogrammi inviati, saltati) all'ultimo giudizio
 
     @property
     def info(self):
@@ -267,23 +280,48 @@ class Session:
         self.app.devices.update(self.id, risoluzione=[w, h], configurato=False)
         self.app.kick.set()
 
-    def set_quality(self, level, source):
+    def set_quality(self, level, source, auto=False):
         """Qualità (fotogrammi al secondo e risoluzione). La ricorda il PC: la può cambiare il dispositivo
-        dal suo menu oppure il PC, che la impone anche se il dispositivo è troppo lento per rispondere."""
+        dal suo menu oppure il PC, che la impone anche se il dispositivo è troppo lento per rispondere.
+        Scelta a mano = il massimo a cui la qualità automatica può tornare."""
         try:
             level = int(level)
         except (TypeError, ValueError):
             return
         old = self.capture.level
         level = self.capture.apply_level(level)
-        self.app.devices.update(self.id, qualita=level)
-        msg = json.dumps({'t': 'quality', 'level': level})
+        if auto:
+            self.app.devices.update(self.id, qualita=level)
+        else:
+            self.app.devices.update(self.id, qualita=level, qualita_scelta=level)
+        self.auto.changed(time.monotonic())
+        msg = json.dumps({'t': 'quality', 'level': level, 'auto': auto})
         for c in self.clients:
             c.queue.appendleft(msg)  # prima del video in coda: arriva subito anche se la rete è intasata
             c.wake.set()
         if level != old:
             log(f'qualità {QUALITY_LABELS[level]} ({source}): riavvio la cattura', self.name)
             self.capture.restart()
+
+    def check_quality(self, stats=None):
+        """Qualità automatica: chiamata a ogni statistica del dispositivo (circa ogni 2 s) e, se il
+        dispositivo tace, dal controllo periodico."""
+        if not self.info.get('qualita_auto', True) or not self.clients:
+            return
+        now = time.monotonic()
+        t0, f0, d0 = self.judged
+        drops = sum(c.dropped for c in self.clients)
+        sent = (self.sent_frames - f0) / max(now - t0, 0.5)
+        self.judged = (now, self.sent_frames, drops)
+        best = self.info.get('qualita_scelta', self.info.get('qualita', 1))
+        if stats is None:
+            new, why = self.auto.judge(now, self.capture.level, best, sent=sent, silent=True)
+        else:
+            new, why = self.auto.judge(now, self.capture.level, best, rtt=stats.get('rtt'),
+                                       shown=stats.get('dec'), sent=sent, drops=max(drops - d0, 0))
+        if new is not None:
+            verb = 'abbassata' if new > self.capture.level else 'rialzata'
+            self.set_quality(new, f'{verb} in automatico: {why}', auto=True)
 
     def handle(self, c, d):
         t = d.get('t')
@@ -315,12 +353,15 @@ class Session:
             self.send_gop(c)
         elif t == 'quality':
             self.set_quality(d.get('level', 0), 'dal dispositivo')
+        elif t == 'appunti':
+            self.app.clipboard.from_device_text(self, d.get('testo'))
         elif t == 'diag':
             d.pop('t', None)
             log(f'info: {json.dumps(d, ensure_ascii=False)}', self.name)
         elif t == 'stats':
             self.stats = {k: d.get(k) for k in ('fps', 'dec', 'rtt', 'mbit', 'queue', 'render', 'q', 'batt')}
             self.stats['ora'] = time.time()  # mostrate nella finestra del PC, non nella console
+            self.check_quality(d)
 
 
 class App:
@@ -370,6 +411,7 @@ class App:
         s = self.session(dev_id)
         c = Client(ws)
         s.clients.add(c)
+        s.stats = {'ora': time.time()}  # da qui conto il silenzio del dispositivo
         s.last_seen = time.monotonic()
         self.devices.update(dev_id, visto=time.strftime('%Y-%m-%d %H:%M'), ip=request.remote)
         log(f'collegato da {request.remote}', s.name)
@@ -659,6 +701,11 @@ class App:
         """Se cambia la disposizione degli schermi, riaggancio la cattura di chi ne è toccato."""
         while True:
             await asyncio.sleep(2)
+            for s in self.sessions.values():
+                # collegato e con il video che parte, ma senza statistiche da 8 s: è troppo carico per mandarle
+                if (s.clients and s.capture_task and not s.capture_task.done() and s.sent_frames
+                        and time.time() - s.stats.get('ora', time.time()) > 8):
+                    s.check_quality()
             outs = monitors.dxgi_outputs()
             for s in self.sessions.values():
                 if not s.capture_key:
@@ -777,12 +824,15 @@ async def main():
     exchange = Exchange(app, log)
     app.exchange = exchange
     exchange.routes(web_app.router)  # prima dei file statici, che prendono tutto il resto
+    app.clipboard = appunti.Clipboard(app, log, cfg.get('appunti', True))
+    app.clipboard.routes(web_app.router)
     ips = lan_ips()
     ctx = await asyncio.to_thread(certificati.ssl_context, ips,
                                   lambda alert: log(f'Connessione cifrata rifiutata da un dispositivo: {alert} '
                                                     '(di solito: certificato del PC non attendibile sul dispositivo)'))
     urls = [f'https://{ip}:{port}' for ip in ips]
     panel = Panel(app, log, LOG_LINES, LOG_LISTENERS, FOLDER, urls, ui_mode, exchange)
+    panel.on_setting = save_setting
     panel.routes(web_app.router)
     web_app.router.add_static('/', os.path.join(HERE, 'web'))
     runner = web.AppRunner(web_app, access_log=None)
@@ -797,6 +847,7 @@ async def main():
 
     tasks = [asyncio.create_task(app.keepalive()), asyncio.create_task(app.watch_monitors()),
              asyncio.create_task(app.reconciler()), asyncio.create_task(exchange.watch()),
+             asyncio.create_task(app.clipboard.watch()),
              asyncio.create_task(panel.watch_window()), asyncio.create_task(watch_addresses(ctx, panel, port)),
              asyncio.create_task(follow_start())]
     stopper = asyncio.create_task(app.stop.wait())
