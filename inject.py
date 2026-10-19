@@ -272,7 +272,10 @@ class Pen:
         p = info.u.penInfo
         p.pointerInfo.pointerType = PT_PEN
         p.pointerInfo.pointerFlags = flags
-        p.pointerInfo.ptPixelLocation = wintypes.POINT(x, y)
+        # la penna simulata vuole le coordinate dall'angolo in alto a sinistra dell'intero desktop
+        # (con uno schermo a sinistra o sopra il principale, quell'angolo ha coordinate negative)
+        vx, vy, _, _ = monitors.virtual_screen()
+        p.pointerInfo.ptPixelLocation = wintypes.POINT(x - vx, y - vy)
         p.penMask = PEN_MASK_PRESSURE | PEN_MASK_TILT_X | PEN_MASK_TILT_Y
         p.pressure = max(0, min(1024, int(pressure * 1024)))
         p.tiltX, p.tiltY = max(-90, min(90, int(tx))), max(-90, min(90, int(ty)))
