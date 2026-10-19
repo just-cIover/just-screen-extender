@@ -11,3 +11,4 @@ ios/build/
 ios/*.xcodeproj/
 *.ipa
 Payload/
+ipa/
