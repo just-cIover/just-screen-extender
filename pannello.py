@@ -113,6 +113,7 @@ class Panel:
                 self.prev[dev_id] = (now, s.sent_frames, s.sent_bytes)
                 st_ = s.stats if online and time.time() - s.stats.get('ora', 0) < 6 else {}
                 row.update({'fps': st_.get('fps'), 'rtt': st_.get('rtt'), 'motore': st_.get('render'),
+                            'batt': st_.get('batt'), 'carica': st_.get('carica'),
                             'qualita': QUALITY_NAMES[s.capture.level], 'salti': sum(c.dropped for c in s.clients),
                             'riavvii': s.capture.restarts})
                 if s.monitor and screen == 'acceso':

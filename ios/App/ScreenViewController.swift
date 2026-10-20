@@ -367,7 +367,12 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             return
         }
         let q = Settings.quality
+        let device = UIDevice.current
+        device.isBatteryMonitoringEnabled = true
+        let level = device.batteryLevel  // -1 se sconosciuto (es. simulatore)
+        let charging = device.batteryState == .charging || device.batteryState == .full
         connection.send(["t": "stats", "fps": framesShown / 2, "dec": framesShown / 2,
+                         "batt": level >= 0 ? Int((level * 100).rounded()) as Any : NSNull(), "carica": charging,
                          "rtt": connection.rtt.map { Int($0) as Any } ?? NSNull(),  // JSON: null se non misurato
                          "mbit": Double(bytesReceived * 8) / 2e6, "render": "nativo/hardware",
                          "q": ["Massima", "Fluida", "Media", "Leggera"][max(0, min(q, 3))]])

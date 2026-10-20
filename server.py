@@ -49,6 +49,7 @@ QUALITY_LABELS = ['Massima', 'Fluida', 'Media', 'Leggera']
 MAX_QUEUE = 8        # fotogrammi in coda per client oltre i quali salto al prossimo fotogramma completo
 GRACE = 15           # secondi dopo la chiusura dell'app prima di spegnere il suo schermo
 STARTUP_GRACE = 20   # all'avvio aspetto un po' i dispositivi prima di spegnere gli schermi senza nessuno
+LOW_BATTERY = 15      # % sotto cui avviso che la batteria del dispositivo è quasi scarica
 MIN_HEIGHT_PT = 768    # altezza minima dello schermo per Windows, in punti (pixel / ridimensionamento)
 DISPLAY_GAP = 3      # secondi minimi tra due cambi di configurazione degli schermi
 RELOAD_WAIT = 8      # secondi di attesa dopo il riavvio del driver
@@ -306,6 +307,18 @@ class Session:
             log(f'qualità {QUALITY_LABELS[level]} ({source}): riavvio la cattura', self.name)
             self.capture.restart()
 
+    def check_battery(self, level, charging):
+        """Batteria del dispositivo sotto il 15% e non in carica: un avviso in console (uno solo, finché
+        non torna sopra il 20% o non viene messo in carica)."""
+        if not isinstance(level, int):
+            return
+        low = level <= LOW_BATTERY and not charging
+        if low and not getattr(self, 'battery_warned', False):
+            self.battery_warned = True
+            log(f'batteria al {level}%: collegalo alla corrente, se si spegne il suo schermo si chiude', self.name)
+        elif charging or level > LOW_BATTERY + 5:
+            self.battery_warned = False
+
     async def select_word(self, c, x, y, delivered=False):
         """Doppio tocco sul dispositivo: seleziona la parola. Nei browser con un doppio clic del mouse (col tocco la parola non si
         seleziona anche nei browser (che con il tocco non lo fanno). Aspetto un attimo: subito dopo
@@ -403,7 +416,8 @@ class Session:
                 self.stats['ora'] = time.time()
                 self.auto.changed(time.monotonic())
                 return
-            self.stats = {k: d.get(k) for k in ('fps', 'dec', 'rtt', 'mbit', 'queue', 'render', 'q', 'batt')}
+            self.stats = {k: d.get(k) for k in ('fps', 'dec', 'rtt', 'mbit', 'queue', 'render', 'q', 'batt', 'carica')}
+            self.check_battery(d.get('batt'), bool(d.get('carica')))
             self.stats['ora'] = time.time()  # mostrate nella finestra del PC, non nella console
             self.check_quality(d)
 

@@ -264,3 +264,9 @@ del tuo account. Installalo sul PC e sull'iPhone/iPad con lo stesso account. Il 
 vale anche per gli indirizzi di Tailscale (100.x.x.x) e il firewall li accetta da qualsiasi rete.
 L'app impara l'indirizzo Tailscale del PC al primo collegamento in casa e, se quello solito non
 risponde, lo usa da sola. Il video passa dalla rete mobile: a *Fluida* circa 2-3 GB all'ora.
+
+## Batteria dei dispositivi
+
+Nella scheda di ogni dispositivo (app nativa) nella finestra del PC: carica in percentuale, con ⚡
+se è in carica; gialla sotto il 30%, rossa sotto il 15%. Sotto il 15% e non in carica compare anche
+un avviso in console, così puoi collegarlo prima che si spenga (e con lui il suo schermo).
