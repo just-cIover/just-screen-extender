@@ -255,3 +255,12 @@ cavo USB. Il PC resta sul Wi-Fi per Internet e parla con l'iPhone attraverso il 
 del Wi-Fi, e l'iPhone si ricarica). La prima volta esegui come amministratore
 `strumenti\usb-iphone.ps1`: mette la rete dell'iPhone come ultima scelta, così Internet non
 consuma i giga dell'iPhone.
+
+## Fuori casa o con il Wi-Fi che non regge: Tailscale
+
+Con **Tailscale** (gratuito per uso personale) PC e dispositivi si vedono come se fossero in casa,
+da qualsiasi rete (anche i dati del telefono), con un collegamento cifrato tra i soli dispositivi
+del tuo account. Installalo sul PC e sull'iPhone/iPad con lo stesso account. Il certificato del PC
+vale anche per gli indirizzi di Tailscale (100.x.x.x) e il firewall li accetta da qualsiasi rete.
+L'app impara l'indirizzo Tailscale del PC al primo collegamento in casa e, se quello solito non
+risponde, lo usa da sola. Il video passa dalla rete mobile: a *Fluida* circa 2-3 GB all'ora.

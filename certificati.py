@@ -25,7 +25,10 @@ CA_KEY, CA_CRT = os.path.join(DIR, 'ca.key'), os.path.join(DIR, 'ca.crt')
 SRV_KEY, SRV_CRT = os.path.join(DIR, 'server.key'), os.path.join(DIR, 'server.crt')
 CA_NAME = 'Schermo Esteso - certificato del PC'
 LOCAL_ONLY = [x509.IPAddress(ipaddress.ip_network(n)) for n in
-              ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '127.0.0.0/8', '169.254.0.0/16')] +              [x509.DNSName('localhost'), x509.DNSName('local')]  # 'local' = qualsiasi nome .local
+              ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '127.0.0.0/8', '169.254.0.0/16',
+               '100.64.0.0/10')] + \
+             [x509.DNSName('localhost'), x509.DNSName('local')]  # 'local' = qualsiasi nome .local
+# 100.64.0.0/10: indirizzi di Tailscale (rete privata tra i propri dispositivi), non siti di Internet
 
 
 def _now():
@@ -77,7 +80,9 @@ def ensure_ca():
 def _names(ips):
     host = socket.gethostname()
     dns = sorted({'localhost', host.lower() + '.local'})  # solo nomi ammessi dal certificato radice
-    addrs = sorted({'127.0.0.1', *(ip for ip in ips if ipaddress.ip_address(ip).is_private)})
+    allowed = [n.value for n in LOCAL_ONLY if isinstance(n, x509.IPAddress)]
+    # solo gli indirizzi ammessi dal certificato radice (reti private e Tailscale)
+    addrs = sorted({'127.0.0.1', *(ip for ip in ips if any(ipaddress.ip_address(ip) in net for net in allowed))})
     return dns, addrs
 
 
