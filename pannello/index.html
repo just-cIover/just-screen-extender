@@ -131,6 +131,76 @@
   #down.show { display: grid; }
   #down p { color: var(--muted); }
 
+
+  /* ---------- aspetto moderno (facoltativo: pulsante "Aspetto moderno" in alto) ----------
+     Blu notte con un solo alone di luce, come lo sfondo Bloom di Windows 11; pannelli di vetro;
+     ogni dispositivo è un mini-schermo con le sue proporzioni vere che si accende con lui. */
+  .screen { display: none; }
+  body.moderno {
+    --bg: #121a2e; --panel: rgba(23, 33, 57, .78); --panel2: rgba(255, 255, 255, .035);
+    --line: rgba(143, 170, 255, .14); --text: #eaf0ff; --muted: #93a2c4;
+    --accent: #5b8cff; --ok: #38d9c0; --bad: #ff6b7a; --warn: #f7b955;
+    background: radial-gradient(1100px 650px at 100% -12%, rgba(91, 140, 255, .26), transparent 62%), var(--bg);
+  }
+  html:has(body.moderno) { background: #121a2e; }
+  body.moderno button { border-radius: 999px; background: rgba(255, 255, 255, .055); border-color: transparent; font-weight: 600; }
+  body.moderno button:hover { background: rgba(255, 255, 255, .1); border-color: transparent; }
+  body.moderno button.primary, body.moderno h2 button.toggle[aria-pressed="true"],
+  body.moderno #follow[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  #theme[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  body.moderno #theme[aria-pressed="true"] { background: rgba(91, 140, 255, .18); color: #cfdcff; }
+  body.moderno button.danger { color: var(--bad); background: rgba(255, 107, 122, .08); }
+  body.moderno header { border-bottom: 0; padding: 16px 20px 6px; }
+  body.moderno header h1 { font: 600 18px/1.2 "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; letter-spacing: 0; }
+  body.moderno header img { border-radius: 9px; }
+  body.moderno .addr button { background: rgba(91, 140, 255, .12); color: #cfdcff; }
+  body.moderno main { gap: 16px; padding: 12px 20px 20px; }
+  body.moderno section { border-radius: 18px; background: var(--panel); border-color: var(--line);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  body.moderno section > h2 { text-transform: none; letter-spacing: 0; font: 600 15px/1.3 "Segoe UI Variable Display", "Segoe UI", sans-serif;
+    color: var(--text); border-bottom: 0; padding: 14px 16px 8px; }
+  body.moderno section > h2 button { font-size: 12.5px; padding: 4px 12px; }
+  body.moderno #log { font: 12.5px/1.7 var(--mono); padding: 4px 0 10px; }
+  body.moderno #log div { padding: 0 16px; }
+  body.moderno #log .t { color: #5d6b8a; }
+  body.moderno #log .who { border-radius: 999px; padding: 0 8px; font-weight: 600; }
+  body.moderno #log .pin { color: var(--warn); }
+  body.moderno .pinbar { border-color: rgba(91, 140, 255, .5); background: rgba(91, 140, 255, .12); border-radius: 16px; margin: 10px 20px 0; }
+  body.moderno .pinbar .code { color: #fff; }
+  body.moderno #side { padding: 4px 12px 12px; gap: 8px; }
+  body.moderno .card { background: var(--panel2); border-color: var(--line); border-radius: 14px; padding: 14px; }
+  body.moderno .card.offline { opacity: .5; }
+  body.moderno .card h3 { font: 600 15px/1.3 "Segoe UI Variable Display", "Segoe UI", sans-serif; }
+  body.moderno .m small { text-transform: none; letter-spacing: 0; font-size: 12px; }
+  body.moderno .m b { font: 600 20px/1.2 "Segoe UI Variable Display", "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+  body.moderno .m b.warn { color: var(--warn); }
+  body.moderno .bar { height: 5px; border-radius: 999px; background: rgba(255, 255, 255, .07); }
+  body.moderno .bar i { border-radius: 999px; }
+  body.moderno .gpu { border-top-color: var(--line); }
+  body.moderno .dot.on { background: var(--ok); box-shadow: 0 0 0 3px rgba(56, 217, 192, .18); }
+  /* qualità: un unico selettore a pillola */
+  body.moderno .levels { gap: 2px; padding: 3px; border-radius: 999px; background: rgba(0, 0, 0, .25); }
+  body.moderno .levels button { background: transparent; border: 1px solid transparent; padding: 5px 0; }
+  body.moderno .levels button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  body.moderno .levels button.auto { padding: 5px 14px; }
+  body.moderno .levels button.ceiling { border: 1px dashed rgba(91, 140, 255, .7); }
+  body.moderno .drop { border: 1.5px dashed var(--line); border-radius: 14px; background: rgba(91, 140, 255, .05); margin: 4px 16px 8px; }
+  body.moderno .progress { border-radius: 999px; background: rgba(0, 0, 0, .25); }
+  body.moderno .progress i { background: rgba(91, 140, 255, .45); }
+  body.moderno #flist { padding: 0 16px 12px; }
+  body.moderno #flist li { border-top-color: var(--line); border-radius: 10px; }
+  body.moderno #tip { background: #1d2944; border-color: var(--line); border-radius: 10px; }
+  body.moderno #dropcover { background: rgba(18, 26, 46, .85); border-color: var(--accent); color: #fff; border-radius: 0; }
+  body.moderno #down { background: rgba(18, 26, 46, .94); }
+  /* il mini-schermo del dispositivo: proporzioni vere, verticale se girato; acceso = illuminato */
+  body.moderno .fold:has(.screen) .dot { display: none; }
+  body.moderno .screen { display: inline-block; flex: none; height: 15px; max-width: 30px; border-radius: 3px;
+    border: 1.5px solid #4a5677; background: rgba(255, 255, 255, .03); }
+  body.moderno .screen.portrait { height: 19px; }
+  body.moderno .screen.on { border-color: var(--ok); background: rgba(56, 217, 192, .16);
+    box-shadow: 0 0 12px rgba(56, 217, 192, .45); }
+  @media (prefers-reduced-transparency: reduce) { body.moderno section { backdrop-filter: none; background: #172139; } }
+
   @media (max-width: 760px) { main { grid-template-columns: 1fr; grid-template-rows: 2fr 1fr; } .addr { display: none; } }
   @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
 </style>
@@ -142,6 +212,7 @@
   <span class="pill" id="state">Attivo</span>
   <div class="addr" id="addr" title="Indirizzo da aprire in Safari sul dispositivo (clic per copiarlo)"></div>
   <div class="spacer"></div>
+  <button id="theme" aria-pressed="false" title="Prova un aspetto diverso della finestra (un clic per tornare a quello solito)">Aspetto moderno</button>
   <button id="folder">Cartella download</button>
   <button id="quit">Chiudi</button>
 </header>
@@ -259,8 +330,15 @@ function setCompact(id, on) {
   on ? compact.add(id) : compact.delete(id);
   try { localStorage.setItem('compatte', JSON.stringify([...compact])); } catch {}
 }
-function cardHead(id, dotOn, title, essential) {
-  const btn = el('button', { className: 'fold' }, el('span', { className: 'dot' + (dotOn ? ' on' : '') }), title,
+function cardHead(id, dotOn, title, essential, ris, screenOn) {
+  // mini-schermo (aspetto moderno): le proporzioni vere dello schermo virtuale, verticale se il dispositivo è girato
+  let screen = '';
+  const m = /^(\d+)x(\d+)$/.exec(ris || '');
+  if (m) {
+    const w = +m[1], h = +m[2];
+    screen = el('span', { className: 'screen' + (screenOn ? ' on' : '') + (h > w ? ' portrait' : ''), style: `aspect-ratio:${w}/${h}` });
+  }
+  const btn = el('button', { className: 'fold' }, screen, el('span', { className: 'dot' + (dotOn ? ' on' : '') }), title,
     el('span', { className: 'essential', textContent: compact.has(id) ? essential : '' }),
     el('span', { className: 'chev', textContent: '▾' }));
   btn.setAttribute('aria-expanded', !compact.has(id));
@@ -339,10 +417,11 @@ function deviceCard(d, fresh) {
     ? `${d.fps ?? d.fpsInviati ?? '–'} fps · ${d.rtt ?? '–'} ms · ${d.mbit ?? '–'} Mbit/s${battText}`
     : 'non collegato';
   if (compact.has(d.id)) {
-    return el('div', { className: 'card compact' + (d.online ? '' : ' offline') }, cardHead(d.id, d.online, d.nome, essential));
+    return el('div', { className: 'card compact' + (d.online ? '' : ' offline') },
+      cardHead(d.id, d.online, d.nome, essential, d.ris, d.schermo === 'acceso'));
   }
   const card = el('div', { className: 'card' + (d.online ? '' : ' offline') },
-    cardHead(d.id, d.online, d.nome, essential),
+    cardHead(d.id, d.online, d.nome, essential, d.ris, d.schermo === 'acceso'),
     el('div', { className: 'sub', textContent: sub }));
   if (d.online) {
     card.append(
@@ -462,6 +541,16 @@ function refreshTip() {
   const t = document.querySelector(`[data-tip="${CSS.escape(tipKey)}"]`);
   if (t) tip.textContent = t.dataset.tipText; else { tipKey = null; tip.classList.remove('show'); }
 }
+
+/* ---------- aspetto: classico o moderno (ricordato in questo PC) ---------- */
+function setTheme(modern) {
+  document.body.classList.toggle('moderno', modern);
+  $('theme').setAttribute('aria-pressed', modern);
+  try { localStorage.setItem('aspetto', modern ? 'moderno' : 'classico'); } catch { /* niente memoria: va bene lo stesso */ }
+}
+$('theme').addEventListener('click', () => setTheme(!document.body.classList.contains('moderno')));
+const wanted = new URLSearchParams(location.search).get('aspetto');  // ?aspetto=moderno per un'anteprima
+try { setTheme(wanted ? wanted === 'moderno' : localStorage.getItem('aspetto') === 'moderno'); } catch { setTheme(wanted === 'moderno'); }
 
 /* ---------- collegamento al server ---------- */
 function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
