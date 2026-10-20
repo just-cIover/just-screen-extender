@@ -464,7 +464,10 @@ class App:
         s.start_capture()
         s.send_gop(c)
         c.queue.appendleft(json.dumps({'t': 'quality', 'level': s.capture.level}))  # la qualità la ricorda il PC
-        c.queue.appendleft(json.dumps({'t': 'hello', 'nome': s.name}))  # per primo, prima del video
+        # per primo, prima del video; con gli indirizzi del PC: se cambia rete (es. hotspot) l'app li prova
+        port = self.cfg.get('port', 8770)
+        c.queue.appendleft(json.dumps({'t': 'hello', 'nome': s.name,
+                                       'indirizzi': [f'{ip}:{port}' for ip in lan_ips()]}))
         c.wake.set()
         sender = asyncio.create_task(c.sender())
         try:

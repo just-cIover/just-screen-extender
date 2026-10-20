@@ -240,3 +240,12 @@ eventuale scheda grafica dedicata o batteria; da scheda ridotta compare la media
 **LibreHardwareMonitor** (gratuito, open source), che parte da solo all'accesso ridotto vicino
 all'orologio (attività *Schermo Esteso - sensori*, creata da `strumenti\sensori.ps1`). Il suo server
 interno è protetto da password (in `certs\sensori.json`) e il firewall lo chiude agli altri dispositivi.
+
+## Hotspot dell'iPhone
+
+Se il Wi-Fi di casa non è affidabile: attiva l'*Hotspot personale* sull'iPhone e collega il PC a
+quella rete. L'app nativa, se il PC non risponde all'indirizzo solito, lo cerca da sola tra gli
+indirizzi già visti e su quelli dell'hotspot (172.20.10.x) e si ricollega. Il firewall
+(`strumenti\firewall.ps1`) sulle reti pubbliche accetta solo l'hotspot di un iPhone, quindi non
+serve cambiare il tipo di rete; Windows può comunque chiedere che tipo di rete è: scegli pure
+*Pubblica*. Anche l'iPad può collegarsi allo stesso hotspot.

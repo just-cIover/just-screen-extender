@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import QuartzCore
 import UIKit
 
@@ -120,6 +121,11 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
             return
         }
         retry += 1
+        // nessuna risposta (o errore di rete) per due volte: forse il PC ha cambiato rete (hotspot)
+        if retry >= 2 && (error == nil || Self.unreachable(error!)) {
+            findPC()  // il PC non risponde a quell'indirizzo: forse ha cambiato rete (hotspot)
+            return
+        }
         let reason = error.map { describe($0) } ?? "Nessun dato dal PC da 4 secondi."
         delegate?.connection(self, status: "Connessione persa, riprovo…\n\n\(reason)")
         DispatchQueue.main.asyncAfter(deadline: .now() + min(0.3 * Double(retry), 2)) { [weak self] in
@@ -151,6 +157,67 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         }
     }
 
+    // MARK: ricerca del PC su altre reti
+
+    private var finding = false
+
+    private static func unreachable(_ error: Error) -> Bool {
+        let code = (error as NSError).code
+        return [NSURLErrorCannotConnectToHost, NSURLErrorTimedOut, NSURLErrorCannotFindHost,
+                NSURLErrorNetworkConnectionLost, NSURLErrorNotConnectedToInternet].contains(code)
+            || (error as NSError).domain == NSPOSIXErrorDomain
+    }
+
+    /// Prova insieme gli indirizzi conosciuti del PC e quelli dell'hotspot dell'iPhone (172.20.10.2-14):
+    /// il primo che risponde sulla porta di Schermo Esteso diventa l'indirizzo da usare.
+    private func findPC() {
+        guard !finding else { return }
+        finding = true
+        let current = Settings.host
+        let port = current.split(separator: ":").dropFirst().first.map(String.init) ?? "8770"
+        var candidates = [current] + Settings.knownHosts
+        candidates += (2...14).map { "172.20.10.\($0):\(port)" }
+        var seen = Set<String>()
+        candidates = candidates.filter { !$0.isEmpty && seen.insert($0).inserted }
+        delegate?.connection(self, status: "Il PC non risponde a \(current): lo cerco sulle altre reti (anche l'hotspot)…")
+        var done = false
+        var probes: [NWConnection] = []
+        for c in candidates {
+            let parts = c.split(separator: ":", maxSplits: 1)
+            guard let host = parts.first, let p = UInt16(parts.count > 1 ? String(parts[1]) : port),
+                  let nwPort = NWEndpoint.Port(rawValue: p) else { continue }
+            let probe = NWConnection(host: NWEndpoint.Host(String(host)), port: nwPort, using: .tcp)
+            probe.stateUpdateHandler = { [weak self] state in
+                guard case .ready = state else { return }
+                probe.cancel()
+                guard !done, let self else { return }
+                done = true
+                self.found(c)
+            }
+            probes.append(probe)
+            probe.start(queue: .main)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
+            probes.forEach { $0.cancel() }
+            guard let self else { return }
+            self.finding = false
+            if !done {
+                self.delegate?.connection(self, status: "PC non trovato. Schermo Esteso è aperto sul PC? PC e dispositivo sono sulla stessa rete (o il PC è collegato all'hotspot)? Riprovo…")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.connect() }
+            }
+        }
+    }
+
+    private func found(_ host: String) {
+        finding = false
+        if host != Settings.host {
+            Settings.host = host
+            onNotice?("PC trovato: \(host)")
+        }
+        retry = 0
+        connect()
+    }
+
     // MARK: messaggi dal PC
 
     private func handle(_ text: String) {
@@ -177,6 +244,11 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
                 delegate?.connectionNeedsPin(self, message: "PIN errato, riprova.")
             }
         case "hello":
+            if let addrs = m["indirizzi"] as? [String] {
+                var known = Settings.knownHosts
+                for a in addrs + [Settings.host] where !known.contains(a) { known.insert(a, at: 0) }
+                Settings.knownHosts = known
+            }
             pairing = false
             ready = true
             retry = 0

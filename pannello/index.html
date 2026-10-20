@@ -56,6 +56,10 @@
   section > h2 .spacer { flex: 1; }
   section > h2 button { font-size: 12px; padding: 3px 10px; text-transform: none; letter-spacing: 0; }
 
+  #tip { position: fixed; z-index: 50; pointer-events: none; display: none; padding: 6px 9px; border-radius: 8px;
+    background: #0c0d11; color: var(--text); border: 1px solid var(--line); font-size: 12px; white-space: nowrap; }
+  #tip.show { display: block; }
+  [data-tip] { cursor: help; }
   #log { flex: 1; overflow-y: auto; padding: 8px 0; font: 12.5px/1.55 var(--mono); user-select: text; }
   #log div { padding: 0 12px; white-space: pre-wrap; word-break: break-word; }
   #log div:hover { background: rgba(255, 255, 255, .025); }
@@ -305,7 +309,10 @@ function pcCard(pc, fresh) {
       el('div', { className: 'sub', textContent: `Temperature · media ${t.media} °C` }),
       el('div', { className: 'grid' }, ...t.elenco.map((x) => {
         const m = metric(names[x.nome] || x.nome, x.valore, '°C', hot(x.valore));
-        if (x.core && x.core.length) m.title = 'Core: ' + x.core.map((c) => c + ' °C').join(' · ');
+        if (x.core && x.core.length) {
+          m.dataset.tip = 'temp-' + x.nome; // riquadro mio: resta aperto anche quando la scheda si ridisegna
+          m.dataset.tipText = 'Core: ' + x.core.map((c) => c + ' °C').join(' · ');
+        }
         return m;
       }))));
   } else if (pc.tempAttese) {
@@ -424,10 +431,31 @@ function render(st, fresh = true) {
   const top = side.scrollTop;
   side.replaceChildren(...kids);
   side.scrollTop = top;
+  refreshTip();
   $('pins').replaceChildren(...st.pin.map((p) => el('div', { className: 'pinbar' },
     el('div', {}, el('b', { textContent: `${p.nome} vuole collegarsi` }),
       el('small', { textContent: `Inserisci questo PIN sul dispositivo · scade tra ${Math.floor(p.secondi / 60)}:${String(p.secondi % 60).padStart(2, '0')}` })),
     el('span', { className: 'code', textContent: p.pin.slice(0, 3) + ' ' + p.pin.slice(3) }))));
+}
+
+/* ---------- riquadro informativo (sostituisce il title, che spariva a ogni aggiornamento) ---------- */
+const tip = el('div', { id: 'tip', role: 'tooltip' });
+document.body.append(tip);
+let tipKey = null;
+document.addEventListener('mousemove', (e) => {
+  const t = e.target.closest && e.target.closest('[data-tip]');
+  tipKey = t ? t.dataset.tip : null;
+  if (!t) { tip.classList.remove('show'); return; }
+  tip.textContent = t.dataset.tipText;
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + 'px';
+  tip.style.top = (e.clientY + 18) + 'px';
+  tip.classList.add('show');
+});
+document.addEventListener('mouseleave', () => { tipKey = null; tip.classList.remove('show'); });
+function refreshTip() {
+  if (!tipKey) return;
+  const t = document.querySelector(`[data-tip="${CSS.escape(tipKey)}"]`);
+  if (t) tip.textContent = t.dataset.tipText; else { tipKey = null; tip.classList.remove('show'); }
 }
 
 /* ---------- collegamento al server ---------- */
