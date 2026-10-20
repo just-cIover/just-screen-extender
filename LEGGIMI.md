@@ -249,3 +249,9 @@ indirizzi già visti e su quelli dell'hotspot (172.20.10.x) e si ricollega. Il f
 (`strumenti\firewall.ps1`) sulle reti pubbliche accetta solo l'hotspot di un iPhone, quindi non
 serve cambiare il tipo di rete; Windows può comunque chiedere che tipo di rete è: scegli pure
 *Pubblica*. Anche l'iPad può collegarsi allo stesso hotspot.
+
+**Con il cavo, PC sul Wi-Fi di casa:** attiva l'Hotspot personale e collega l'iPhone al PC con il
+cavo USB. Il PC resta sul Wi-Fi per Internet e parla con l'iPhone attraverso il cavo (più stabile
+del Wi-Fi, e l'iPhone si ricarica). La prima volta esegui come amministratore
+`strumenti\usb-iphone.ps1`: mette la rete dell'iPhone come ultima scelta, così Internet non
+consuma i giga dell'iPhone.
