@@ -25,6 +25,8 @@ import sicurezza
 FOLDER = os.environ.get('IPAD_SCHERMO_CARTELLA') or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'download')
 META = os.path.join(os.path.dirname(FOLDER), 'download-info.json')  # chi ha aggiunto cosa (fuori dalla cartella)
 CHUNK = 1 << 20
+MAX_FILE = 20 * 1024 ** 3     # 20 GB per file
+MIN_FREE = 2 * 1024 ** 3      # lascio sempre almeno 2 GB liberi sul disco
 SCAN = 2  # secondi tra due controlli della cartella
 
 
@@ -188,11 +190,17 @@ class Exchange:
             name = _unique(_safe_name(part.filename))
             tmp = os.path.join(FOLDER, name + '.parziale')
             try:
+                written = 0
                 with open(tmp, 'wb') as f:
                     while True:
                         chunk = await part.read_chunk(CHUNK)
                         if not chunk:
                             break
+                        written += len(chunk)
+                        # un file enorme (anche per sbaglio) non deve riempire il disco del PC
+                        if written > MAX_FILE or shutil.disk_usage(FOLDER).free < MIN_FREE + len(chunk):
+                            raise web.HTTPRequestEntityTooLarge(max_size=MAX_FILE, actual_size=written,
+                                                                text='spazio sul disco del PC quasi finito')
                         await asyncio.to_thread(f.write, chunk)
                 os.replace(tmp, os.path.join(FOLDER, name))
                 if dev:  # arrivato da un dispositivo: Windows lo tratta come scaricato da Internet

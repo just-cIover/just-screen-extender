@@ -172,10 +172,12 @@ class Injector:
                 self.contacts.pop(pid, None)
 
     def keepalive(self):
-        """Windows annulla i contatti fermi se non riceve aggiornamenti: li ripeto."""
+        """Windows annulla i contatti fermi se non riceve aggiornamenti: li ripeto.
+        Restituisce True se c'è qualcosa appoggiato (dito o penna)."""
         if self.contacts:
             self._inject({})
         self.pen.keepalive()
+        return bool(self.contacts) or self.pen.down
 
     def release_all(self, owner=None):
         mine = [k for k in self.contacts if owner is None or k[0] == owner]

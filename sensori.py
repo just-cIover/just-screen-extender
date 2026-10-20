@@ -34,6 +34,7 @@ class Sensors:
     def __init__(self):
         self.data = None  # {'elenco': [...], 'media': x} oppure None se non disponibili
         self.error = None
+        self.wanted = 0.0  # ultima volta che qualcuno ha chiesto le temperature (la finestra del PC)
         try:
             with open(CONFIG, encoding='utf-8') as f:
                 c = json.load(f)
@@ -46,6 +47,9 @@ class Sensors:
 
     def _loop(self):
         while True:
+            if time.monotonic() - self.wanted > 10:  # finestra del PC chiusa: non serve leggerle
+                time.sleep(1)
+                continue
             try:
                 self.data = self._read()
                 self.error = None
@@ -88,4 +92,5 @@ class Sensors:
         return {'elenco': out, 'media': round(sum(x['valore'] for x in out) / len(out))}
 
     def read(self):
+        self.wanted = time.monotonic()
         return self.data

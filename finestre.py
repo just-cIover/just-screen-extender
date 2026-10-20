@@ -379,7 +379,11 @@ class StartFollower:
 
     def _check_start(self, hwnd):
         """Se in primo piano c'è lo Start (o la ricerca), ricordo su quale schermo è aperto."""
-        if not hwnd or process_name(hwnd) not in START_HOSTS:
+        if not hwnd or hwnd == getattr(self, '_last_fg', None) and not getattr(self, '_last_was_start', False):
+            return
+        self._last_fg = hwnd
+        self._last_was_start = process_name(hwnd) in START_HOSTS
+        if not self._last_was_start:
             return
         # conta il rettangolo della finestra: lo Start si apre sullo schermo da cui l'hai chiamato
         rc = wintypes.RECT()

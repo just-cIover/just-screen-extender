@@ -608,6 +608,10 @@ class App:
         if not path or not m or not s.capture_key or not pt:
             return
         under = finestre.process_name(finestre.user32.WindowFromPoint(finestre.wintypes.POINT(*pt))) or 'il desktop'
+        if not sicurezza.safe_to_open(path):
+            log(f'ha trascinato {name}: è nella cartella condivisa, ma programmi e script non li trascino nei '
+                'programmi del PC', s.name)
+            return
         try:
             effect = await asyncio.to_thread(trascina.drop_at, path, *pt)
         except Exception as e:
@@ -785,8 +789,9 @@ class App:
 
     async def keepalive(self):
         while True:
-            await asyncio.sleep(0.05)
-            self.injector.keepalive()
+            busy = self.injector.keepalive()
+            # con un dito o la penna appoggiati ogni 50 ms; altrimenti basta controllare 4 volte al secondo
+            await asyncio.sleep(0.05 if busy else 0.25)
 
     async def watch_monitors(self):
         """Se cambia la disposizione degli schermi, riaggancio la cattura di chi ne è toccato."""
@@ -797,6 +802,8 @@ class App:
                 if (s.clients and s.capture_task and not s.capture_task.done() and s.sent_frames
                         and time.time() - s.stats.get('ora', time.time()) > 8):
                     s.check_quality()
+            if not any(s.capture_key for s in self.sessions.values()):
+                continue  # nessuno schermo in uso: niente da controllare
             outs = monitors.dxgi_outputs()
             for s in self.sessions.values():
                 if not s.capture_key:
