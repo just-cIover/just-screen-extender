@@ -343,8 +343,29 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
 
     // MARK: statistiche per la finestra del PC
 
+    /// L'app non è in primo piano (Centro di controllo, app switcher, notifica): fotogrammi e ritardo di
+    /// questi secondi non dicono niente sulla rete, quindi il PC non li deve usare per la qualità automatica.
+    private var quietUntil: CFTimeInterval = 0
+    private var inactive = false
+
+    func resignedActive() {
+        inactive = true
+    }
+
+    func becameActive() {
+        inactive = false
+        quietUntil = CACurrentMediaTime() + 4
+        connection.forgetDelay()
+    }
+
     private func sendStats() {
         guard connection.ready else { return }
+        if inactive || CACurrentMediaTime() < quietUntil {
+            connection.send(["t": "stats", "pausa": true])
+            framesShown = 0
+            bytesReceived = 0
+            return
+        }
         let q = Settings.quality
         connection.send(["t": "stats", "fps": framesShown / 2, "dec": framesShown / 2,
                          "rtt": connection.rtt.map { Int($0) as Any } ?? NSNull(),  // JSON: null se non misurato

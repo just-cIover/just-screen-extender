@@ -399,6 +399,10 @@ class Session:
             d.pop('t', None)
             log(f'info: {json.dumps(d, ensure_ascii=False)}', self.name)
         elif t == 'stats':
+            if d.get('pausa'):  # il dispositivo è stato in pausa (cambio app, Centro di controllo): dati non validi
+                self.stats['ora'] = time.time()
+                self.auto.changed(time.monotonic())
+                return
             self.stats = {k: d.get(k) for k in ('fps', 'dec', 'rtt', 'mbit', 'queue', 'render', 'q', 'batt')}
             self.stats['ora'] = time.time()  # mostrate nella finestra del PC, non nella console
             self.check_quality(d)
@@ -452,6 +456,7 @@ class App:
         c = Client(ws)
         s.clients.add(c)
         s.stats = {'ora': time.time()}  # da qui conto il silenzio del dispositivo
+        s.auto.changed(time.monotonic())  # appena ricollegato (es. tornato dall'app switcher): non giudico subito
         s.last_seen = time.monotonic()
         self.devices.update(dev_id, visto=time.strftime('%Y-%m-%d %H:%M'), ip=request.remote)
         log(f'collegato da {request.remote}', s.name)

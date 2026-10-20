@@ -29,6 +29,11 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         screen.receiveShared(URLContexts.map(\.url))
     }
 
-    func sceneDidBecomeActive(_ scene: UIScene) { screen.resume() }
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        screen.resume()
+        screen.becameActive()
+    }
+    // Centro di controllo, app switcher, notifiche: iPadOS ferma l'app per un attimo
+    func sceneWillResignActive(_ scene: UIScene) { screen.resignedActive() }
     func sceneDidEnterBackground(_ scene: UIScene) { screen.pause() }
 }

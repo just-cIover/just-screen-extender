@@ -202,7 +202,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         case "penna":
             if let use = m["uso"] as? String { onPenUse?(use) }
         case "pong":
-            if let ts = m["ts"] as? Double { rtt = CACurrentMediaTime() * 1000 - ts }
+            if let ts = m["ts"] as? Double, ts >= pingsAfter { rtt = CACurrentMediaTime() * 1000 - ts }
         case "file":
             let names = m["nomi"] as? [String] ?? []
             if !names.isEmpty { delegate?.connection(self, newFiles: names, from: m["da"] as? String ?? "PC") }
@@ -214,6 +214,13 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
     }
 
     // MARK: messaggi verso il PC
+
+    /// Dopo una pausa dell'app: le risposte ai ping mandati prima darebbero ritardi enormi e falsi.
+    func forgetDelay() {
+        rtt = nil
+        pingsAfter = CACurrentMediaTime() * 1000
+    }
+    private var pingsAfter: Double = 0
 
     func send(_ obj: [String: Any]) {
         guard let task, let data = try? JSONSerialization.data(withJSONObject: obj),
