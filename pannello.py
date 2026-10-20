@@ -8,6 +8,7 @@ import asyncio
 import ctypes
 import json
 import os
+import re
 import time
 from ctypes import wintypes
 
@@ -79,6 +80,17 @@ class Panel:
         resp = web.FileResponse(PAGE)
         resp.headers['Cache-Control'] = 'no-cache'
         return resp
+
+    async def background(self, request):
+        """Immagini di sfondo dei temi (cartella pannello/sfondi), solo per la finestra di questo PC."""
+        self._local(request)
+        name = request.match_info['nome']
+        if not re.fullmatch(r'[a-z0-9-]+\.jpg', name):
+            raise web.HTTPNotFound()
+        path = os.path.join(os.path.dirname(PAGE), 'sfondi', name)
+        if not os.path.isfile(path):
+            raise web.HTTPNotFound()
+        return web.FileResponse(path)
 
     async def ping(self, request):
         self._local(request)
@@ -241,4 +253,5 @@ class Panel:
     def routes(self, router):
         router.add_get('/pc', self.page)
         router.add_get('/pc/ping', self.ping)
+        router.add_get('/pc/sfondo/{nome}', self.background)
         router.add_get('/pc/ws', self.ws)

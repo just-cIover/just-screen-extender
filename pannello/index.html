@@ -340,6 +340,26 @@
   body.cyber .dot.on { box-shadow: 0 0 0 3px rgba(184, 255, 74, .2), 0 0 10px rgba(184, 255, 74, .55); }
   body.cyber #theme { --menu: #0a2328; border-radius: 2px; background: rgba(139, 233, 255, .08); border: 1px solid rgba(139, 233, 255, .35); }
 
+  /* ---------- aspetto "Abisso con immagine": il disegno come sfondo, pannelli di vetro smerigliato ---------- */
+  body.foto {
+    --panel: rgba(30, 21, 17, .50); --panel2: rgba(255, 238, 205, .07); --line: rgba(255, 236, 200, .18);
+    background: linear-gradient(rgba(20, 13, 10, .30), rgba(20, 13, 10, .30)),
+      url('/pc/sfondo/abisso.jpg') center / cover no-repeat fixed, #221915;
+  }
+  body.foto section { background-image: none; background-color: var(--panel);
+    backdrop-filter: blur(22px) saturate(1.15) brightness(.88); -webkit-backdrop-filter: blur(22px) saturate(1.15) brightness(.88);
+    border-color: var(--line); }
+  /* la colonna di destra sta sopra la parte più luminosa del disegno: vetro un po' più scuro */
+  body.foto .col section { background-color: rgba(30, 21, 17, .60); }
+  body.foto header { background: linear-gradient(rgba(20, 13, 10, .45), transparent); }
+  body.foto .sub, body.foto .m small, body.foto #flist .meta, body.foto .pill { text-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
+  body.foto::before { opacity: .35; }
+  /* in alto a destra il disegno è molto chiaro: pulsanti su vetro scuro per leggerli bene */
+  body.foto header button, body.foto header #theme { background: rgba(30, 21, 17, .62); border-color: rgba(255, 236, 200, .2);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  body.foto header button:hover { background: rgba(30, 21, 17, .78); }
+  body.foto #theme { --menu: #33251f; }
+
   @media (max-width: 760px) { main { grid-template-columns: 1fr; grid-template-rows: 2fr 1fr; } .addr { display: none; } }
   @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
 </style>
@@ -355,6 +375,7 @@
     <option value="classico">Aspetto: Classico</option>
     <option value="moderno">Aspetto: Moderno</option>
     <option value="abisso">Aspetto: Abisso</option>
+    <option value="abissofoto">Aspetto: Abisso con immagine</option>
     <option value="cyber">Aspetto: Edgerunners</option>
   </select>
   <button id="folder">Cartella download</button>
@@ -687,12 +708,13 @@ function refreshTip() {
 }
 
 /* ---------- aspetto: classico o moderno (ricordato in questo PC) ---------- */
-const THEMES = ['classico', 'moderno', 'abisso', 'cyber'];
+const THEMES = ['classico', 'moderno', 'abisso', 'abissofoto', 'cyber'];
 function setTheme(name) {
   if (!THEMES.includes(name)) name = 'classico';
   // "abisso" e "cyber" usano la struttura del moderno con colori, forme e caratteri loro
   document.body.classList.toggle('moderno', name !== 'classico');
-  document.body.classList.toggle('abisso', name === 'abisso');
+  document.body.classList.toggle('abisso', name === 'abisso' || name === 'abissofoto');
+  document.body.classList.toggle('foto', name === 'abissofoto');
   document.body.classList.toggle('cyber', name === 'cyber');
   $('theme').value = name;
   try { localStorage.setItem('aspetto', name); } catch { /* niente memoria: va bene lo stesso */ }
