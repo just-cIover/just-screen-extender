@@ -342,7 +342,7 @@
 
   /* ---------- aspetto "Abisso con immagine": il disegno come sfondo, pannelli di vetro smerigliato ---------- */
   body.foto {
-    --panel: rgba(30, 21, 17, .20); --panel2: rgba(255, 238, 205, .063); --line: rgba(255, 236, 200, .18);
+    --panel: rgba(30, 21, 17, .25); --panel2: rgba(255, 238, 205, .063); --line: rgba(255, 236, 200, .18);
     background: linear-gradient(rgba(20, 13, 10, .30), rgba(20, 13, 10, .30)),
       url('/pc/sfondo/abisso.jpg') center / cover no-repeat fixed, #221915;
   }
@@ -350,7 +350,7 @@
     backdrop-filter: blur(22px) saturate(1.15) brightness(.88); -webkit-backdrop-filter: blur(22px) saturate(1.15) brightness(.88);
     border-color: var(--line); }
   /* la colonna di destra sta sopra la parte più luminosa del disegno: vetro un po' più scuro */
-  body.foto .col section { background-color: rgba(30, 21, 17, .20); }
+  body.foto .col section { background-color: rgba(30, 21, 17, .25); }
   body.foto header { background: linear-gradient(rgba(20, 13, 10, .45), transparent); }
   body.foto .sub, body.foto .m small, body.foto #flist .meta, body.foto .pill { text-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
   body.foto::before { opacity: .35; }
