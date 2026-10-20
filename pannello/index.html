@@ -257,7 +257,12 @@
   #theme { font: inherit; font-weight: 600; color: var(--text); background: var(--panel2); border: 1px solid var(--line);
     border-radius: 8px; padding: 6px 10px; cursor: pointer; }
   body.moderno #theme { border-radius: 999px; background: rgba(255, 255, 255, .055); border-color: transparent; }
-  #theme option { color: #111; }
+  /* elenco del menu: sfondo pieno del tema e testo chiaro (le opzioni non vedono la trasparenza) */
+  #theme { color-scheme: dark; --menu: #1a1d25; }
+  body.moderno #theme { --menu: #1d2944; }
+  body.abisso #theme { --menu: #33251f; }
+  #theme option { background: var(--menu); color: var(--text); }
+  #theme option:checked { background: var(--accent); color: #111; }
 
   @media (max-width: 760px) { main { grid-template-columns: 1fr; grid-template-rows: 2fr 1fr; } .addr { display: none; } }
   @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
