@@ -274,7 +274,8 @@ $('compactAll').addEventListener('click', () => {
 function pcCard(pc, fresh) {
   if (fresh && pc.cpu != null) { cpuHist.push(pc.cpu); if (cpuHist.length > 60) cpuHist.shift(); }
   const g = pc.gpu;
-  const essential = `CPU ${pc.cpu ?? '–'}% · RAM ${pc.ram}%` + (g ? ` · GPU ${g.uso}%` : '');
+  const t = pc.temp;
+  const essential = `CPU ${pc.cpu ?? '–'}% · RAM ${pc.ram}%` + (g ? ` · GPU ${g.uso}%` : '') + (t ? ` · ${t.media}°C` : '');
   if (compact.has('pc')) return el('div', { className: 'card compact' }, cardHead('pc', true, 'Questo PC', essential));
   const cpu = el('div', { className: 'm' }, el('small', { textContent: 'Processore' }),
     el('b', { textContent: pc.cpu ?? '–' }), el('span', { textContent: '%' }),
@@ -295,6 +296,20 @@ function pcCard(pc, fresh) {
         bar('Scheda grafica', g.uso, 'Il motore più carico della scheda, come in Gestione attività'),
         bar('Motore video', g.codifica, 'Compressione degli schermi mandati ai dispositivi (e video riprodotti sul PC)'),
         metric('Memoria grafica', g.memGb, 'GB'))));
+  }
+  if (t) {
+    // colori: oltre 80 °C attenzione, oltre 90 °C troppo caldo
+    const hot = (v) => (v >= 90 ? 'bad' : v >= 80 ? 'warn' : '');
+    const names = { CPU: 'Processore', Disco: 'Disco (SSD)', 'Scheda grafica': 'Scheda grafica', Batteria: 'Batteria' };
+    card.append(el('div', { className: 'gpu' },
+      el('div', { className: 'sub', textContent: `Temperature · media ${t.media} °C` }),
+      el('div', { className: 'grid' }, ...t.elenco.map((x) => {
+        const m = metric(names[x.nome] || x.nome, x.valore, '°C', hot(x.valore));
+        if (x.core && x.core.length) m.title = 'Core: ' + x.core.map((c) => c + ' °C').join(' · ');
+        return m;
+      }))));
+  } else if (pc.tempAttese) {
+    card.append(el('div', { className: 'sub', textContent: 'Temperature non disponibili: LibreHardwareMonitor non è avviato' }));
   }
   return card;
 }

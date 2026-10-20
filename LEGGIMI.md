@@ -232,3 +232,11 @@ AltServer → *Install AltStore* → iPhone, poi *Sideload .ipa*.
   Esplora file o il desktop lo copiano, Obsidian lo mette nella cartella del vault, Word o una chat
   lo inseriscono. Se nessun programma lo prende, si apre con il suo programma (solo documenti e
   file multimediali, mai programmi o script). Serve il pacchetto `pywin32` (`pip install pywin32`).
+
+## Temperature del PC
+
+Nella scheda *Questo PC* della finestra: processore (con i singoli core passando sopra), disco ed
+eventuale scheda grafica dedicata o batteria; da scheda ridotta compare la media. Le legge
+**LibreHardwareMonitor** (gratuito, open source), che parte da solo all'accesso ridotto vicino
+all'orologio (attività *Schermo Esteso - sensori*, creata da `strumenti\sensori.ps1`). Il suo server
+interno è protetto da password (in `certs\sensori.json`) e il firewall lo chiude agli altri dispositivi.
