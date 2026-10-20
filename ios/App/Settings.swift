@@ -50,6 +50,12 @@ enum Settings {
         set { d.set(newValue, forKey: "penMode2") }
     }
 
+    /// Lo schermo del PC gira con il dispositivo (verticale/orizzontale). Spento = sempre orizzontale.
+    static var rotate: Bool {
+        get { d.object(forKey: "rotate") as? Bool ?? true }
+        set { d.set(newValue, forKey: "rotate") }
+    }
+
     /// Appunti condivisi con il PC.
     static var clipboardSync: Bool {
         get { d.object(forKey: "clipboardSync") as? Bool ?? true }

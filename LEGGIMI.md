@@ -270,3 +270,10 @@ risponde, lo usa da sola. Il video passa dalla rete mobile: a *Fluida* circa 2-3
 Nella scheda di ogni dispositivo (app nativa) nella finestra del PC: carica in percentuale, con ⚡
 se è in carica; gialla sotto il 30%, rossa sotto il 15%. Sotto il 15% e non in carica compare anche
 un avviso in console, così puoi collegarlo prima che si spenga (e con lui il suo schermo).
+
+## Verticale
+
+Con l'app nativa, girando iPad o iPhone in verticale anche lo schermo virtuale diventa verticale
+(utile per documenti e pagine lunghe). La prima volta per ogni misura gli schermi virtuali si
+spengono e riaccendono un attimo (il driver impara la misura nuova); poi il cambio richiede solo
+qualche secondo. Menu → *Ruota con il dispositivo* per tenerlo sempre orizzontale.

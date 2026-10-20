@@ -292,17 +292,35 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         let device = UIDevice.current
         c.send(["t": "diag", "motore": "nativo", "avvio": true,
                 "ua": "Schermo Esteso iOS \(version), \(device.model) \(device.systemName) \(device.systemVersion)"])
+        lastArea = []  // nuovo collegamento: le misure le rimando comunque
         sendArea()
     }
 
-    /// Pixel utili: tutto lo schermo, tranne ai lati la tacca o la Dynamic Island dell'iPhone in orizzontale.
-    /// Lo schermo virtuale prende esattamente queste misure (su iPad = tutto lo schermo).
+    /// Pixel utili: tutto lo schermo, tranne la tacca o la Dynamic Island dell'iPhone (ai lati in orizzontale,
+    /// in alto in verticale). Lo schermo virtuale prende esattamente queste misure, anche girato in verticale.
+    private var lastArea: [Int] = []
+
     private func sendArea() {
         guard connection.ready else { return }
         let b = view.bounds, i = view.safeAreaInsets, scale = UIScreen.main.nativeScale
-        let w = (b.width - i.left - i.right) * scale, h = b.height * scale
+        let w = (b.width - i.left - i.right) * scale, h = (b.height - i.top) * scale
         let even = { (v: CGFloat) in Int(v.rounded()) & ~1 }  // la codifica video vuole misure pari
-        connection.send(["t": "area", "w": even(max(w, h)), "h": even(min(w, h))])
+        let area = [even(w), even(h)]
+        guard area != lastArea else { return }
+        lastArea = area
+        connection.send(["t": "area", "w": area[0], "h": area[1]])
+    }
+
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+        guard Settings.rotate else { return .landscape }
+        return UIDevice.current.userInterfaceIdiom == .pad ? .all : .allButUpsideDown
+    }
+
+    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+            self?.sendArea()  // girato: il PC rifà lo schermo virtuale con le nuove misure
+        }
     }
 
     override func viewSafeAreaInsetsDidChange() {
@@ -808,6 +826,11 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
                                        ("gomma", "Gomma"), ("mouse", "Mouse")].map { key, name in
             UIAction(title: name, state: Settings.penMode == key ? .on : .off) { _ in Settings.penMode = key }
         })
+        let rotate = UIAction(title: "Ruota con il dispositivo", image: UIImage(systemName: "rectangle.portrait.rotate"),
+                              state: Settings.rotate ? .on : .off) { [weak self] _ in
+            Settings.rotate.toggle()
+            self?.setNeedsUpdateOfSupportedInterfaceOrientations()
+        }
         let ink = UIAction(title: "Inchiostro immediato", image: UIImage(systemName: "scribble"),
                            state: Settings.instantInk ? .on : .off) { _ in Settings.instantInk.toggle() }
         let files = UIAction(title: "File condivisi", image: UIImage(systemName: "folder")) { [weak self] _ in
@@ -842,7 +865,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         let extra: [UIMenuElement] = zoom > 1.01 ? [unzoom] : []
         return extra + [state, files, UIMenu(title: "Appunti", image: UIImage(systemName: "doc.on.clipboard"), children: [clipSync, clipSend]),
                 UIMenu(options: .displayInline, children: [password, typeText]),
-                quality, fingersMenu, pencil, ink,
+                quality, fingersMenu, pencil, ink, rotate,
                 UIMenu(options: .displayInline, children: [reconnect, repair, host])]
     }
 

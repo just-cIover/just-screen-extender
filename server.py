@@ -275,8 +275,8 @@ class Session:
             w, h = int(w), int(h)
         except (TypeError, ValueError):
             return
-        if not (640 <= w <= 4096 and 480 <= h <= 4096 and 1.0 <= w / h <= 2.5):
-            return  # solo orizzontale e misure sensate
+        if not (480 <= w <= 4096 and 480 <= h <= 4096 and 0.4 <= w / h <= 2.5):
+            return  # misure sensate, orizzontali o verticali (dispositivo girato)
         w, h = w // 2 * 2, h // 2 * 2  # pari, come chiede il codificatore H.264
         if list(self.info.get('risoluzione', [])) == [w, h]:
             return
