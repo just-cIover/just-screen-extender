@@ -264,6 +264,82 @@
   #theme option { background: var(--menu); color: var(--text); }
   #theme option:checked { background: var(--accent); color: #111; }
 
+  /* ---------- aspetto "Cyberpunk": struttura del moderno, insegne al neon sotto la pioggia ----------
+     viola-notte con un alone magenta e uno ciano; pannelli con gli angoli tagliati come un visore;
+     ciano per i comandi, giallo segnale per le scelte (testo scuro), magenta per gli avvisi,
+     verde neon per ciò che è acceso; Bahnschrift per titoli e numeri; linee di scansione ferme. */
+  /* Edgerunners: cielo blu-petrolio, la Luna che spunta dall'alto, la città rosa-magenta in basso,
+     giallo di David per le scelte, ciano-bianco di Lucy per i comandi, lime del monofilo per ciò che è acceso */
+  body.cyber {
+    --bg: #061a1d; --panel: rgba(6, 26, 30, .64); --panel2: rgba(139, 233, 255, .04);
+    --line: rgba(139, 233, 255, .22); --text: #e8f8ff; --muted: #8fb3bd;
+    --accent: #8be9ff; --ok: #b8ff4a; --bad: #ff4fa3; --warn: #f4e409; --sel: #f4e409;
+    background:
+      radial-gradient(circle at 74% -230px, rgba(226, 240, 248, .36) 0 330px, rgba(170, 215, 235, .12) 336px, transparent 520px),
+      radial-gradient(1300px 460px at 50% 112%, rgba(255, 79, 216, .55), transparent 70%),
+      radial-gradient(500px 500px at 0% 100%, rgba(80, 220, 255, .16), transparent 70%),
+      radial-gradient(500px 500px at 100% 100%, rgba(80, 220, 255, .14), transparent 70%),
+      linear-gradient(180deg, #061a1d 0%, #0a2328 55%, #1a1630 100%);
+  }
+  html:has(body.cyber) { background: #061a1d; }
+  /* stelle (ferme) */
+  body.cyber::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 3; opacity: .55;
+    background:
+      radial-gradient(1.5px 1.5px at 8% 12%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 19% 34%, #fff 50%, transparent 51%),
+      radial-gradient(2px 2px at 31% 9%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 44% 27%, #fff 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 57% 15%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 63% 44%, #fff 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 79% 38%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 88% 22%, #fff 50%, transparent 51%),
+      radial-gradient(2px 2px at 95% 52%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 4% 61%, #fff 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 24% 70%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 39% 58%, #fff 50%, transparent 51%); }
+  body.cyber > header, body.cyber > main, body.cyber > #pins { position: relative; z-index: 1; }
+  body.cyber header h1, body.cyber section > h2, body.cyber .card h3, body.cyber .m b, body.cyber .pinbar .code {
+    font-family: Bahnschrift, "DIN Alternate", "Segoe UI", sans-serif; }
+  body.cyber header h1 { font-size: 20px; font-weight: 600; letter-spacing: .04em; color: var(--sel);
+    text-shadow: 0 0 14px rgba(244, 228, 9, .35); }
+  body.cyber section > h2 { font-size: 16px; letter-spacing: .04em; }
+  body.cyber .m b { font-weight: 600; font-size: 21px; }
+  /* angoli tagliati: pannelli e schede come le schermate di un visore */
+  body.cyber section { border-radius: 0; border-color: var(--line);
+    backdrop-filter: blur(8px) saturate(1.3); -webkit-backdrop-filter: blur(8px) saturate(1.3);
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px)); }
+  body.cyber .card { border-radius: 0; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); }
+  body.cyber .drop { border-radius: 0; border-color: rgba(0, 229, 255, .35); background: rgba(0, 229, 255, .04); }
+  body.cyber #flist li { border-radius: 0; }
+  body.cyber button { border-radius: 2px; background: rgba(139, 233, 255, .08); border: 1px solid rgba(139, 233, 255, .35); color: #dff8ff; }
+  body.cyber button:hover { background: rgba(139, 233, 255, .16); border-color: var(--accent); }
+  body.cyber button.danger { color: #ff8cc3; border-color: rgba(255, 79, 163, .45); background: rgba(255, 79, 163, .08); }
+  body.cyber button.primary, body.cyber h2 button.toggle[aria-pressed="true"], body.cyber #follow[aria-pressed="true"],
+  body.cyber .levels button[aria-pressed="true"] { background: var(--sel); border-color: var(--sel); color: #0b0a14; }
+  body.cyber .levels { border-radius: 2px; background: rgba(0, 0, 0, .4); }
+  body.cyber .levels button { border-radius: 1px; color: #dff8ff; }
+  body.cyber .levels button.ceiling { border: 1px dashed rgba(244, 228, 9, .7); }
+  body.cyber .addr button { border-radius: 2px; background: rgba(255, 79, 216, .1); border-color: rgba(255, 79, 216, .4); color: #ffd0f2; }
+  body.cyber .bar { border-radius: 0; background: rgba(255, 255, 255, .07); }
+  body.cyber .bar i { border-radius: 0; background: linear-gradient(90deg, #ff4fd8, #8be9ff); }
+  body.cyber .m b.warn { color: var(--warn); }
+  body.cyber .m b.bad { color: #ff6fb5; }
+  body.cyber #log .t { color: #5f8791; }
+  body.cyber #log .who { border-radius: 2px; }
+  body.cyber #log .pin { color: var(--warn); }
+  body.cyber #log .err { color: #ff6fb5; }
+  body.cyber .pinbar { border-radius: 0; border-color: var(--warn); background: rgba(252, 238, 10, .08); }
+  body.cyber .pinbar .code { color: var(--warn); text-shadow: 0 0 14px rgba(244, 228, 9, .4); }
+  body.cyber .progress { border-radius: 0; }
+  body.cyber .progress i { background: rgba(139, 233, 255, .45); }
+  body.cyber #tip { background: #0a2328; border-color: var(--accent); border-radius: 2px; }
+  body.cyber #dropcover { background: rgba(6, 26, 29, .88); border-color: var(--warn); color: var(--warn); }
+  body.cyber #down { background: rgba(6, 26, 29, .95); }
+  body.cyber .screen { border-radius: 1px; border-color: #355a62; }
+  body.cyber .screen.on { border-color: var(--ok); background: rgba(184, 255, 74, .14); box-shadow: 0 0 14px rgba(184, 255, 74, .55); }
+  body.cyber .dot.on { box-shadow: 0 0 0 3px rgba(184, 255, 74, .2), 0 0 10px rgba(184, 255, 74, .55); }
+  body.cyber #theme { --menu: #0a2328; border-radius: 2px; background: rgba(139, 233, 255, .08); border: 1px solid rgba(139, 233, 255, .35); }
+
   @media (max-width: 760px) { main { grid-template-columns: 1fr; grid-template-rows: 2fr 1fr; } .addr { display: none; } }
   @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
 </style>
@@ -279,6 +355,7 @@
     <option value="classico">Aspetto: Classico</option>
     <option value="moderno">Aspetto: Moderno</option>
     <option value="abisso">Aspetto: Abisso</option>
+    <option value="cyber">Aspetto: Edgerunners</option>
   </select>
   <button id="folder">Cartella download</button>
   <button id="quit">Chiudi</button>
@@ -610,12 +687,13 @@ function refreshTip() {
 }
 
 /* ---------- aspetto: classico o moderno (ricordato in questo PC) ---------- */
-const THEMES = ['classico', 'moderno', 'abisso'];
+const THEMES = ['classico', 'moderno', 'abisso', 'cyber'];
 function setTheme(name) {
   if (!THEMES.includes(name)) name = 'classico';
-  // "abisso" usa la struttura del moderno con colori e caratteri suoi
+  // "abisso" e "cyber" usano la struttura del moderno con colori, forme e caratteri loro
   document.body.classList.toggle('moderno', name !== 'classico');
   document.body.classList.toggle('abisso', name === 'abisso');
+  document.body.classList.toggle('cyber', name === 'cyber');
   $('theme').value = name;
   try { localStorage.setItem('aspetto', name); } catch { /* niente memoria: va bene lo stesso */ }
 }
