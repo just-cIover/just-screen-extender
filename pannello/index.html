@@ -147,8 +147,6 @@
   body.moderno button:hover { background: rgba(255, 255, 255, .1); border-color: transparent; }
   body.moderno button.primary, body.moderno h2 button.toggle[aria-pressed="true"],
   body.moderno #follow[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
-  #theme[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-  body.moderno #theme[aria-pressed="true"] { background: rgba(91, 140, 255, .18); color: #cfdcff; }
   body.moderno button.danger { color: var(--bad); background: rgba(255, 107, 122, .08); }
   body.moderno header { border-bottom: 0; padding: 16px 20px 6px; }
   body.moderno header h1 { font: 600 18px/1.2 "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; letter-spacing: 0; }
@@ -201,6 +199,66 @@
     box-shadow: 0 0 12px rgba(56, 217, 192, .45); }
   @media (prefers-reduced-transparency: reduce) { body.moderno section { backdrop-filter: none; background: #172139; } }
 
+  /* ---------- aspetto "Abisso" (ispirato a Made in Abyss): stessa struttura del moderno ----------
+     l'oscurità calda della voragine in basso a sinistra, la luce dorata e muschio che scende dall'alto
+     a destra, particelle sospese; oro per i comandi, rosso del cappello per gli avvisi, turchese
+     (gli occhi del cappello di Nanachi, le reliquie) per ciò che è acceso. */
+  body.abisso {
+    --bg: #221915; --panel: rgba(40, 29, 24, .62); --panel2: rgba(255, 238, 205, .05);
+    --line: rgba(242, 197, 92, .17); --text: #f3e9d2; --muted: #b9a88c;
+    --accent: #f2c55c; --ok: #3fc6b8; --bad: #e0533f; --warn: #e8a33d;
+    background:
+      radial-gradient(1000px 720px at 88% -8%, rgba(220, 230, 130, .48), transparent 62%),
+      radial-gradient(760px 560px at 100% 55%, rgba(242, 197, 92, .22), transparent 66%),
+      radial-gradient(500px 900px at 70% 20%, rgba(255, 246, 210, .10), transparent 70%),
+      radial-gradient(900px 700px at -5% 105%, rgba(96, 38, 52, .55), transparent 70%),
+      #221915;
+  }
+  html:has(body.abisso) { background: #221915; }
+  /* particelle sospese (ferme: solo atmosfera) */
+  body.abisso::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 2; opacity: .5;
+    background:
+      radial-gradient(2px 2px at 12% 18%, #fff8e6 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 27% 72%, #fff8e6 50%, transparent 51%),
+      radial-gradient(2.5px 2.5px at 41% 33%, #fff8e6 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 58% 86%, #fff8e6 50%, transparent 51%),
+      radial-gradient(2px 2px at 66% 12%, #fff8e6 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 74% 54%, #fff8e6 50%, transparent 51%),
+      radial-gradient(2.5px 2.5px at 87% 28%, #fff8e6 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 93% 78%, #fff8e6 50%, transparent 51%),
+      radial-gradient(2px 2px at 6% 58%, #fff8e6 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 50% 50%, #fff8e6 50%, transparent 51%); }
+  body.abisso > header, body.abisso > main, body.abisso > #pins { position: relative; z-index: 1; }
+  body.abisso header h1, body.abisso section > h2, body.abisso .card h3 {
+    font-family: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif; }
+  body.abisso header h1 { font-size: 20px; letter-spacing: .01em; }
+  body.abisso section > h2 { font-size: 17px; }
+  body.abisso .card h3 { font-size: 16px; }
+  body.abisso .m b { color: #fbf3e2; }
+  /* la luce che scende dall'alto a destra si posa anche sui pannelli */
+  body.abisso section { background-image: radial-gradient(600px 300px at 100% 0%, rgba(242, 210, 120, .10), transparent 70%);
+    backdrop-filter: blur(10px) saturate(1.2); -webkit-backdrop-filter: blur(10px) saturate(1.2); }
+  body.abisso button.primary, body.abisso h2 button.toggle[aria-pressed="true"], body.abisso #follow[aria-pressed="true"],
+  body.abisso .levels button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #2a1d10; }
+  body.abisso .levels button.ceiling { border-color: rgba(242, 197, 92, .7); }
+  body.abisso .addr button { background: rgba(242, 197, 92, .12); color: #f6dfa6; }
+  body.abisso .bar i { background: linear-gradient(90deg, #c9a24a, #f2c55c); }
+  body.abisso #log .t { color: #8a7660; }
+  body.abisso .pinbar { border-color: rgba(242, 197, 92, .55); background: rgba(242, 197, 92, .1); }
+  body.abisso .pinbar .code { color: var(--accent); }
+  body.abisso .drop { background: rgba(242, 197, 92, .05); }
+  body.abisso .progress i { background: rgba(242, 197, 92, .45); }
+  body.abisso #tip { background: #33251f; }
+  body.abisso #dropcover { background: rgba(34, 25, 21, .86); color: var(--accent); }
+  body.abisso #down { background: rgba(34, 25, 21, .94); }
+  body.abisso .screen { border-color: #6b5848; }
+  body.abisso .screen.on { border-color: var(--ok); background: rgba(63, 198, 184, .18); box-shadow: 0 0 14px rgba(63, 198, 184, .55); }
+  body.abisso .dot.on { box-shadow: 0 0 0 3px rgba(63, 198, 184, .2), 0 0 10px rgba(63, 198, 184, .5); }
+  #theme { font: inherit; font-weight: 600; color: var(--text); background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+  body.moderno #theme { border-radius: 999px; background: rgba(255, 255, 255, .055); border-color: transparent; }
+  #theme option { color: #111; }
+
   @media (max-width: 760px) { main { grid-template-columns: 1fr; grid-template-rows: 2fr 1fr; } .addr { display: none; } }
   @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
 </style>
@@ -212,7 +270,11 @@
   <span class="pill" id="state">Attivo</span>
   <div class="addr" id="addr" title="Indirizzo da aprire in Safari sul dispositivo (clic per copiarlo)"></div>
   <div class="spacer"></div>
-  <button id="theme" aria-pressed="false" title="Prova un aspetto diverso della finestra (un clic per tornare a quello solito)">Aspetto moderno</button>
+  <select id="theme" aria-label="Aspetto della finestra" title="Aspetto della finestra (ricordato su questo PC)">
+    <option value="classico">Aspetto: Classico</option>
+    <option value="moderno">Aspetto: Moderno</option>
+    <option value="abisso">Aspetto: Abisso</option>
+  </select>
   <button id="folder">Cartella download</button>
   <button id="quit">Chiudi</button>
 </header>
@@ -543,14 +605,18 @@ function refreshTip() {
 }
 
 /* ---------- aspetto: classico o moderno (ricordato in questo PC) ---------- */
-function setTheme(modern) {
-  document.body.classList.toggle('moderno', modern);
-  $('theme').setAttribute('aria-pressed', modern);
-  try { localStorage.setItem('aspetto', modern ? 'moderno' : 'classico'); } catch { /* niente memoria: va bene lo stesso */ }
+const THEMES = ['classico', 'moderno', 'abisso'];
+function setTheme(name) {
+  if (!THEMES.includes(name)) name = 'classico';
+  // "abisso" usa la struttura del moderno con colori e caratteri suoi
+  document.body.classList.toggle('moderno', name !== 'classico');
+  document.body.classList.toggle('abisso', name === 'abisso');
+  $('theme').value = name;
+  try { localStorage.setItem('aspetto', name); } catch { /* niente memoria: va bene lo stesso */ }
 }
-$('theme').addEventListener('click', () => setTheme(!document.body.classList.contains('moderno')));
-const wanted = new URLSearchParams(location.search).get('aspetto');  // ?aspetto=moderno per un'anteprima
-try { setTheme(wanted ? wanted === 'moderno' : localStorage.getItem('aspetto') === 'moderno'); } catch { setTheme(wanted === 'moderno'); }
+$('theme').addEventListener('change', (e) => setTheme(e.target.value));
+const wanted = new URLSearchParams(location.search).get('aspetto');  // es. ?aspetto=abisso per un'anteprima
+try { setTheme(wanted || localStorage.getItem('aspetto')); } catch { setTheme(wanted); }
 
 /* ---------- collegamento al server ---------- */
 function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
