@@ -2,7 +2,7 @@
 
 - Se il server non è già acceso, lo avvia nascosto (pythonw server.py --ui).
 - Apre la finestra di controllo in Edge, come app senza barre (profilo separato nella
-  cartella .edge-profilo, senza account né sincronizzazione: non si mescola con il tuo Edge).
+  cartella dati\\.edge-profilo, senza account né sincronizzazione: non si mescola con il tuo Edge).
 - Chiudendo la finestra, dopo pochi secondi il server si chiude da solo.
 """
 import ctypes
@@ -15,6 +15,8 @@ import urllib.request
 import webbrowser
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+APP = os.path.join(HERE, 'programma')
+DATA = os.path.join(HERE, 'dati')
 NO_WINDOW, DETACHED = 0x08000000, 0x00000008
 
 
@@ -25,7 +27,7 @@ def message(text):
 def port():
     """Porta riservata a questo PC (la finestra di controllo non passa dalla rete)."""
     try:
-        with open(os.path.join(HERE, 'config.json'), encoding='utf-8') as f:
+        with open(os.path.join(DATA, 'config.json'), encoding='utf-8') as f:
             return json.load(f).get('porta_locale', 8769)
     except (OSError, ValueError):
         return 8769
@@ -54,19 +56,19 @@ def main():
         pyw = sys.executable
         if os.path.basename(pyw).lower() == 'python.exe':
             pyw = os.path.join(os.path.dirname(pyw), 'pythonw.exe')
-        subprocess.Popen([pyw, os.path.join(HERE, 'server.py'), '--ui'], cwd=HERE,
+        subprocess.Popen([pyw, os.path.join(APP, 'server.py'), '--ui'], cwd=APP,
                          creationflags=NO_WINDOW | DETACHED, close_fds=True)
         for _ in range(60):
             time.sleep(0.25)
             if alive(base):
                 break
         else:
-            message('Schermo Esteso non è partito.\nDettagli nel file server.log nella cartella dell\'app.')
+            message('Schermo Esteso non è partito.\nDettagli nel file dati\\server.log nella cartella dell\'app.')
             return
     url = base + '/pc'
     exe = edge()
     if exe:
-        subprocess.Popen([exe, f'--app={url}', '--user-data-dir=' + os.path.join(HERE, '.edge-profilo'),
+        subprocess.Popen([exe, f'--app={url}', '--user-data-dir=' + os.path.join(DATA, '.edge-profilo'),
                           '--window-size=1280,800', '--no-first-run', '--no-default-browser-check',
                           # niente accesso automatico all'account Microsoft di Windows né sincronizzazione:
                           # questo profilo serve solo per la finestra dell'app
