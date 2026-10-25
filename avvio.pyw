@@ -72,7 +72,13 @@ def main():
                           '--window-size=1280,800', '--no-first-run', '--no-default-browser-check',
                           # niente accesso automatico all'account Microsoft di Windows né sincronizzazione:
                           # questo profilo serve solo per la finestra dell'app
-                          '--disable-sync', '--disable-features=msImplicitSignin,msEdgeImplicitSignin,msAutoSignIn'],
+                          '--disable-sync',
+                          # la finestra non va mai messa in pausa (coperta, ridotta a icona, PC carico): se si ferma
+                          # perde il collegamento con il server
+                          '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
+                          '--disable-backgrounding-occluded-windows',
+                          '--disable-features=msImplicitSignin,msEdgeImplicitSignin,msAutoSignIn,'
+                          'CalculateNativeWinOcclusion,IntensiveWakeUpThrottling,msEfficiencyMode'],
                          creationflags=DETACHED)
     else:
         webbrowser.open(url)

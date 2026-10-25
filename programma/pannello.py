@@ -12,6 +12,7 @@ import re
 import time
 from ctypes import wintypes
 
+import finestre
 import sicurezza
 from gpu import Gpu
 from sensori import Sensors
@@ -72,6 +73,7 @@ class Panel:
         self.started = time.monotonic()
         self.last_client = None
         self.last_clean = True
+        self.paused_logged = False
 
     def _local(self, request):
         sicurezza.local_only(request, self.app.local_port)
@@ -153,6 +155,7 @@ class Panel:
         await ws.prepare(request)
         self.clients.add(ws)
         self.last_client = None
+        self.paused_logged = False
         queue = asyncio.Queue()
 
         def on_line(line):
@@ -252,6 +255,14 @@ class Panel:
             never = self.last_client is None and now - self.started > 60
             attesa = 8 if self.last_clean else 180
             closed = self.last_client is not None and now - self.last_client > attesa
+            if (never or closed) and await asyncio.to_thread(finestre.panel_window_open):
+                # la finestra c'è ancora: Edge l'ha solo messa in pausa (coperta, PC carico). Non spengo niente,
+                # e dopo un clic su di lei si ricollega da sola
+                if not self.paused_logged:
+                    self.log('la finestra è aperta ma in pausa (Edge): resto acceso', 'PC')
+                    self.paused_logged = True
+                self.last_client = now
+                continue
             if never or closed:
                 self.log('finestra chiusa: spengo gli schermi virtuali e chiudo', 'PC')
                 self.app.stop.set()
