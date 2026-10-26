@@ -4,7 +4,10 @@
   sul dispositivo (Impostazioni iPad > Generali > VPN e gestione dispositivi, poi
   Info > Impostazioni attendibilità certificati).
 - Un certificato del server firmato da quello radice, valido per tutti gli indirizzi del PC
-  (Wi-Fi di casa, hotspot...). Si rifà da solo se cambia l'indirizzo o sta per scadere.
+  (Wi-Fi di casa, hotspot...). Contiene già tutti gli indirizzi dell'hotspot dell'iPhone e
+  ricorda quelli visti prima, così cambiando rete di solito non va rifatto; se serve si rifà da
+  solo (nuovo indirizzo o scadenza vicina). Il dispositivo non deve reinstallare niente: si fida
+  del certificato radice, che non cambia.
   Durata 397 giorni: oltre, iPadOS e Safari non lo accettano.
 La chiave del certificato radice resta solo sul PC (certs/ca.key).
 """
@@ -30,6 +33,9 @@ LOCAL_ONLY = [x509.IPAddress(ipaddress.ip_network(n)) for n in
                '100.64.0.0/10')] + \
              [x509.DNSName('localhost'), x509.DNSName('local')]  # 'local' = qualsiasi nome .local
 # 100.64.0.0/10: indirizzi di Tailscale (rete privata tra i propri dispositivi), non siti di Internet
+# hotspot dell'iPhone: il PC prende sempre uno di questi, quindi il certificato li ha già tutti
+HOTSPOT = ['172.20.10.%d' % i for i in range(1, 16)]
+MAX_OLD = 16  # indirizzi di reti viste in passato da tenere nel certificato (casa, ufficio...)
 
 
 def _now():
@@ -78,33 +84,47 @@ def ensure_ca():
     return key, crt
 
 
-def _names(ips):
+def _allowed(ip):
+    # solo gli indirizzi ammessi dal certificato radice (reti private e Tailscale)
+    try:
+        a = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return any(a in n.value for n in LOCAL_ONLY if isinstance(n, x509.IPAddress))
+
+
+def _names(ips, old=()):
     host = socket.gethostname()
     dns = sorted({'localhost', host.lower() + '.local'})  # solo nomi ammessi dal certificato radice
-    allowed = [n.value for n in LOCAL_ONLY if isinstance(n, x509.IPAddress)]
-    # solo gli indirizzi ammessi dal certificato radice (reti private e Tailscale)
-    addrs = sorted({'127.0.0.1', *(ip for ip in ips if any(ipaddress.ip_address(ip) in net for net in allowed))})
-    return dns, addrs
+    now = {'127.0.0.1', *HOTSPOT, *(ip for ip in ips if _allowed(ip))}
+    # gli indirizzi delle reti viste prima restano (al massimo MAX_OLD), così tornando a casa non si rifà
+    seen = [ip for ip in old if _allowed(ip) and ip not in now][:MAX_OLD]
+    return dns, sorted(now | set(seen), key=ipaddress.ip_address)
 
 
-def _covers(crt, ips):
+def _san_ips(crt):
     try:
         san = crt.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
     except x509.ExtensionNotFound:
-        return False
-    have = {str(a) for a in san.get_values_for_type(x509.IPAddress)}
-    return set(_names(ips)[1]) <= have
+        return []
+    return [str(a) for a in san.get_values_for_type(x509.IPAddress)]
+
+
+def _covers(crt, ips):
+    return set(_names(ips)[1]) <= set(_san_ips(crt))
 
 
 def ensure_server(ips):
     """Certificato del server valido per questi indirizzi. Restituisce True se è stato rifatto."""
     ca_key, ca_crt = ensure_ca()
+    old = []
     if os.path.exists(SRV_KEY) and os.path.exists(SRV_CRT):
         crt = _load_crt(SRV_CRT)
         if _covers(crt, ips) and crt.not_valid_after_utc - _now() > datetime.timedelta(days=30):
             return False
+        old = _san_ips(crt)
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    dns, addrs = _names(ips)
+    dns, addrs = _names(ips, old)
     alt = [x509.DNSName(d) for d in dns] + [x509.IPAddress(ipaddress.ip_address(a)) for a in addrs]
     crt = (x509.CertificateBuilder()
            .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, socket.gethostname())]))

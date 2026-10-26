@@ -900,7 +900,8 @@ async def watch_addresses(ctx, panel, port):
             continue
         panel.urls = [f'https://{ip}:{port}' for ip in ips]
         if changed:
-            log('Rete cambiata: sul dispositivo apri ' + '  oppure  '.join(panel.urls))
+            log('Rete cambiata: certificato del PC aggiornato da solo (sui dispositivi non serve reinstallare niente). '
+                'Indirizzi: ' + '  oppure  '.join(panel.urls))
 
 
 def on_console_close(app):
