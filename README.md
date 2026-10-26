@@ -42,7 +42,7 @@ The full user guide is in Italian: [LEGGIMI.md](LEGGIMI.md).
   contains clipboard or password contents.
 
 Everything personal (certificates, paired devices, settings, logs, shared files) lives in
-`dati\`, which is git-ignored.
+`data\`, which is git-ignored.
 
 ## Requirements
 
@@ -65,7 +65,7 @@ Everything personal (certificates, paired devices, settings, logs, shared files)
    ```
 2. Run `driver\Installa driver.bat` as administrator. It installs the virtual display driver
    with the resolutions in `driver\vdd_settings.xml`.
-3. Run `strumenti\firewall.ps1` as administrator to open port 8770 on private networks only.
+3. Run `tools\firewall.ps1` as administrator to open port 8770 on private networks only.
 4. Start the program with `avvio.pyw` (no console, opens the control window), or
    `Avvia.bat` (with a console).
 5. On the device:
@@ -76,7 +76,7 @@ Everything personal (certificates, paired devices, settings, logs, shared files)
    - **Safari:** open `https://<pc-address>:8770`, accept the warning the first time (or install
      the PC certificate from the menu), enter the PIN, then *Share → Add to Home Screen*.
 
-Optional admin scripts in `strumenti\`: `sensori.ps1` (temperatures through LibreHardwareMonitor,
+Optional admin scripts in `tools\`: `sensori.ps1` (temperatures through LibreHardwareMonitor,
 password-protected) and `usb-iphone.ps1` (iPhone over USB while the PC stays on Wi-Fi).
 
 ## Using it on several networks
@@ -104,13 +104,13 @@ networks isolate devices from each other: use the hotspot, a USB cable or Tailsc
 
 ```
 avvio.pyw, Avvia.bat   start the server and the control window
-programma\             PC server (Python, aiohttp)
+pc\                    PC server (Python, aiohttp)
   web\                 web app for Safari
-  pannello\            PC control window
+  panel\               PC control window
 ios\                   native iPad/iPhone app (Swift, XcodeGen; built by GitHub Actions)
 driver\                virtual display driver setup
-strumenti\             admin scripts: firewall, sensors, USB
-dati\                  your data, created at first start (never committed)
+tools\                 admin scripts: firewall, sensors, USB
+data\                  your data, created at first start (never committed)
 ```
 
 ## Credits

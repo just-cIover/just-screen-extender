@@ -342,7 +342,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         }
         UIApplication.shared.isIdleTimerDisabled = true  // il dispositivo non va in standby mentre fa da schermo
         let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "?"  // es. 1.0.12 (l'ultima cifra = compilazione)
+        let version = "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"  // es. 1.1.0 (23): versione e compilazione
         let device = UIDevice.current
         c.send(["t": "diag", "motore": "nativo", "avvio": true,
                 "ua": "Schermo Esteso iOS \(version), \(device.model) \(device.systemName) \(device.systemVersion)"])

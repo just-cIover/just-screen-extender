@@ -23,7 +23,7 @@ dove si trova lo schermo dell'iPad (*Impostazioni → Sistema → Schermo*).
 
 ## Sicurezza
 
-- Connessione cifrata (HTTPS, TLS 1.2 o superiore) con un certificato creato sul PC (`dati\certs\`).
+- Connessione cifrata (HTTPS, TLS 1.2 o superiore) con un certificato creato sul PC (`data\certs\`).
 - PIN diverso per ogni dispositivo nuovo; al massimo 3 richieste di abbinamento aperte; dopo 20
   PIN sbagliati gli abbinamenti si bloccano per 10 minuti.
 - La finestra di controllo risponde solo a sé stessa (porta locale 8769): le pagine web aperte
@@ -31,7 +31,7 @@ dove si trova lo schermo dell'iPad (*Impostazioni → Sistema → Schermo*).
 - *Apri qui* apre sul PC solo documenti e file multimediali, mai programmi o script. I file
   arrivati dai dispositivi sono marcati come "scaricati da Internet" (SmartScreen, Office).
 
-- Firewall (`strumenti\firewall.ps1`, da amministratore): la porta 8770 è aperta solo sulle reti
+- Firewall (`tools\firewall.ps1`, da amministratore): la porta 8770 è aperta solo sulle reti
   **Private** e solo ai dispositivi della stessa rete locale. Su una rete nuova (es. l'hotspot del
   telefono) impostala come privata: *Impostazioni → Rete e Internet → Wi-Fi → nome rete → Rete
   privata*, altrimenti i dispositivi non si collegano. Sulle reti pubbliche il PC resta chiuso.
@@ -48,13 +48,13 @@ dove si trova lo schermo dell'iPad (*Impostazioni → Sistema → Schermo*).
   già accesi si spengono per qualche secondo e poi tornano al loro posto.
 - Finché un dispositivo è collegato, il PC non va in standby e non spegne gli schermi.
 - Quando chiudi la finestra del server, tutte le finestre tornano sul monitor principale.
-- Elenco dei dispositivi abbinati: `dati\dispositivi.json`. Per dimenticarli tutti, cancellalo.
+- Elenco dei dispositivi abbinati: `data\dispositivi.json`. Per dimenticarli tutti, cancellalo.
 Per cambiare posizione o risoluzione: *Impostazioni Windows → Sistema → Schermo*
 (l'iPad è lo schermo "2", risoluzione consigliata 2048×1536 con ridimensionamento 200%).
 
 ## Scambio di file
 
-Tutti i file stanno nella cartella **`download`** dell'app (`dati\download`).
+Tutti i file stanno nella cartella **`downloads`** dell'app (`data\downloads`).
 Ogni file è visibile a **tutti** i dispositivi, anche a quelli che si collegheranno dopo.
 
 - **Dal PC:** trascinali nella finestra di Schermo Esteso (sezione *File condivisi*), oppure
@@ -73,7 +73,7 @@ programmi. Nel menu, sezione *Apple Pencil*:
 - **Automatica** (consigliata): sopra un programma da disegno o scrittura (Paint, OneNote,
   Lavagna, Word, PowerPoint, Acrobat, Krita, un PDF aperto nel browser…) la Pencil scrive; sopra
   tutto il resto fa da **dito**: trascinando scorri le pagine, toccando fai clic. Per aggiungere
-  un programma all'elenco scrivi il nome del suo .exe (uno per riga) in `dati\programmi-penna.txt`.
+  un programma all'elenco scrivi il nome del suo .exe (uno per riga) in `data\programmi-penna.txt`.
 - **Penna**: scrive sempre (sul desktop o in una pagina web seleziona e trascina, non disegna).
 - **Gomma**: come girare dal lato gomma una penna per PC. Cancella i tratti solo nei programmi
   che gestiscono la gomma (OneNote, Lavagna, Word, Paint, PDF in Edge); altrove non fa niente.
@@ -130,7 +130,7 @@ tutte le app. Passaggi nel pannello File → *Inviare dalle altre app dell'iPad*
 - Lo schermo dell'iPad resta acceso (Wake Lock + video muto). Per sicurezza metti comunque
   *Impostazioni iPad → Schermo e luminosità → Blocco automatico → Mai* mentre lo usi.
 
-## Impostazioni (`dati\config.json`)
+## Impostazioni (`data\config.json`)
 
 | Chiave | Default | Note |
 |---|---|---|
@@ -141,26 +141,26 @@ tutte le app. Passaggi nel pannello File → *Inviare dalle altre app dell'iPad*
 ## Cartelle
 
 ```
-ipad-schermo\
+just-screen-extender\
 ├─ Avvia.bat        avvio con il terminale aperto (per vedere i messaggi)
 ├─ avvio.pyw        avvio dal menu Start: server senza terminale + finestra (Edge in modalità app)
 ├─ LEGGIMI.md
-├─ programma\       il programma del PC (va su GitHub)
-│  ├─ pannello\     finestra di controllo del PC (temi, prestazioni, file)
+├─ pc\              il programma del PC (va su GitHub)
+│  ├─ panel\        finestra di controllo del PC (temi, prestazioni, file)
 │  └─ web\          app web per i dispositivi (Safari)
-├─ dati\            i tuoi dati: MAI su GitHub, non condividerla
+├─ data\            i tuoi dati: MAI su GitHub, non condividerla
 │  ├─ certs\        certificati e password dei sensori
-│  ├─ download\     file condivisi con i dispositivi
+│  ├─ downloads\    file condivisi con i dispositivi
 │  ├─ ipa\          l'app nativa da installare con AltServer
 │  ├─ config.json   impostazioni
 │  ├─ dispositivi.json  dispositivi abbinati
 │  └─ server.log    registro (senza contenuti di appunti o password)
 ├─ ios\             codice dell'app nativa per iPad/iPhone (compilata da GitHub Actions)
 ├─ driver\          installazione del Virtual Display Driver (`Installa driver.bat`)
-└─ strumenti\       script da amministratore: firewall, sensori, iPhone via USB
+└─ tools\           script da amministratore: firewall, sensori, iPhone via USB
 ```
 
-File in `programma\`:
+File in `pc\`:
 
 - `server.py` — server web/WebSocket: una sessione per dispositivo (video, tocchi), accende e
   spegne gli schermi virtuali un cambio alla volta.
@@ -232,7 +232,7 @@ avviso con il pulsante *Copia*.
 
 ## iPhone
 
-La stessa app nativa (`dati\ipa\SchermoEsteso.ipa`) funziona anche su iPhone: ha il suo schermo
+La stessa app nativa (`data\ipa\SchermoEsteso.ipa`) funziona anche su iPhone: ha il suo schermo
 virtuale e il suo PIN. In orizzontale lo schermo virtuale esclude ai lati la tacca o la Dynamic
 Island, così niente finisce sotto la fotocamera. Installazione come per l'iPad: iPhone col cavo,
 AltServer → *Install AltStore* → iPhone, poi *Sideload .ipa*.
@@ -255,22 +255,22 @@ AltServer → *Install AltStore* → iPhone, poi *Sideload .ipa*.
 Nella scheda *Questo PC* della finestra: processore (con i singoli core passando sopra), disco ed
 eventuale scheda grafica dedicata o batteria; da scheda ridotta compare la media. Le legge
 **LibreHardwareMonitor** (gratuito, open source), che parte da solo all'accesso ridotto vicino
-all'orologio (attività *Schermo Esteso - sensori*, creata da `strumenti\sensori.ps1`). Il suo server
-interno è protetto da password (in `dati\certs\sensori.json`) e il firewall lo chiude agli altri dispositivi.
+all'orologio (attività *Schermo Esteso - sensori*, creata da `tools\sensori.ps1`). Il suo server
+interno è protetto da password (in `data\certs\sensori.json`) e il firewall lo chiude agli altri dispositivi.
 
 ## Hotspot dell'iPhone
 
 Se il Wi-Fi di casa non è affidabile: attiva l'*Hotspot personale* sull'iPhone e collega il PC a
 quella rete. L'app nativa, se il PC non risponde all'indirizzo solito, lo cerca da sola tra gli
 indirizzi già visti e su quelli dell'hotspot (172.20.10.x) e si ricollega. Il firewall
-(`strumenti\firewall.ps1`) sulle reti pubbliche accetta solo l'hotspot di un iPhone, quindi non
+(`tools\firewall.ps1`) sulle reti pubbliche accetta solo l'hotspot di un iPhone, quindi non
 serve cambiare il tipo di rete; Windows può comunque chiedere che tipo di rete è: scegli pure
 *Pubblica*. Anche l'iPad può collegarsi allo stesso hotspot.
 
 **Con il cavo, PC sul Wi-Fi di casa:** attiva l'Hotspot personale e collega l'iPhone al PC con il
 cavo USB. Il PC resta sul Wi-Fi per Internet e parla con l'iPhone attraverso il cavo (più stabile
 del Wi-Fi, e l'iPhone si ricarica). La prima volta esegui come amministratore
-`strumenti\usb-iphone.ps1`: mette la rete dell'iPhone come ultima scelta, così Internet non
+`tools\usb-iphone.ps1`: mette la rete dell'iPhone come ultima scelta, così Internet non
 consuma i giga dell'iPhone.
 
 ## Fuori casa o con il Wi-Fi che non regge: Tailscale

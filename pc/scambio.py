@@ -22,7 +22,7 @@ from aiohttp import web
 import sicurezza
 
 # IPAD_SCHERMO_CARTELLA serve solo per le prove, per non toccare la cartella vera
-FOLDER = os.environ.get('IPAD_SCHERMO_CARTELLA') or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'dati', 'download')
+FOLDER = os.environ.get('IPAD_SCHERMO_CARTELLA') or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'downloads')
 META = os.path.join(os.path.dirname(FOLDER), 'download-info.json')  # chi ha aggiunto cosa (fuori dalla cartella)
 CHUNK = 1 << 20
 MAX_FILE = 20 * 1024 ** 3     # 20 GB per file

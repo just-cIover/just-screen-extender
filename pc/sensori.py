@@ -1,8 +1,8 @@
 """Temperature del PC, lette da LibreHardwareMonitor.
 
 LibreHardwareMonitor gira con i permessi di amministratore (attività "Schermo Esteso - sensori",
-creata da strumenti\\sensori.ps1) e pubblica i sensori sul suo server web interno, solo con password
-(salvata in dati\\certs\\sensori.json, fuori da git). Qui li leggo ogni 2 secondi in un thread a parte.
+creata da tools\\sensori.ps1) e pubblica i sensori sul suo server web interno, solo con password
+(salvata in data\\certs\\sensori.json, fuori da git). Qui li leggo ogni 2 secondi in un thread a parte.
 """
 import base64
 import json
@@ -13,7 +13,7 @@ import time
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(os.path.dirname(HERE), 'dati')  # dati personali (fuori da git)
+DATA = os.path.join(os.path.dirname(HERE), 'data')  # dati personali (fuori da git)
 CONFIG = os.path.join(DATA, 'certs', 'sensori.json')
 EVERY = 2.0
 

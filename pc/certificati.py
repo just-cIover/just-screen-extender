@@ -23,7 +23,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(os.path.dirname(HERE), 'dati')  # dati personali (fuori da git)
+DATA = os.path.join(os.path.dirname(HERE), 'data')  # dati personali (fuori da git)
 DIR = os.path.join(DATA, 'certs')
 CA_KEY, CA_CRT = os.path.join(DIR, 'ca.key'), os.path.join(DIR, 'ca.crt')
 SRV_KEY, SRV_CRT = os.path.join(DIR, 'server.key'), os.path.join(DIR, 'server.crt')

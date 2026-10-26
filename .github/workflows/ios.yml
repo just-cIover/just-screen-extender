@@ -27,12 +27,13 @@ jobs:
       - name: Compila
         working-directory: ios
         run: |
-          # la numerazione continua da quella della repo precedente (ultima 1.0.18)
+          # numero di compilazione: continua da quello della repo precedente (ultima 18) e sale sempre,
+          # così iOS riconosce ogni ipa come aggiornamento. La versione (1.1.0...) è in ios/project.yml
           N=$(( ${{ github.run_number }} + 18 ))
           xcodebuild -quiet -project SchermoEsteso.xcodeproj -scheme SchermoEsteso \
             -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build \
-            CURRENT_PROJECT_VERSION=$N MARKETING_VERSION=1.0.$N CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+            CURRENT_PROJECT_VERSION=$N CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
 
       - name: Crea il file .ipa
         run: |
