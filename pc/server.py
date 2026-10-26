@@ -55,6 +55,7 @@ MAX_QUEUE = 4        # fotogrammi in coda per client oltre i quali salto al pros
 SEND_BUFFER = 256 * 1024  # buffer di rete di Windows per ogni dispositivo: piccolo, così niente coda nascosta
 GRACE = 15           # secondi dopo la chiusura dell'app prima di spegnere il suo schermo
 STARTUP_GRACE = 20   # all'avvio aspetto un po' i dispositivi prima di spegnere gli schermi senza nessuno
+DETACH_RETRY = 60     # secondi tra un tentativo e l'altro se uno schermo non si riesce a spegnere
 ASK_TIME = 15         # secondi per rispondere "è qui" quando i dispositivi collegati sono più d'uno
 SIDE_TEXT = {'destra': 'a destra', 'sinistra': 'a sinistra', 'sopra': 'sopra', 'sotto': 'sotto'}
 LOW_BATTERY = 15      # % sotto cui avviso che la batteria del dispositivo è quasi scarica
@@ -457,6 +458,7 @@ class App:
         self.reposition = {}  # slot -> (x, y) da ripristinare dopo un riavvio del driver
         self.mode_tries = {}  # slot -> tentativi di rimettere la risoluzione su misura
         self.edge_ask = None  # (lato, monitor, punto, scadenza): domanda "è qui?" ai dispositivi
+        self.detach_wait = {}  # slot -> ora del prossimo tentativo, dopo uno spegnimento non riuscito
 
     def session(self, dev_id):
         s = self.sessions.get(dev_id)
@@ -785,7 +787,10 @@ class App:
         owners = {d['slot']: dev for dev, d in self.devices.data.items()}
         for sl, st in self.slots.items():
             if not st['active'] or sl in wanted:
+                self.detach_wait.pop(sl, None)
                 continue
+            if time.monotonic() < self.detach_wait.get(sl, 0):
+                continue  # spegnimento appena fallito: riprovo più tardi, senza riempire la console
             s = self.sessions.get(owners.get(sl))
             name = s.name if s else f'schermo virtuale {sl + 1}'
             if s:
@@ -797,7 +802,23 @@ class App:
             n = await asyncio.to_thread(finestre.move_to_primary, st['device'], log)
             if n:
                 log(f'{n} finestre spostate dallo schermo di {name} al monitor principale')
-            await self.display_change(f'Spengo lo schermo di {name}', monitors.detach_slot, sl)
+            failed = sl in self.detach_wait
+            if failed:  # nuovo tentativo dopo un errore: in silenzio
+                r = await asyncio.to_thread(monitors.detach_slot, sl)
+                self.last_change = time.monotonic()
+            else:
+                r = await self.display_change(f'Spengo lo schermo di {name}', monitors.detach_slot, sl)
+            if r != 0:
+                # es. coperchio del portatile chiuso: lo schermo virtuale è l'unico acceso e non lo spengo mai
+                self.detach_wait[sl] = time.monotonic() + DETACH_RETRY
+                if not failed:
+                    why = ("è l'unico schermo acceso (coperchio del portatile chiuso?): lo lascio acceso"
+                           if r == -1 else f'Windows ha risposto con il codice {r}')
+                    log(f'Schermo di {name} non spento: {why}. Riprovo ogni minuto')
+                continue
+            if failed:
+                log(f'Schermo di {name} spento')
+            self.detach_wait.pop(sl, None)
             return True
         return False
 
