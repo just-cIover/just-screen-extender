@@ -148,6 +148,8 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         connection.onClipboard = { [weak self] m in self?.clipboardFromPC(m) }
         connection.onNotice = { [weak self] text in self?.showToast(text) }
         connection.onWordSelected = { [weak self] in self?.showEditMenu() }
+        connection.onWhere = { [weak self] side, secs in self?.askWhere(side, seconds: secs) }
+        connection.onWhereDone = { [weak self] in self?.whereAlert?.dismiss(animated: true) }
         connection.onPenUse = { [weak self] use in
             // il PC ha deciso: sotto la punta non c'è un programma da disegno, quindi scorre e tocca
             guard let self else { return }
@@ -1170,6 +1172,25 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
     private func hideStatus() {
         statusLabel.isHidden = true
         spinner.stopAnimating()
+    }
+
+    /// Spinta del mouse con più dispositivi collegati: tocchi "Qui" su quello che si trova da quella parte del PC.
+    private weak var whereAlert: UIAlertController?
+
+    private func askWhere(_ side: String, seconds: Int) {
+        whereAlert?.dismiss(animated: false)
+        let alert = UIAlertController(title: "Schermo \(side) del PC?",
+                                      message: "Hai spinto il mouse \(side). Se questo \(UIDevice.current.model) si trova lì, tocca Qui e il suo schermo si sposta da quella parte.",
+                                      preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "No", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Qui", style: .default) { [weak self] _ in
+            self?.connection.send(["t": "qui"])
+        })
+        whereAlert = alert
+        present(alert, animated: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(seconds)) { [weak alert] in
+            alert?.dismiss(animated: true)
+        }
     }
 
     private func showToast(_ text: String) {

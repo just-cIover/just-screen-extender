@@ -20,6 +20,7 @@ import time
 from aiohttp import WSMsgType, web
 
 import appunti
+import bordi
 import certificati
 import qualita
 import sicurezza
@@ -46,6 +47,7 @@ DEFAULTS = {
     'bufsize': '1M',    # buffer piccolo = meno ritardo
     'encoder': 'auto',  # auto | qsv | x264
     'appunti': True,    # appunti condivisi tra PC e dispositivi
+    'spinta_bordo': True,  # spingi il mouse contro un bordo libero: lo schermo del dispositivo va lì
 }
 QUALITY_LABELS = ['Massima', 'Fluida', 'Media', 'Leggera']
 MAX_QUEUE = 4        # fotogrammi in coda per client oltre i quali salto al prossimo fotogramma completo
@@ -53,6 +55,8 @@ MAX_QUEUE = 4        # fotogrammi in coda per client oltre i quali salto al pros
 SEND_BUFFER = 256 * 1024  # buffer di rete di Windows per ogni dispositivo: piccolo, così niente coda nascosta
 GRACE = 15           # secondi dopo la chiusura dell'app prima di spegnere il suo schermo
 STARTUP_GRACE = 20   # all'avvio aspetto un po' i dispositivi prima di spegnere gli schermi senza nessuno
+ASK_TIME = 15         # secondi per rispondere "è qui" quando i dispositivi collegati sono più d'uno
+SIDE_TEXT = {'destra': 'a destra', 'sinistra': 'a sinistra', 'sopra': 'sopra', 'sotto': 'sotto'}
 LOW_BATTERY = 15      # % sotto cui avviso che la batteria del dispositivo è quasi scarica
 MIN_HEIGHT_PT = 768    # altezza minima dello schermo per Windows, in punti (pixel / ridimensionamento)
 DISPLAY_GAP = 3      # secondi minimi tra due cambi di configurazione degli schermi
@@ -272,6 +276,13 @@ class Session:
             c.need_key = False
             c.wake.set()
 
+    def notify(self, msg):
+        """Messaggio al dispositivo, davanti al video in coda: arriva subito anche con la rete intasata."""
+        text = json.dumps(msg)
+        for c in self.clients:
+            c.queue.appendleft(text)
+            c.wake.set()
+
     def set_area(self, w, h):
         """Risoluzione su misura: lo schermo virtuale prende esattamente l'area utile del dispositivo
         (es. tutto lo schermo dell'iPad tranne la barra con ora e batteria), così niente bande nere."""
@@ -412,6 +423,8 @@ class Session:
             asyncio.create_task(self.app.drop_file(self, d.get('nome', ''), d.get('x'), d.get('y')))
         elif t == 'parola':
             asyncio.create_task(self.select_word(c, d.get('x'), d.get('y'), bool(d.get('gia'))))
+        elif t == 'qui':
+            self.app.edge_answer(self)
         elif t == 'diag':
             d.pop('t', None)
             log(f'info: {json.dumps(d, ensure_ascii=False)}', self.name)
@@ -443,6 +456,7 @@ class App:
         self.pair_block = 0.0  # abbinamenti bloccati fino a quest'ora
         self.reposition = {}  # slot -> (x, y) da ripristinare dopo un riavvio del driver
         self.mode_tries = {}  # slot -> tentativi di rimettere la risoluzione su misura
+        self.edge_ask = None  # (lato, monitor, punto, scadenza): domanda "è qui?" ai dispositivi
 
     def session(self, dev_id):
         s = self.sessions.get(dev_id)
@@ -806,6 +820,76 @@ class App:
             except asyncio.TimeoutError:
                 pass
 
+    # ---- spinta del mouse contro il bordo (come il Controllo Universale del Mac) ----
+    async def watch_edges(self):
+        if not self.cfg.get('spinta_bordo', True):
+            return
+        loop = asyncio.get_running_loop()
+        stop = threading.Event()
+
+        def pushed(side, mon, pt):  # dal thread del mouse
+            loop.call_soon_threadsafe(lambda: asyncio.ensure_future(self.on_edge_push(side, mon, pt)))
+
+        watcher = bordi.EdgeWatcher(pushed, lambda msg: loop.call_soon_threadsafe(log, msg))
+        try:
+            await asyncio.to_thread(watcher.run, stop)
+        finally:
+            stop.set()
+
+    def screens_in_use(self):
+        return [s for s in self.sessions.values() if s.clients and self.ready.get(s.slot) and s.device_name()]
+
+    async def on_edge_push(self, side, mon, pt):
+        """Hai spinto il mouse contro un bordo libero: lo schermo del dispositivo che si trova lì va da quella parte.
+        Con un solo dispositivo collegato è lui; con più d'uno lo chiedo a tutti e sposto quello che risponde."""
+        on = self.screens_in_use()
+        if not on:
+            return
+        if len(on) == 1:
+            await self.move_screen(on[0], side, mon, pt)
+            return
+        self.edge_ask = (side, mon, pt, time.monotonic() + ASK_TIME)
+        log(f'Spinta del mouse {SIDE_TEXT[side]}: chiedo ai dispositivi quale si trova lì')
+        for s in on:
+            s.notify({'t': 'dove', 'lato': SIDE_TEXT[side], 'secondi': ASK_TIME})
+
+    def edge_answer(self, s):
+        ask, self.edge_ask = self.edge_ask, None
+        if not ask or time.monotonic() > ask[3]:
+            return
+        for o in self.screens_in_use():
+            if o is not s:
+                o.notify({'t': 'dove_fine'})
+        asyncio.ensure_future(self.move_screen(s, *ask[:3]))
+
+    async def move_screen(self, s, side, mon, pt):
+        dev = s.device_name()
+        m = dev and monitors.by_device(dev)
+        if not m:
+            return
+        others = [o for o in monitors.list_monitors() if o['device'] != dev]
+        pos = bordi.place(side, mon, pt, (m['w'], m['h']), others)
+        where = SIDE_TEXT[side]
+        if not pos:
+            log(f"Spinta del mouse {where}: non c'è posto per lo schermo di {s.name}")
+            return
+        if (m['x'], m['y']) == pos:
+            return
+        r = await self.display_change(f'Sposto lo schermo di {s.name} {where} del monitor (spinta del mouse)',
+                                      monitors.set_slot_position, s.slot, *pos)
+        if r != 0:
+            log(f'Spostamento non riuscito (codice {r})')
+            return
+        n = monitors.by_device(dev)
+        if n:  # il puntatore entra nello schermo del dispositivo, dalla parte in cui hai spinto
+            x = n['x'] + 20 if side == 'destra' else n['x'] + n['w'] - 21 if side == 'sinistra' else pt[0]
+            y = n['y'] + 20 if side == 'sotto' else n['y'] + n['h'] - 21 if side == 'sopra' else pt[1]
+            x = max(n['x'] + 1, min(n['x'] + n['w'] - 2, x))
+            y = max(n['y'] + 1, min(n['y'] + n['h'] - 2, y))
+            ctypes.windll.user32.SetCursorPos(x, y)
+        s.notify({'t': 'avviso', 'testo': f'Schermo spostato {where} del PC'})
+        self.kick.set()  # la nuova posizione viene ricordata per le prossime accensioni
+
     async def keepalive(self):
         while True:
             busy = self.injector.keepalive()
@@ -967,7 +1051,7 @@ async def main():
              asyncio.create_task(app.reconciler()), asyncio.create_task(exchange.watch()),
              asyncio.create_task(app.clipboard.watch()),
              asyncio.create_task(panel.watch_window()), asyncio.create_task(watch_addresses(ctx, panel, port)),
-             asyncio.create_task(follow_start())]
+             asyncio.create_task(follow_start()), asyncio.create_task(app.watch_edges())]
     stopper = asyncio.create_task(app.stop.wait())
     try:
         await asyncio.wait([stopper, *tasks], return_when=asyncio.FIRST_COMPLETED)

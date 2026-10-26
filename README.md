@@ -15,6 +15,9 @@ The full user guide is in Italian: [LEGGIMI.md](LEGGIMI.md).
 - **Low-latency video:** FFmpeg captures the screen (Desktop Duplication) and encodes H.264 on the
   Intel GPU (Quick Sync), falling back to the CPU (x264). Automatic quality drops a level when the
   device or the network can't keep up.
+- **Push to place:** like Universal Control on a Mac, push the mouse against the edge of the
+  monitor on the side where the iPad is, and its screen moves there and the pointer goes in.
+  With several devices connected, you tap *Qui* (here) on the right one.
 - **Input:** touch works like a Windows touchscreen (or as a mouse). Apple Pencil is a real
   Windows Ink pen with pressure and tilt, and acts as a finger outside drawing apps. Two-finger
   zoom on the device only, and portrait mode.
