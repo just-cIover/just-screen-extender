@@ -6,8 +6,10 @@ schermo del dispositivo va da quella parte: il server lo sposta e il puntatore c
 
 - Legge i movimenti del mouse con Raw Input: arrivano anche quando il puntatore è fermo contro il
   bordo, e misurano quanto stai spingendo.
-- Conta solo mouse e touchpad veri: i movimenti simulati (tocchi e mouse dei dispositivi, altri
-  programmi) non hanno un dispositivo d'origine e vengono ignorati.
+- Conta solo mouse e touchpad veri. Si scartano: i movimenti in posizione assoluta (trascinamento dei
+  file dai dispositivi, desktop remoto, tavolette), quelli che Windows ricava da tocchi e penna (hanno
+  una firma) e quelli marcati da questo programma (SIGNATURE). Il dispositivo d'origine invece non
+  serve: touchpad di precisione e molti mouse Bluetooth arrivano senza.
 - Una spinta breve (arrivare al bordo per una barra di scorrimento, la barra delle applicazioni o la
   X di una finestra) non basta: serve una spinta decisa e continua, poi una pausa prima della prossima.
 """
@@ -18,11 +20,13 @@ from ctypes import wintypes
 
 import monitors
 
-PUSH_COUNTS = 450    # movimento verso l'esterno (unità del mouse, ~pixel) da accumulare contro il bordo
+PUSH_COUNTS = 280    # movimento verso l'esterno (unità del mouse, ~pixel) da accumulare contro il bordo
 PUSH_TIME = 0.4      # secondi di spinta continua, almeno
 GAP = 0.25           # una pausa più lunga di così azzera la spinta
 COOLDOWN = 4.0       # dopo uno spostamento, secondi prima di riconoscerne un altro
 SIDES = ('destra', 'sinistra', 'sopra', 'sotto')
+SIGNATURE = 0x53450001  # dwExtraInfo degli eventi del mouse simulati da Schermo Esteso (inject.py)
+TOUCH_PEN = 0xFF515700  # firma di Windows sul mouse ricavato da tocchi e penna (MI_WP_SIGNATURE)
 
 user32 = ctypes.WinDLL('user32', use_last_error=True)
 kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
@@ -141,10 +145,13 @@ class EdgeWatcher:
         if user32.GetRawInputData(lparam, RID_INPUT, ctypes.byref(buf), ctypes.byref(size),
                                   ctypes.sizeof(RAWINPUTHEADER)) in (0, 0xFFFFFFFF):
             return
-        if buf.header.dwType != RIM_TYPEMOUSE or not buf.header.hDevice:
-            return  # niente dispositivo d'origine = movimento simulato (anche quelli dei nostri dispositivi)
+        if buf.header.dwType != RIM_TYPEMOUSE:
+            return
         if buf.mouse.usFlags & MOUSE_MOVE_ABSOLUTE:
-            return  # tavolette e desktop remoto: posizione assoluta, non una spinta
+            return  # posizione assoluta (trascinamento dai dispositivi, desktop remoto, tavolette): non una spinta
+        extra = buf.mouse.ulExtraInformation
+        if extra == SIGNATURE or extra & 0xFFFFFF00 == TOUCH_PEN:
+            return  # simulato da questo programma, o ricavato da tocchi e penna
         dx, dy = buf.mouse.lLastX, buf.mouse.lLastY
         if not dx and not dy:
             return

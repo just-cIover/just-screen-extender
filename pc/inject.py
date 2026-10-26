@@ -67,7 +67,8 @@ BUTTONS = {0: (M_LEFTDOWN, M_LEFTUP), 2: (M_RIGHTDOWN, M_RIGHTUP)}
 
 def _mouse(flags, data=0):
     i = INPUT(type=0)
-    i.u.mi = MOUSEINPUT(0, 0, ctypes.c_uint32(data).value, flags, 0, 0)
+    # dwExtraInfo: segno di riconoscimento, così la spinta del mouse (bordi.py) ignora questi eventi
+    i.u.mi = MOUSEINPUT(0, 0, ctypes.c_uint32(data).value, flags, 0, 0x53450001)
     user32.SendInput(1, ctypes.byref(i), ctypes.sizeof(INPUT))
 
 
