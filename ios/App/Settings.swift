@@ -6,7 +6,7 @@ import Security
 enum Settings {
     private static let d = UserDefaults.standard
 
-    /// Indirizzo del PC, es. "192.168.2.99:8770".
+    /// Indirizzo del PC, es. "192.168.1.20:8770".
     static var host: String {
         get { d.string(forKey: "host") ?? "" }
         set { d.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "host") }

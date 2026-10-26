@@ -925,11 +925,11 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
 
     private func askHost() {
         let alert = UIAlertController(title: "Collega al PC",
-                                      message: "Scrivi l'indirizzo che compare in alto nella finestra di Schermo Esteso sul PC, senza https://. Esempio: 192.168.2.99:8770",
+                                      message: "Scrivi l'indirizzo che compare in alto nella finestra di Schermo Esteso sul PC, senza https://. Esempio: 192.168.1.20:8770",
                                       preferredStyle: .alert)
         alert.addTextField { f in
             f.text = Settings.host
-            f.placeholder = "192.168.2.99:8770"
+            f.placeholder = "192.168.1.20:8770"
             f.keyboardType = .URL
             f.autocorrectionType = .no
             f.autocapitalizationType = .none

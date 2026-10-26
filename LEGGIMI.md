@@ -54,7 +54,7 @@ Per cambiare posizione o risoluzione: *Impostazioni Windows → Sistema → Sche
 
 ## Scambio di file
 
-Tutti i file stanno nella cartella **`download`** dell'app (`D:\claudio\ipad-schermo\dati\download`).
+Tutti i file stanno nella cartella **`download`** dell'app (`dati\download`).
 Ogni file è visibile a **tutti** i dispositivi, anche a quelli che si collegheranno dopo.
 
 - **Dal PC:** trascinali nella finestra di Schermo Esteso (sezione *File condivisi*), oppure
@@ -182,7 +182,6 @@ Virtual Display Driver (winget `VirtualDrivers.Virtual-Display-Driver`).
 - **L'iPad non si collega**: PC e iPad devono essere sulla stessa rete Wi-Fi; se Windows chiede
   il permesso del firewall per Python, consenti.
 - **Scatti periodici**: meglio la rete a 5 GHz e il PC non in modalità risparmio energia.
-  Spacedesk (ancora installato) non serve più e si può disinstallare.
 
 ## App nativa per iPad: file
 

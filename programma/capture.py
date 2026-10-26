@@ -18,6 +18,7 @@ import time
 
 NO_WINDOW = 0x08000000  # FFmpeg senza finestra nera quando l'app gira senza terminale
 FRAME_TIMEOUT = 3.0  # secondi senza fotogrammi => FFmpeg è bloccato, lo riavvio
+QSV_RETRY = 60    # secondi: dopo il passaggio alla CPU si riprova la scheda grafica
 
 # Livelli di qualità: l'iPad scende di livello da solo se Safari va in crisi di memoria.
 QUALITY = [
@@ -116,6 +117,7 @@ class Capture:
         self.last_frame = 0.0
         self.running = False
         self.restarts = 0
+        self.fallback_at = None  # quando si è passati alla CPU perché Quick Sync dava errore (poi si riprova)
         self.level = 0
         self.apply_level(settings.get('quality', 0))
 
@@ -129,8 +131,12 @@ class Capture:
     async def run(self):
         self.running = True
         fails = 0
+        qsv_fails = 0
         missing = False
         while self.running:
+            if self.fallback_at and time.monotonic() - self.fallback_at > QSV_RETRY:
+                self.log('Riprovo la compressione con la scheda grafica (Quick Sync)')
+                self.kind, self.fallback_at, qsv_fails = 'qsv', None, 0
             target = await self.get_target()
             if target is None:
                 if not missing:
@@ -145,12 +151,16 @@ class Capture:
             if not self.running:
                 break
             if got:
-                fails = 0
+                fails = qsv_fails = 0
             else:
                 fails += 1
-                if fails >= 2 and self.kind == 'qsv' and self.s.get('encoder', 'auto') == 'auto':
-                    self.log('Quick Sync non disponibile: passo alla compressione via CPU (x264)')
-                    self.kind = 'x264'
+                # alla CPU solo se è proprio il codificatore a dare errore: se la cattura dello schermo si ferma
+                # (blocco schermo, finestra UAC, schermo che si accende) Quick Sync non c'entra
+                if self.enc_error and not self.grab_error:
+                    qsv_fails += 1
+                if qsv_fails >= 2 and self.kind == 'qsv' and self.s.get('encoder', 'auto') == 'auto':
+                    self.log(f'Quick Sync non risponde: passo alla compressione via CPU (x264), riprovo tra {QSV_RETRY} s')
+                    self.kind, self.fallback_at = 'x264', time.monotonic()
             self.restarts += 1
             # pausa breve, più lunga se fallisce subito più volte di fila
             await asyncio.sleep(0.3 if time.monotonic() - started > 5 else min(0.5 * (fails + 1), 3))
@@ -166,6 +176,7 @@ class Capture:
         self.log(f'Cattura avviata: uscita {idx}, {w}x{h} @ {self.s["fps"]} fps, codifica {self.kind}, '
                  f'qualità {QUALITY[self.level]["nome"]}')
         self.access_lost = False
+        self.grab_error = self.enc_error = False
         err_task = asyncio.create_task(self._drain_stderr(self.proc.stderr))
         dog = asyncio.create_task(self._watchdog())
         self.last_frame = time.monotonic()
@@ -208,6 +219,9 @@ class Capture:
     async def _watchdog(self):
         while True:
             await asyncio.sleep(0.5)
+            if self.fallback_at and time.monotonic() - self.fallback_at > QSV_RETRY:
+                self.proc.kill()  # ora di riprovare Quick Sync (lo fa run)
+                return
             if time.monotonic() - self.last_frame > FRAME_TIMEOUT:
                 self.log('Nessun fotogramma da FFmpeg da 3 s: lo riavvio')
                 self.proc.kill()
@@ -226,6 +240,11 @@ class Capture:
                 self.log('Windows ha ricreato lo schermo (app a schermo intero, finestra UAC, blocco schermo…): '
                          'riprendo la cattura')
                 continue
+            low = text.lower()
+            if 'ddagrab' in low or 'desktop duplication' in low:
+                self.grab_error = True
+            elif 'qsv' in low or 'mfx' in low:
+                self.enc_error = True
             if self.access_lost and ('external library' in text or 'Terminating thread' in text):
                 continue  # seguito tecnico dello stesso evento
             self.log('ffmpeg: ' + text)
