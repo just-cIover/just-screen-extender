@@ -10,6 +10,7 @@ portate sul monitor principale, sotto quelle già aperte.
 import asyncio
 import collections
 import ctypes
+import ctypes.wintypes
 import json
 import os
 import socket
@@ -901,15 +902,33 @@ class App:
         if r != 0:
             log(f'Spostamento non riuscito (codice {r})')
             return
-        n = monitors.by_device(dev)
-        if n:  # il puntatore entra nello schermo del dispositivo, dalla parte in cui hai spinto
-            x = n['x'] + 20 if side == 'destra' else n['x'] + n['w'] - 21 if side == 'sinistra' else pt[0]
-            y = n['y'] + 20 if side == 'sotto' else n['y'] + n['h'] - 21 if side == 'sopra' else pt[1]
-            x = max(n['x'] + 1, min(n['x'] + n['w'] - 2, x))
-            y = max(n['y'] + 1, min(n['y'] + n['h'] - 2, y))
-            ctypes.windll.user32.SetCursorPos(x, y)
+        await self.pointer_into(dev, side, pt)
         s.notify({'t': 'avviso', 'testo': f'Schermo spostato {where} del PC'})
         self.kick.set()  # la nuova posizione viene ricordata per le prossime accensioni
+
+    async def pointer_into(self, dev, side, pt):
+        """Il puntatore entra nello schermo del dispositivo, dalla parte in cui hai spinto.
+        Windows applica la nuova disposizione con un attimo di ritardo e poi rimette il puntatore al centro
+        del monitor principale: per un secondo e mezzo controllo e, se l'ha spostato, lo rimetto."""
+        user32 = ctypes.windll.user32
+        cur = ctypes.wintypes.POINT()
+        end = time.monotonic() + 1.5
+        placed, steady = None, 0
+        while time.monotonic() < end and steady < 5:  # dentro per mezzo secondo di fila: Windows ha finito
+            n = monitors.by_device(dev)
+            if n:
+                x = n['x'] + 20 if side == 'destra' else n['x'] + n['w'] - 21 if side == 'sinistra' else pt[0]
+                y = n['y'] + 20 if side == 'sotto' else n['y'] + n['h'] - 21 if side == 'sopra' else pt[1]
+                x = max(n['x'] + 1, min(n['x'] + n['w'] - 2, x))
+                y = max(n['y'] + 1, min(n['y'] + n['h'] - 2, y))
+                user32.GetCursorPos(ctypes.byref(cur))
+                inside = n['x'] <= cur.x < n['x'] + n['w'] and n['y'] <= cur.y < n['y'] + n['h']
+                if placed is None or not inside:
+                    user32.SetCursorPos(x, y)
+                    placed, steady = (x, y), 0
+                else:
+                    steady += 1
+            await asyncio.sleep(0.1)
 
     async def keepalive(self):
         while True:
