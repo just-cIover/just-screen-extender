@@ -96,10 +96,12 @@ def _allowed(ip):
 def _names(ips, old=()):
     host = socket.gethostname()
     dns = sorted({'localhost', host.lower() + '.local'})  # solo nomi ammessi dal certificato radice
-    now = {'127.0.0.1', *HOTSPOT, *(ip for ip in ips if _allowed(ip))}
-    # gli indirizzi delle reti viste prima restano (al massimo MAX_OLD), così tornando a casa non si rifà
-    seen = [ip for ip in old if _allowed(ip) and ip not in now][:MAX_OLD]
-    return dns, sorted(now | set(seen), key=ipaddress.ip_address)
+    # prima gli indirizzi di adesso, poi le reti viste prima (casa, lavoro...), dalla più recente:
+    # il certificato tiene quest'ordine, così oltre MAX_OLD si scartano le reti non usate da più tempo
+    now = list(dict.fromkeys(['127.0.0.1', *(ip for ip in ips if _allowed(ip))]))
+    fixed = set(now) | set(HOTSPOT)
+    seen = [ip for ip in old if _allowed(ip) and ip not in fixed][:MAX_OLD]
+    return dns, now + seen + HOTSPOT
 
 
 def _san_ips(crt):
@@ -122,7 +124,7 @@ def ensure_server(ips):
         crt = _load_crt(SRV_CRT)
         if _covers(crt, ips) and crt.not_valid_after_utc - _now() > datetime.timedelta(days=30):
             return False
-        old = _san_ips(crt)
+        old = [ip for ip in _san_ips(crt) if ip != '127.0.0.1']  # già in ordine: dalla rete più recente
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     dns, addrs = _names(ips, old)
     alt = [x509.DNSName(d) for d in dns] + [x509.IPAddress(ipaddress.ip_address(a)) for a in addrs]

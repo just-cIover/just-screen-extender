@@ -79,6 +79,27 @@ Everything personal (certificates, paired devices, settings, logs, shared files)
 Optional admin scripts in `strumenti\`: `sensori.ps1` (temperatures through LibreHardwareMonitor,
 password-protected) and `usb-iphone.ps1` (iPhone over USB while the PC stays on Wi-Fi).
 
+## Using it on several networks
+
+Home, work, a phone hotspot, a friend's Wi-Fi: each PC creates **its own root certificate** on
+first start. Install it once on each device (menu → File → *Secure connection*) and it keeps
+working on every network:
+
+- On a new network the PC notices the new address within 30 s and reissues its server
+  certificate for it, signed by the same root. Devices trust it without reinstalling anything.
+- Networks you have already used stay in the certificate (up to 16, dropping the ones unused
+  the longest), so going back and forth between home and work changes nothing.
+- The iPhone hotspot range (172.20.10.x, the same on every iPhone) is included from the start.
+  The native app also looks for the PC there and on previously seen addresses when the usual
+  one stops answering.
+- Only private addresses (10.x, 172.16–31.x, 192.168.x) and Tailscale (100.64.0.0/10) are
+  allowed: the root certificate is restricted to them by design.
+
+The firewall rule opens the port only on **Private** networks, plus the iPhone hotspot and
+Tailscale on any network. On a new home or work Wi-Fi, mark it as private in Windows
+(*Settings → Network & internet → Wi-Fi → network → Private network*). Some work or public
+networks isolate devices from each other: use the hotspot, a USB cable or Tailscale there.
+
 ## Project layout
 
 ```
