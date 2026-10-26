@@ -99,3 +99,7 @@ dati\                  your data, created at first start (never committed)
 - [aiohttp](https://github.com/aio-libs/aiohttp), [cryptography](https://github.com/pyca/cryptography),
   [Pillow](https://github.com/python-pillow/Pillow) and [pywin32](https://github.com/mhammond/pywin32)
 - [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) for temperatures
+
+## License
+
+[MIT](LICENSE)
