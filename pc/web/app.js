@@ -110,7 +110,7 @@ function connect() {
     setStatus('Questo browser non supporta né WebCodecs né Media Source: aggiorna Safari.');
     return;
   }
-  setStatus(retry ? 'Riconnessione…' : 'Connessione al PC…');
+  if (!resting) setStatus(retry ? 'Riconnessione…' : 'Connessione al PC…');  // PC addormentato: resta il suo messaggio
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const token = store.get('token', '');
   ws = new WebSocket(`${proto}://${location.host}/ws?dev=${encodeURIComponent(devId)}&token=${encodeURIComponent(token)}`);
@@ -139,7 +139,7 @@ function scheduleRetry() {
   retry++;
   if (!offlineSince) offlineSince = Date.now();
   if (Date.now() - offlineSince > 60000) rest(true);  // un minuto senza PC: forse dorme
-  setStatus(resting ? 'Il PC non risponde (forse è in sospensione): riprovo ogni 10 secondi.' : 'Connessione persa, riprovo…');
+  setStatus(resting ? 'Il PC è in sospensione: riprovo a collegarmi ogni 10 secondi.' : 'Connessione persa, riprovo…');
   // dopo un minuto senza PC si riprova di rado, per non consumare batteria
   retryTimer = setTimeout(connect, resting ? 10000 : Math.min(300 * retry, 2000));
 }
