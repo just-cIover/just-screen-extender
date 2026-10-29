@@ -27,6 +27,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
     var onNotice: ((String) -> Void)?
     var onWhere: ((String, Int) -> Void)?   // il PC chiede se lo schermo va da questa parte (spinta del mouse)
     var onWhereDone: (() -> Void)?           // ha risposto un altro dispositivo
+    var onRest: ((Bool) -> Void)?            // true: il PC dorme (o non c'è da un minuto), lo schermo può spegnersi
     var onWordSelected: (() -> Void)?            // il PC ha selezionato la parola (doppio tocco)            // avvisi brevi (es. qualità cambiata in automatico)   // "penna" o "dito": come il PC usa la Pencil nel tratto in corso
     private(set) var ready = false
     private(set) var rtt: Double?          // ritardo di andata e ritorno in ms
@@ -38,6 +39,26 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
     private var lastMessage = Date()
     private var timer: Timer?
     private var holdUntil = Date.distantPast  // abbinamenti bloccati dal PC: niente tentativi a raffica
+    private var offlineSince: Date?           // da quando il PC non risponde
+    private var resting = false               // il PC dorme: il dispositivo non tiene acceso lo schermo
+
+    /// Pausa prima di riprovare: subito all'inizio; dopo un minuto senza PC (o con il PC addormentato)
+    /// ogni 10 secondi, per non consumare batteria
+    private var retryDelay: Double {
+        resting || Date().timeIntervalSince(offlineSince ?? Date()) > 60 ? 10 : min(0.3 * Double(retry), 2)
+    }
+
+    func resetOffline() {
+        offlineSince = nil
+        resting = false  // lo saprà di nuovo dal PC, se dorme ancora
+        retry = 0
+    }
+
+    private func setResting(_ r: Bool) {
+        guard r != resting else { return }
+        resting = r
+        onRest?(r)
+    }
 
     override init() {
         super.init()
@@ -123,6 +144,8 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
             return
         }
         retry += 1
+        if offlineSince == nil { offlineSince = Date() }
+        if Date().timeIntervalSince(offlineSince!) > 60 { setResting(true) }  // un minuto senza PC: forse dorme
         // nessuna risposta (o errore di rete) per due volte: forse il PC ha cambiato rete (hotspot)
         if retry >= 2 && (error == nil || Self.unreachable(error!)) {
             findPC()  // il PC non risponde a quell'indirizzo: forse ha cambiato rete (hotspot)
@@ -130,7 +153,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         }
         let reason = error.map { describe($0) } ?? "Nessun dato dal PC da 4 secondi."
         delegate?.connection(self, status: "Connessione persa, riprovo…\n\n\(reason)")
-        DispatchQueue.main.asyncAfter(deadline: .now() + min(0.3 * Double(retry), 2)) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + retryDelay) { [weak self] in
             guard let self, self.task == nil else { return }
             self.connect()
         }
@@ -205,7 +228,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
             self.finding = false
             if !done {
                 self.delegate?.connection(self, status: "PC non trovato. Schermo Esteso è aperto sul PC? PC e dispositivo sono sulla stessa rete (o il PC è collegato all'hotspot)? Riprovo…")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.connect() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + max(2, self.retryDelay)) { [weak self] in self?.connect() }
             }
         }
     }
@@ -254,6 +277,8 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
             pairing = false
             ready = true
             retry = 0
+            offlineSince = nil
+            setResting(false)
             delegate?.connection(self, status: nil)
             delegate?.connectionReady(self)
         case "config":
@@ -286,6 +311,10 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
             onWhere?(m["lato"] as? String ?? "", m["secondi"] as? Int ?? 15)
         case "dove_fine":
             onWhereDone?()
+        case "riposo":
+            setResting(true)
+        case "sveglio":
+            setResting(false)
         case "full":
             delegate?.connection(self, status: "Il PC ha già il numero massimo di dispositivi abbinati: rimuovine uno dal PC.")
         default:

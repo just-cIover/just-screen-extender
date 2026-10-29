@@ -24,6 +24,7 @@ import appunti
 import bordi
 import certificati
 import qualita
+import riposo
 import sicurezza
 import trascina
 import finestre
@@ -511,11 +512,14 @@ class App:
         self.devices.update(dev_id, visto=time.strftime('%Y-%m-%d %H:%M'), ip=request.remote)
         log(f'collegato da {request.remote}', s.name)
         self.kick.set()
-        s.start_capture()
+        if not riposo.asleep():
+            s.start_capture()
         s.send_gop(c)
         c.queue.appendleft(json.dumps({'t': 'quality', 'level': s.capture.level}))  # la qualità la ricorda il PC
         # per primo, prima del video; con gli indirizzi del PC: se cambia rete (es. hotspot) l'app li prova
         port = self.cfg.get('port', 8770)
+        if riposo.asleep():
+            c.queue.appendleft(json.dumps({'t': 'riposo'}))  # subito dopo "hello"
         c.queue.appendleft(json.dumps({'t': 'hello', 'nome': s.name,
                                        'indirizzi': [f'{ip}:{port}' for ip in lan_ips()]}))
         c.wake.set()
@@ -825,6 +829,7 @@ class App:
 
     async def reconciler(self):
         while True:
+            await riposo.wait_awake()  # PC addormentato: nessuno schermo da accendere o spegnere
             try:
                 busy = await self.reconcile_once()
             except Exception as e:
@@ -841,6 +846,33 @@ class App:
                 await asyncio.wait_for(self.kick.wait(), 2)
             except asyncio.TimeoutError:
                 pass
+
+    # ---- riposo: il PC dorme (coperchio chiuso, standby) ----
+    async def watch_rest(self):
+        loop = asyncio.get_running_loop()
+        stop = threading.Event()
+        watcher = riposo.Watcher(loop, self.on_rest, lambda msg: loop.call_soon_threadsafe(log, msg))
+        try:
+            await asyncio.to_thread(watcher.run, stop)
+        finally:
+            stop.set()
+
+    def on_rest(self, sleeping):
+        """Il PC si addormenta: fermo il video e avviso i dispositivi, che smettono di tenere acceso lo schermo.
+        Si sveglia: riparto. I controlli periodici si fermano e ripartono da soli (riposo.nap)."""
+        if sleeping:
+            log('PC in sospensione: fermo il video e i controlli finché non si sveglia')
+            for s in self.sessions.values():
+                if s.clients:
+                    s.notify({'t': 'riposo'})
+                asyncio.ensure_future(s.stop_capture())
+        else:
+            log('PC sveglio: riprendo')
+            for s in self.sessions.values():
+                if s.clients:
+                    s.notify({'t': 'sveglio'})
+                    s.start_capture()
+        self.kick.set()
 
     # ---- spinta del mouse contro il bordo (come il Controllo Universale del Mac) ----
     async def watch_edges(self):
@@ -934,12 +966,12 @@ class App:
         while True:
             busy = self.injector.keepalive()
             # con un dito o la penna appoggiati ogni 50 ms; altrimenti basta controllare 4 volte al secondo
-            await asyncio.sleep(0.05 if busy else 0.25)
+            await riposo.nap(0.05 if busy else 0.25)
 
     async def watch_monitors(self):
         """Se cambia la disposizione degli schermi, riaggancio la cattura di chi ne è toccato."""
         while True:
-            await asyncio.sleep(2)
+            await riposo.nap(2)
             for s in self.sessions.values():
                 # collegato e con il video che parte, ma senza statistiche da 8 s: è troppo carico per mandarle
                 if (s.clients and s.capture_task and not s.capture_task.done() and s.sent_frames
@@ -1015,7 +1047,7 @@ async def follow_start():
 async def watch_addresses(ctx, panel, port):
     """Se cambia la rete (es. hotspot del telefono), rifaccio il certificato per il nuovo indirizzo."""
     while True:
-        await asyncio.sleep(30)
+        await riposo.nap(30)
         ips = lan_ips()
         try:
             changed = await asyncio.to_thread(certificati.reload, ctx, ips)
@@ -1091,7 +1123,8 @@ async def main():
              asyncio.create_task(app.reconciler()), asyncio.create_task(exchange.watch()),
              asyncio.create_task(app.clipboard.watch()),
              asyncio.create_task(panel.watch_window()), asyncio.create_task(watch_addresses(ctx, panel, port)),
-             asyncio.create_task(follow_start()), asyncio.create_task(app.watch_edges())]
+             asyncio.create_task(follow_start()), asyncio.create_task(app.watch_edges()),
+             asyncio.create_task(app.watch_rest())]
     stopper = asyncio.create_task(app.stop.wait())
     try:
         await asyncio.wait([stopper, *tasks], return_when=asyncio.FIRST_COMPLETED)

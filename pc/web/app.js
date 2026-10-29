@@ -17,6 +17,8 @@ let ts = 0;
 let lastMsg = 0;
 let retry = 0;
 let retryTimer = null;
+let offlineSince = 0;   // da quando il PC non risponde
+let resting = false;    // il PC dorme: lo schermo del dispositivo può spegnersi
 let mode = store.get('mode', 'touch');
 let penMode = store.get('penMode2', 'auto'); // auto | penna | gomma | mouse
 let pairing = false; // in attesa del PIN: niente controllo "nessun dato da 4 s"
@@ -135,8 +137,24 @@ function scheduleRetry() {
   clearTimeout(retryTimer);
   if (document.hidden) return;
   retry++;
-  setStatus('Connessione persa, riprovo…');
-  retryTimer = setTimeout(connect, Math.min(300 * retry, 2000));
+  if (!offlineSince) offlineSince = Date.now();
+  if (Date.now() - offlineSince > 60000) rest(true);  // un minuto senza PC: forse dorme
+  setStatus(resting ? 'Il PC non risponde (forse è in sospensione): riprovo ogni 10 secondi.' : 'Connessione persa, riprovo…');
+  // dopo un minuto senza PC si riprova di rado, per non consumare batteria
+  retryTimer = setTimeout(connect, resting ? 10000 : Math.min(300 * retry, 2000));
+}
+
+/** Il PC dorme: niente schermo sempre acceso, il dispositivo si blocca da solo; al risveglio torna acceso. */
+function rest(r) {
+  if (r === resting) return;
+  resting = r;
+  if (r) {
+    if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+    $('nosleep').pause();
+    setStatus('Il PC è in sospensione. Lo schermo riparte da solo quando si sveglia.');
+  } else {
+    keepAwake();
+  }
 }
 
 function send(obj) {
@@ -161,6 +179,7 @@ function onMessage(ev) {
     }
     else if (m.t === 'hello') {
       // riconosciuto dal PC
+      offlineSince = 0; rest(false);
       pairing = false; $('pinBox').classList.remove('show');
       // la qualità la ricorda il PC (arriva subito dopo); la mando solo se l'ho abbassata io dopo un crash
       if (crashed) send({ t: 'quality', level: quality });
@@ -186,6 +205,10 @@ function onMessage(ev) {
       notice(`Hai spinto il mouse ${m.lato}: lo schermo va ${m.lato} del PC?`, 'Qui', () => send({ t: 'qui' }), (m.secondi || 15) * 1000);
     } else if (m.t === 'dove_fine') {
       $('toast').classList.remove('show');
+    } else if (m.t === 'riposo') {
+      rest(true);
+    } else if (m.t === 'sveglio') {
+      rest(false); setStatus('');
     } else if (m.t === 'file') {
       showToast(m);
     } else if (m.t === 'appunti') {
@@ -310,7 +333,7 @@ document.addEventListener('visibilitychange', () => {
     clearTimeout(retryTimer);
     if (ws) { ws.onclose = null; try { ws.close(); } catch {} ws = null; }
   } else {
-    retry = 0; connect(); keepAwake();
+    retry = 0; offlineSince = 0; resting = false; connect(); keepAwake();
   }
 });
 window.addEventListener('pageshow', (e) => { if (e.persisted) connect(); });

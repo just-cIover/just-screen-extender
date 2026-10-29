@@ -150,6 +150,11 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         connection.onWordSelected = { [weak self] in self?.showEditMenu() }
         connection.onWhere = { [weak self] side, secs in self?.askWhere(side, seconds: secs) }
         connection.onWhereDone = { [weak self] in self?.whereAlert?.dismiss(animated: true) }
+        connection.onRest = { [weak self] resting in
+            // PC addormentato: il dispositivo può bloccarsi da solo come al solito; al risveglio torna acceso
+            UIApplication.shared.isIdleTimerDisabled = !resting && self?.connection.ready == true
+            if resting { self?.showStatus("Il PC è in sospensione.\nLo schermo riparte da solo quando si sveglia.") } else { self?.hideStatus() }
+        }
         connection.onPenUse = { [weak self] use in
             // il PC ha deciso: sotto la punta non c'è un programma da disegno, quindi scorre e tocca
             guard let self else { return }
@@ -288,6 +293,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         if Settings.host.isEmpty {
             askHost()
         } else {
+            connection.resetOffline()  // riaperta dall'utente: si riprova subito, non ogni 10 s
             connection.connect()
         }
         statsTimer?.invalidate()
