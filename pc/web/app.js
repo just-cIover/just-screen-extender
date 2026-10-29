@@ -18,7 +18,13 @@ let lastMsg = 0;
 let retry = 0;
 let retryTimer = null;
 let offlineSince = 0;   // da quando il PC non risponde
-let resting = false;    // il PC dorme: lo schermo del dispositivo può spegnersi
+let resting = false;    // il PC dorme (o non c'è da mezzo minuto): lo schermo del dispositivo può spegnersi
+let pcAsleep = false;   // l'ha detto il PC ("riposo")
+// dopo 10 s senza PC (o se ha detto che dorme) un solo messaggio fisso e un tentativo ogni 10 s: il PC che va
+// in sospensione blocca la rete prima di poterlo dire, e i messaggi che cambiano di continuo confondono
+const calm = () => pcAsleep || (offlineSince && Date.now() - offlineSince > 10000);
+const calmText = () => pcAsleep ? 'Il PC è in sospensione: riprovo a collegarmi ogni 10 secondi.'
+  : "Il PC non risponde: forse è in sospensione o è passato a un'altra rete. Riprovo ogni 10 secondi.";
 let mode = store.get('mode', 'touch');
 let penMode = store.get('penMode2', 'auto'); // auto | penna | gomma | mouse
 let pairing = false; // in attesa del PIN: niente controllo "nessun dato da 4 s"
@@ -110,7 +116,7 @@ function connect() {
     setStatus('Questo browser non supporta né WebCodecs né Media Source: aggiorna Safari.');
     return;
   }
-  if (!resting) setStatus(retry ? 'Riconnessione…' : 'Connessione al PC…');  // PC addormentato: resta il suo messaggio
+  setStatus(calm() ? calmText() : retry ? 'Riconnessione…' : 'Connessione al PC…');
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const token = store.get('token', '');
   ws = new WebSocket(`${proto}://${location.host}/ws?dev=${encodeURIComponent(devId)}&token=${encodeURIComponent(token)}`);
@@ -138,10 +144,9 @@ function scheduleRetry() {
   if (document.hidden) return;
   retry++;
   if (!offlineSince) offlineSince = Date.now();
-  if (Date.now() - offlineSince > 60000) rest(true);  // un minuto senza PC: forse dorme
-  setStatus(resting ? 'Il PC è in sospensione: riprovo a collegarmi ogni 10 secondi.' : 'Connessione persa, riprovo…');
-  // dopo un minuto senza PC si riprova di rado, per non consumare batteria
-  retryTimer = setTimeout(connect, resting ? 10000 : Math.min(300 * retry, 2000));
+  if (Date.now() - offlineSince > 30000) rest(true);  // mezzo minuto senza PC: lo schermo può spegnersi
+  setStatus(calm() ? calmText() : 'Connessione persa, riprovo…');
+  retryTimer = setTimeout(connect, calm() ? 10000 : Math.min(300 * retry, 2000));
 }
 
 /** Il PC dorme: niente schermo sempre acceso, il dispositivo si blocca da solo; al risveglio torna acceso. */
@@ -151,7 +156,6 @@ function rest(r) {
   if (r) {
     if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
     $('nosleep').pause();
-    setStatus('Il PC è in sospensione. Lo schermo riparte da solo quando si sveglia.');
   } else {
     keepAwake();
   }
@@ -179,7 +183,7 @@ function onMessage(ev) {
     }
     else if (m.t === 'hello') {
       // riconosciuto dal PC
-      offlineSince = 0; rest(false);
+      offlineSince = 0; pcAsleep = false; rest(false);
       pairing = false; $('pinBox').classList.remove('show');
       // la qualità la ricorda il PC (arriva subito dopo); la mando solo se l'ho abbassata io dopo un crash
       if (crashed) send({ t: 'quality', level: quality });
@@ -206,9 +210,9 @@ function onMessage(ev) {
     } else if (m.t === 'dove_fine') {
       $('toast').classList.remove('show');
     } else if (m.t === 'riposo') {
-      rest(true);
+      pcAsleep = true; rest(true); setStatus(calmText());
     } else if (m.t === 'sveglio') {
-      rest(false); setStatus('');
+      pcAsleep = false; rest(false); setStatus('');
     } else if (m.t === 'file') {
       showToast(m);
     } else if (m.t === 'appunti') {
@@ -333,7 +337,7 @@ document.addEventListener('visibilitychange', () => {
     clearTimeout(retryTimer);
     if (ws) { ws.onclose = null; try { ws.close(); } catch {} ws = null; }
   } else {
-    retry = 0; offlineSince = 0; resting = false; connect(); keepAwake();
+    retry = 0; offlineSince = 0; resting = false; pcAsleep = false; connect(); keepAwake();
   }
 });
 window.addEventListener('pageshow', (e) => { if (e.persisted) connect(); });

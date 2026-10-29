@@ -151,9 +151,9 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         connection.onWhere = { [weak self] side, secs in self?.askWhere(side, seconds: secs) }
         connection.onWhereDone = { [weak self] in self?.whereAlert?.dismiss(animated: true) }
         connection.onRest = { [weak self] resting in
-            // PC addormentato: il dispositivo può bloccarsi da solo come al solito; al risveglio torna acceso
+            // PC addormentato o assente: il dispositivo può bloccarsi da solo come al solito; al ritorno torna acceso.
+            // I messaggi li decide la connessione
             UIApplication.shared.isIdleTimerDisabled = !resting && self?.connection.ready == true
-            if resting { self?.showStatus("Il PC è in sospensione.\nLo schermo riparte da solo quando si sveglia.") } else { self?.hideStatus() }
         }
         connection.onPenUse = { [weak self] use in
             // il PC ha deciso: sotto la punta non c'è un programma da disegno, quindi scorre e tocca
@@ -716,17 +716,20 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
                 showToast("Non riesco a leggere quello che hai trascinato")
                 return
             }
-            Uploader.send(urls, progress: { _ in }, done: { [weak self] result in
+            self.uploadBanner.attach(to: self.view)
+            self.uploadBanner.start(urls.count == 1 ? "Invio al PC: \(urls[0].lastPathComponent)" : "Invio al PC di \(urls.count) file", files: urls)
+            Uploader.send(urls, progress: { [weak self] p in self?.uploadBanner.update(p) }, done: { [weak self] result in
                 guard let self else { return }
                 switch result {
                 case .success(let names):
+                    self.uploadBanner.finish(names.count == 1 ? "Inviato al PC" : "Inviati \(names.count) file", ok: true)
                     guard let first = names.first else { return }
                     // si apre sul PC nel programma su cui l'hai lasciato (gli altri restano nella cartella)
                     let n = self.norm(point)
                     self.connection.send(["t": "deposita", "nome": first, "x": n.x, "y": n.y])
                     self.showToast(names.count == 1 ? "Inviato: apro \(first) sul PC" : "Inviati \(names.count) file: apro \(first)")
                 case .failure(let error):
-                    self.showToast("Invio non riuscito: \(error.localizedDescription)")
+                    self.uploadBanner.finish("Invio non riuscito: \(error.localizedDescription)", ok: false)
                 }
             })
         }
@@ -986,15 +989,16 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             showToast("Prima collega l'app al PC: invierò il file subito dopo")
             return
         }
-        showToast(urls.count == 1 ? "Invio al PC: \(urls[0].lastPathComponent)…" : "Invio al PC di \(urls.count) file…")
-        Uploader.send(urls, progress: { _ in }, done: { [weak self] result in
+        uploadBanner.attach(to: view)
+        uploadBanner.start(urls.count == 1 ? "Invio al PC: \(urls[0].lastPathComponent)" : "Invio al PC di \(urls.count) file", files: urls)
+        Uploader.send(urls, progress: { [weak self] p in self?.uploadBanner.update(p) }, done: { [weak self] result in
             for u in urls where u.path.contains("/Inbox/") { try? FileManager.default.removeItem(at: u) }  // copie fatte da iOS
             switch result {
             case .success(let names):
-                self?.showToast(names.count == 1 ? "Inviato al PC: \(names[0])" : "Inviati al PC \(names.count) file")
+                self?.uploadBanner.finish(names.count == 1 ? "Inviato al PC: \(names[0])" : "Inviati al PC \(names.count) file", ok: true)
                 self?.filesPanel?.reload()
             case .failure(let error):
-                self?.showToast("Invio non riuscito: \(error.localizedDescription)")
+                self?.uploadBanner.finish("Invio non riuscito: \(error.localizedDescription)", ok: false)
             }
         })
     }
@@ -1182,6 +1186,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
 
     /// Spinta del mouse con più dispositivi collegati: tocchi "Qui" su quello che si trova da quella parte del PC.
     private weak var whereAlert: UIAlertController?
+    private let uploadBanner = UploadBanner()  // avanzamento dei file inviati al PC
 
     private func askWhere(_ side: String, seconds: Int) {
         whereAlert?.dismiss(animated: false)

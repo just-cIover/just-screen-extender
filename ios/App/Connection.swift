@@ -46,7 +46,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
     /// Pausa prima di riprovare: subito all'inizio; dopo un minuto senza PC (o con il PC addormentato)
     /// ogni 10 secondi, per non consumare batteria
     private var retryDelay: Double {
-        resting || Date().timeIntervalSince(offlineSince ?? Date()) > 60 ? 10 : min(0.3 * Double(retry), 2)
+        calm ? 10 : min(0.3 * Double(retry), 2)
     }
 
     func resetOffline() {
@@ -54,6 +54,21 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         resting = false  // lo saprà di nuovo dal PC, se dorme ancora
         pcAsleep = false
         retry = 0
+    }
+
+    /// Da quanti secondi il PC non risponde (0 se collegato).
+    private var offlineFor: Double { offlineSince.map { Date().timeIntervalSince($0) } ?? 0 }
+
+    /// Dopo 10 s senza PC (o se il PC ha detto che dorme) i tentativi continuano in silenzio con un solo messaggio fisso:
+    /// il PC che va in sospensione blocca la rete prima di poterlo dire, e i messaggi che cambiano di continuo confondono.
+    private var calm: Bool { pcAsleep || offlineFor > 10 }
+
+    /// Messaggio di stato; nello stato tranquillo resta sempre lo stesso.
+    private func say(_ text: String) {
+        delegate?.connection(self, status: calm
+            ? (pcAsleep ? "Il PC è in sospensione.\nRiprovo a collegarmi ogni 10 secondi."
+                        : "Il PC non risponde: forse è in sospensione o è passato a un'altra rete.\nRiprovo ogni 10 secondi.")
+            : text)
     }
 
     private func setResting(_ r: Bool) {
@@ -95,9 +110,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         t.resume()
         receive(gen)
         lastMessage = Date()
-        if !resting {  // PC addormentato: resta il suo messaggio, i tentativi sono silenziosi
-            delegate?.connection(self, status: retry > 0 ? "Riconnessione…" : "Connessione al PC…")
-        }
+        say(retry > 0 ? "Riconnessione…" : "Connessione al PC…")
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
     }
@@ -149,10 +162,10 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         }
         retry += 1
         if offlineSince == nil { offlineSince = Date() }
-        if Date().timeIntervalSince(offlineSince!) > 60 { setResting(true) }  // un minuto senza PC: forse dorme
+        if offlineFor > 30 { setResting(true) }  // mezzo minuto senza PC: lo schermo del dispositivo può spegnersi
         if pcAsleep {
             // il PC dorme: niente ricerca sulle altre reti (non risponderebbe), un tentativo ogni 10 s
-            delegate?.connection(self, status: "Il PC è in sospensione.\nRiprovo a collegarmi ogni 10 secondi.")
+            say("")
             DispatchQueue.main.asyncAfter(deadline: .now() + retryDelay) { [weak self] in
                 guard let self, self.task == nil else { return }
                 self.connect()
@@ -165,7 +178,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
             return
         }
         let reason = error.map { describe($0) } ?? "Nessun dato dal PC da 4 secondi."
-        delegate?.connection(self, status: "Connessione persa, riprovo…\n\n\(reason)")
+        say("Connessione persa, riprovo…\n\n\(reason)")
         DispatchQueue.main.asyncAfter(deadline: .now() + retryDelay) { [weak self] in
             guard let self, self.task == nil else { return }
             self.connect()
@@ -217,7 +230,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         candidates += (2...14).map { "172.20.10.\($0):\(port)" }
         var seen = Set<String>()
         candidates = candidates.filter { !$0.isEmpty && seen.insert($0).inserted }
-        delegate?.connection(self, status: "Il PC non risponde a \(current): lo cerco sulle altre reti (anche l'hotspot)…")
+        say("Il PC non risponde a \(current): lo cerco sulle altre reti (anche l'hotspot)…")
         var done = false
         var probes: [NWConnection] = []
         for c in candidates {
@@ -240,7 +253,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
             guard let self else { return }
             self.finding = false
             if !done {
-                self.delegate?.connection(self, status: "PC non trovato. Schermo Esteso è aperto sul PC? PC e dispositivo sono sulla stessa rete (o il PC è collegato all'hotspot)? Riprovo…")
+                self.say("PC non trovato. Schermo Esteso è aperto sul PC? PC e dispositivo sono sulla stessa rete (o il PC è collegato all'hotspot)? Riprovo…")
                 DispatchQueue.main.asyncAfter(deadline: .now() + max(2, self.retryDelay)) { [weak self] in self?.connect() }
             }
         }
@@ -328,9 +341,11 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         case "riposo":
             pcAsleep = true
             setResting(true)
+            say("")  // messaggio fisso di sospensione
         case "sveglio":
             pcAsleep = false
             setResting(false)
+            delegate?.connection(self, status: nil)
         case "full":
             delegate?.connection(self, status: "Il PC ha già il numero massimo di dispositivi abbinati: rimuovine uno dal PC.")
         default:
