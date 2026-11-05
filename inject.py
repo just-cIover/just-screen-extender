@@ -8,6 +8,8 @@ Le coordinate arrivano normalizzate (0..1) e vengono riportate sul monitor dell'
 import ctypes
 from ctypes import wintypes
 
+import time
+
 import finestre
 import monitors  # imposta anche la DPI awareness
 
@@ -84,12 +86,18 @@ class Pad:
         self.hub = hub
         self.rect = None
         self.pen_as_finger = False
+        self.last_touch = 0.0  # ultimo tocco mandato a Windows (time.monotonic)
         self.pen_app = ''  # programma sotto la punta all'ultimo appoggio
+
+    def point(self, nx, ny):
+        """Coordinate sullo schermo (pixel) di un punto normalizzato, o None se lo schermo è spento."""
+        return _px(self.rect, nx, ny) if self.rect else None
 
     def set_monitor(self, m):
         self.rect = (m['x'], m['y'], m['w'], m['h']) if m else None
 
     def touch(self, ev, pid, nx, ny):
+        self.last_touch = time.monotonic()
         if self.rect:
             self.hub.touch(ev, (id(self), pid), *_px(self.rect, nx, ny))
 
@@ -111,6 +119,7 @@ class Pad:
             ink, self.pen_app = finestre.ink_app_at(x, y) if auto else (True, '')
             self.pen_as_finger = not ink
         if self.pen_as_finger:
+            self.last_touch = time.monotonic()
             self.hub.touch(ev, (id(self), 'penna'), x, y)
             return 'dito' if ev == 'd' else None
         if not self.hub.pen.ok:  # niente penna di Windows: faccio da mouse
@@ -248,10 +257,17 @@ def type_text(text):
     _send_keys(events)
 
 
+COMBOS = {'copia': ord('C'), 'taglia': ord('X'), 'incolla': ord('V'), 'tutto': ord('A')}  # con Ctrl
+VK_CONTROL = 0x11
+
+
 def press(name):
     vk = KEYS.get(name)
     if vk:
         _send_keys([(vk, 0, 0), (vk, 0, KEY_UP)])
+    elif name in COMBOS:
+        k = COMBOS[name]
+        _send_keys([(VK_CONTROL, 0, 0), (k, 0, 0), (k, 0, KEY_UP), (VK_CONTROL, 0, KEY_UP)])
 
 
 # --- penna (Apple Pencil -> penna di Windows, con pressione e inclinazione) -----------

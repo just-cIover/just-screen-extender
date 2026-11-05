@@ -78,7 +78,7 @@ final class InkView: UIView {
     }
 }
 
-final class ScreenViewController: UIViewController, ConnectionDelegate {
+final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMenuInteractionDelegate {
     let connection = Connection()
     private let video = VideoView()
     private let ink = InkView()
@@ -107,6 +107,16 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
     private var penUpAt: CFTimeInterval = 0
     private var lastPenPoint: CGPoint?
     private var penFinger = false  // in automatica: in questo tratto la Pencil fa da dito (niente inchiostro)
+    // doppio tocco = seleziona la parola (come sull'iPad)
+    private var tapStarts: [ObjectIdentifier: (time: CFTimeInterval, point: CGPoint)] = [:]
+    private var lastTap: (time: CFTimeInterval, point: CGPoint)?
+    private var editMenu: UIEditMenuInteraction?
+    // un dito solo appena appoggiato: non va a Windows finché non si capisce se è un tocco,
+    // un trascinamento o una pressione lunga (così tenere premuto non tocca niente sul PC)
+    private var pending: (key: ObjectIdentifier, point: CGPoint, time: CFTimeInterval)?
+    private var longPress: Timer?
+    private var longPressed: ObjectIdentifier?  // dito tenuto premuto: il fumetto è aperto, il resto lo ignoro
+    private var menuPoint = CGPoint.zero        // dove mostrare il fumetto (e dove fare il clic destro)
     // modalità mouse con le dita
     private var mouseFingers: [UITouch] = []
     private var dragging = false
@@ -124,12 +134,17 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
         connection.delegate = self
         connection.onClipboard = { [weak self] m in self?.clipboardFromPC(m) }
         connection.onNotice = { [weak self] text in self?.showToast(text) }
+        connection.onWordSelected = { [weak self] in self?.showEditMenu() }
         connection.onPenUse = { [weak self] use in
             // il PC ha deciso: sotto la punta non c'è un programma da disegno, quindi scorre e tocca
             guard let self else { return }
             self.penFinger = use == "dito"
             if self.penFinger { self.ink.clear() }
         }
+
+        let menu = UIEditMenuInteraction(delegate: self)
+        view.addInteraction(menu)
+        editMenu = menu
 
         ink.frame = view.bounds
         ink.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -317,34 +332,64 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
     // MARK: tocchi
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        editMenu?.dismissMenu()
         for t in touches {
+            let key = ObjectIdentifier(t)
             if t.type == .pencil {
                 penBegan(t)
             } else if penBusy {
                 continue  // palmo appoggiato mentre si scrive con la Pencil
             } else if Settings.touchMode == "mouse" {
                 mouseBegan(t)
+            } else if fingers.isEmpty && pending == nil && touches.count == 1 {
+                pending = (key, t.location(in: view), CACurrentMediaTime())
+                startLongPress(key)
             } else {
-                let id = nextTouchId
-                nextTouchId += 1
-                let n = norm(t.location(in: view))
-                fingers[ObjectIdentifier(t)] = (id, n.x, n.y)
-                connection.send(["t": "p", "e": "d", "id": id, "x": n.x, "y": n.y])
+                flushPending()  // secondo dito (zoom, scorrimento a due dita): il primo parte subito
+                fingerDown(key, at: t.location(in: view))
             }
         }
     }
 
+    private func fingerDown(_ key: ObjectIdentifier, at p: CGPoint) {
+        let id = nextTouchId
+        nextTouchId += 1
+        let n = norm(p)
+        fingers[key] = (id, n.x, n.y)
+        connection.send(["t": "p", "e": "d", "id": id, "x": n.x, "y": n.y])
+    }
+
+    /// Il dito in attesa diventa un tocco su Windows, dal punto in cui è stato appoggiato.
+    private func flushPending() {
+        guard let p = pending else { return }
+        pending = nil
+        longPress?.invalidate()
+        lastTap = nil
+        fingerDown(p.key, at: p.point)
+    }
+
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         for t in touches {
+            let key = ObjectIdentifier(t)
             if t.type == .pencil {
                 penMoved(t, event)
+                continue
             } else if Settings.touchMode == "mouse" {
                 mouseMoved(t)
-            } else if var f = fingers[ObjectIdentifier(t)] {
+                continue
+            } else if key == longPressed {
+                continue
+            }
+            if let p = pending, p.key == key {
+                let now = t.location(in: view)
+                guard hypot(now.x - p.point.x, now.y - p.point.y) > 12 else { continue }
+                flushPending()  // si muove: scorrimento o trascinamento
+            }
+            if var f = fingers[key] {
                 let n = norm(t.location(in: view))
                 f.x = n.x
                 f.y = n.y
-                fingers[ObjectIdentifier(t)] = f
+                fingers[key] = f
                 connection.send(["t": "p", "e": "m", "id": f.id, "x": n.x, "y": n.y])
             }
         }
@@ -355,13 +400,36 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
 
     private func finish(_ touches: Set<UITouch>, cancelled: Bool) {
         for t in touches {
+            let key = ObjectIdentifier(t)
             if t.type == .pencil {
                 penEnded(t, cancelled: cancelled)
             } else if Settings.touchMode == "mouse" {
                 mouseEnded(t)
-            } else if let f = fingers.removeValue(forKey: ObjectIdentifier(t)) {
+            } else if let p = pending, p.key == key {
+                pending = nil
+                longPress?.invalidate()
+                guard !cancelled else { continue }
+                let now = CACurrentMediaTime(), end = t.location(in: view)
+                let quick = now - p.time < 0.35
+                if quick, let last = lastTap, now - last.time < 0.5,
+                   hypot(end.x - last.point.x, end.y - last.point.y) < 30 {
+                    // secondo tocco di un doppio tocco: non lo mando, decide il PC come selezionare
+                    lastTap = nil
+                    selectWord(at: end, delivered: false)
+                } else {
+                    let id = nextTouchId
+                    nextTouchId += 1
+                    let n = norm(p.point)
+                    connection.send(["t": "p", "e": "d", "id": id, "x": n.x, "y": n.y])
+                    connection.send(["t": "p", "e": "u", "id": id, "x": n.x, "y": n.y])
+                    lastTap = quick ? (now, end) : nil
+                }
+            } else if key == longPressed {
+                longPressed = nil
+            } else if let f = fingers.removeValue(forKey: key) {
                 let n = norm(t.location(in: view))
                 connection.send(["t": "p", "e": cancelled ? "c" : "u", "id": f.id, "x": n.x, "y": n.y])
+                lastTap = nil
             }
         }
     }
@@ -369,6 +437,9 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
     private func releaseInput() {
         for f in fingers.values { connection.send(["t": "p", "e": "c", "id": f.id, "x": f.x, "y": f.y]) }
         fingers.removeAll()
+        pending = nil
+        longPressed = nil
+        longPress?.invalidate()
         mouseFingers.removeAll()
         dragging = false
         penTouch = nil
@@ -392,6 +463,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
         fingers.removeAll()
         penTouch = t
         penFinger = false
+        tapStarts[ObjectIdentifier(t)] = (CACurrentMediaTime(), t.location(in: view))
         sendPen("d", t)
         lastPenPoint = t.preciseLocation(in: view)
     }
@@ -425,6 +497,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
             connection.send(["t": "m", "e": "u", "b": 0, "x": n.x, "y": n.y])
         } else {
             sendPen(cancelled ? "c" : "u", t)
+            tapEnded(t, valid: !cancelled && penFinger)  // solo dove la Pencil fa da dito, non mentre disegna
         }
         penTouch = nil
         penUpAt = CACurrentMediaTime()
@@ -630,6 +703,68 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
                 self?.showToast("Invio non riuscito: \(error.localizedDescription)")
             }
         })
+    }
+
+    // MARK: doppio tocco: seleziona la parola e mostra Copia / Incolla
+
+    private func tapEnded(_ t: UITouch, valid: Bool) {
+        guard let start = tapStarts.removeValue(forKey: ObjectIdentifier(t)) else { return }
+        let now = CACurrentMediaTime(), p = t.location(in: view)
+        guard valid, now - start.time < 0.35, hypot(p.x - start.point.x, p.y - start.point.y) < 12 else {
+            lastTap = nil
+            return
+        }
+        if let last = lastTap, now - last.time < 0.45, hypot(p.x - last.point.x, p.y - last.point.y) < 30 {
+            lastTap = nil
+            selectWord(at: p, delivered: true)  // la Pencil ha già mandato tutti e due i tocchi
+        } else {
+            lastTap = (now, p)
+        }
+    }
+
+    /// Il PC seleziona la parola (doppio tocco o doppio clic, secondo il programma) e risponde
+    /// "parola_ok": allora compare il fumetto. delivered = i due tocchi sono già arrivati a Windows.
+    private func selectWord(at p: CGPoint, delivered: Bool) {
+        menuPoint = p
+        let n = norm(p)
+        connection.send(["t": "parola", "x": n.x, "y": n.y, "gia": delivered])
+    }
+
+    private func showEditMenu() {
+        editMenu?.presentEditMenu(with: UIEditMenuConfiguration(identifier: nil, sourcePoint: menuPoint))
+    }
+
+    /// Dito tenuto fermo mezzo secondo: come sull'iPad compare il fumetto. A Windows non arriva niente,
+    /// così la selezione resta com'è.
+    private func startLongPress(_ key: ObjectIdentifier) {
+        longPress?.invalidate()
+        longPress = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+            guard let self, let p = self.pending, p.key == key else { return }
+            self.pending = nil
+            self.longPressed = key
+            self.lastTap = nil
+            self.menuPoint = p.point
+            self.showEditMenu()
+        }
+    }
+
+    func editMenuInteraction(_ interaction: UIEditMenuInteraction, menuFor configuration: UIEditMenuConfiguration,
+                             suggestedActions: [UIMenuElement]) -> UIMenu? {
+        let key = { [weak self] (k: String) in self?.connection.send(["t": "tasto", "k": k]) }
+        return UIMenu(children: [
+            UIAction(title: "Copia") { _ in key("copia") },
+            UIAction(title: "Taglia") { _ in key("taglia") },
+            UIAction(title: "Incolla") { [weak self] _ in
+                self?.clipboardToPC(force: false)  // prima porto sul PC quello che c'è negli appunti dell'iPad
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { key("incolla") }
+            },
+            UIAction(title: "Seleziona tutto") { _ in key("tutto") },
+            UIAction(title: "Altro (clic destro)") { [weak self] _ in
+                guard let self else { return }
+                let n = self.norm(self.menuPoint)
+                self.connection.send(["t": "m", "e": "click", "b": 2, "x": n.x, "y": n.y])
+            },
+        ])
     }
 
     // MARK: scrivere sul PC (anche password dal Portachiavi dell'iPad)
