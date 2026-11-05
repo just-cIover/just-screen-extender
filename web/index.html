@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Schermo">
+<meta name="theme-color" content="#000000">
+<!-- icona dentro la pagina: con il certificato del PC Safari a volte non riesce a scaricarla a parte -->
+<link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAAACXBIWXMAAAABAAAAAQBPJcTWAAAB+0lEQVR4nO3ZMY7CMBRAwazEEVJSpuVInI4j0eYw21HxKFYkWcxM6cJpnr5l52eezxM8c3q6CuLgFZODJA6SOEjiIImDJA6SOEjiIImDJA6SOEjiIImDJA6SOEjiIImDJA6SOEjiIImDJA6SOEjiIImDJA6SOEjiIImDJA6SOEjiIImDJA6SOEjiIImDJA6SOEjiIImDI+JYb5ftNudhud6nbZgcJHGQxEESB0kcJHGQxMF/imO7e/nY1t3fjUwOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJA3HwEZNjvV32/yh/4FghiYMkDpI4SOIgiYMkDo6IY7net9ucHZgcJHGQxEESB0kcfFMcR/31XYa7nQ0YB+8iDpI4SOIgiYMkDpI4+KY4xntvOMqAcfAu4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJgyQOkjhI4iCJg6n8AtayEGYl3puQAAAAAElFTkSuQmCC">
+<link rel="icon" type="image/png" href="/icon.png">
+<link rel="manifest" href="manifest.json">
+<title>Schermo Esteso</title>
+<style>
+  :root {
+    --bg: #000;
+    --panel: #15171d;
+    --line: #2a2e38;
+    --text: #eef0f4;
+    --muted: #9aa1ae;
+    --accent: #f2b84b;
+    --ok: #57d18b;
+    --bad: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    overflow: hidden; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #stage { position: fixed; inset: 0; touch-action: none; background: #000; }
+  #stage canvas, #stage video { width: 100%; height: 100%; display: block; object-fit: contain; pointer-events: none; }
+  /* immagine sotto la barra di iPadOS (ora, batteria, •••), che un'app web non può nascondere */
+  body.sottoBarra #stage, body.sottoBarra #ink { top: env(safe-area-inset-top); }
+  /* inchiostro immediato: il tratto della Pencil disegnato subito, finché arriva quello vero dal PC */
+  #ink { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+  #nosleep { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+  /* stato di connessione, sopra il video */
+  #status {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    pointer-events: none; text-align: center; padding: 0 24px;
+  }
+  #status.hidden { display: none; }
+  .spinner {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 3px solid var(--line); border-top-color: var(--accent);
+    animation: spin .9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #statusText { color: var(--muted); font-size: 17px; }
+
+  /* PIN */
+  #pinBox {
+    position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 50% 30%, #1b1e27 0%, #000 70%);
+  }
+  #pinBox.show { display: flex; }
+  .card {
+    width: min(380px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 18px; padding: 28px 24px; text-align: center;
+  }
+  .card h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: -.01em; }
+  .card p { margin: 0 0 20px; color: var(--muted); }
+  #pin {
+    width: 100%; font-size: 34px; letter-spacing: .4em; text-align: center; padding: 12px 0 12px .4em;
+    border-radius: 12px; border: 1px solid var(--line); background: #0c0d11; color: var(--text);
+    -webkit-user-select: text; user-select: text;
+  }
+  #pin:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .err { color: var(--bad); min-height: 22px; margin-top: 10px; font-size: 15px; }
+  button {
+    font: inherit; font-weight: 600; border: 0; border-radius: 12px; cursor: pointer;
+    min-height: 48px; padding: 0 18px; background: var(--accent); color: #1a1405;
+  }
+  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  .card button { width: 100%; margin-top: 8px; }
+
+  /* pulsante menu, quasi invisibile nell'angolo */
+  #menuBtn {
+    position: fixed; top: calc(env(safe-area-inset-top) + 6px); right: 6px; z-index: 5;
+    width: 44px; height: 44px; min-height: 0; padding: 0; border-radius: 22px;
+    background: rgba(20, 22, 28, .35); color: rgba(255, 255, 255, .55);
+    display: grid; place-items: center; transition: opacity .3s;
+  }
+  #menuBtn svg { width: 20px; height: 20px; }
+  body.idle #menuBtn { opacity: .25; }
+
+  /* menu */
+  #menu {
+    position: fixed; top: calc(env(safe-area-inset-top) + 58px); right: 8px; z-index: 6;
+    width: 300px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 16px; display: none; box-shadow: 0 18px 50px rgba(0, 0, 0, .6);
+  }
+  #menu.show { display: block; }
+  #menu h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+  .seg button { background: #0c0d11; color: var(--text); border: 1px solid var(--line); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #1a1405; border-color: var(--accent); }
+  .hint { font-size: 14px; color: var(--muted); margin: 0 0 14px; }
+  .seg4 { grid-template-columns: 1fr 1fr; }
+  .seg3 { grid-template-columns: 1fr 1fr 1fr; }
+  .seg button small { display: block; font-size: 12px; font-weight: 500; opacity: .75; }
+  .seg4 button { min-height: 52px; line-height: 1.2; }
+  .stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; margin-bottom: 14px;
+    font-variant-numeric: tabular-nums; }
+  .stats dt { color: var(--muted); }
+  .stats dd { margin: 0; text-align: right; }
+  .row { display: flex; gap: 8px; }
+  .row button { flex: 1; }
+
+  /* indicatore qualità connessione */
+  #dot { position: fixed; top: calc(env(safe-area-inset-top) + 25px); right: 56px; z-index: 5;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--ok); opacity: 0; transition: opacity .3s; }
+  #dot.warn { background: var(--accent); opacity: .9; }
+  #dot.bad { background: var(--bad); opacity: .9; }
+
+
+  /* il menu non deve uscire dallo schermo (iPhone in orizzontale) */
+  #menu { max-height: calc(100vh - env(safe-area-inset-top) - 70px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #filesBtn { width: 100%; margin-bottom: 14px; }
+
+  /* pannello File */
+  #files { position: fixed; inset: 0; z-index: 8; display: none; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, .55); padding: calc(env(safe-area-inset-top) + 12px) 12px 12px; }
+  #files.show { display: flex; }
+  .sheet { width: min(560px, 100%); max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
+  .sheet header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .sheet header h2 { margin: 0; font-size: 20px; text-transform: none; letter-spacing: 0; color: var(--text); }
+  .sheet h3 { margin: 18px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .icon { width: 44px; min-height: 44px; padding: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .chips button { min-height: 40px; background: #0c0d11; color: var(--text); border: 1px solid var(--line); }
+  .chips button[aria-pressed="true"] { background: var(--accent); color: #1a1405; border-color: var(--accent); }
+  #pick { width: 100%; }
+  .drop { border: 2px dashed var(--line); border-radius: 14px; padding: 12px; text-align: center; transition: border-color .15s, background .15s; }
+  .drop .hint { margin: 8px 0 0; }
+  .drop.over { border-color: var(--accent); background: rgba(242, 184, 75, .08); }
+  #files.dragging .sheet { outline: 2px solid var(--accent); }
+  .progress { position: relative; height: 28px; margin-top: 10px; border-radius: 8px; background: #0c0d11;
+    border: 1px solid var(--line); overflow: hidden; font-size: 13px; }
+  .progress div { position: absolute; inset: 0 auto 0 0; width: 0; background: rgba(242, 184, 75, .35); }
+  .progress span { position: relative; display: block; text-align: center; line-height: 26px; }
+  .progress.hidden { display: none; }
+  #fileList { list-style: none; margin: 0; padding: 0; }
+  #fileList li { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); }
+  #fileList .info { flex: 1; min-width: 0; }
+  #fileList .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fileList .meta { font-size: 13px; color: var(--muted); }
+  #fileList a, #fileList button { display: inline-grid; place-items: center; min-height: 40px; padding: 0 12px;
+    border-radius: 10px; border: 1px solid var(--line); color: var(--text); text-decoration: none; font-weight: 600;
+    background: transparent; font-size: 14px; }
+  #fileList button.del { color: var(--bad); }
+  .empty { color: var(--muted); font-size: 14px; padding: 10px 0; }
+
+  /* azioni sui file, anteprima, aiuto */
+  #fileList button.share, #pvShare { width: 40px; padding: 0; display: inline-grid; place-items: center; }
+  #fileList button.share svg, #pvShare svg { width: 20px; height: 20px; }
+  #fileList button.share.ready { border-color: var(--accent); color: var(--accent); }
+  #fileList button.share.busy { opacity: .5; }
+  #fileList .info { cursor: pointer; }
+  .help { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 14px; }
+  .help summary { cursor: pointer; font-weight: 600; min-height: 40px; display: flex; align-items: center; }
+  .help ol { padding-left: 20px; margin: 6px 0; }
+  .help li { margin: 4px 0; }
+  .help a { color: var(--accent); }
+  .help code { background: #0c0d11; padding: 0 4px; border-radius: 4px; }
+  .card .small { font-size: 13px; margin-top: -10px; }
+  .card .small a { color: var(--accent); }
+  #preview { position: fixed; inset: 0; z-index: 10; display: none; flex-direction: column; background: #000; }
+  #preview.show { display: flex; }
+  #preview header { display: flex; align-items: center; gap: 8px; padding: calc(env(safe-area-inset-top) + 8px) 10px 8px;
+    background: var(--panel); border-bottom: 1px solid var(--line); }
+  #pvName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  #pvBody { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; display: grid; place-items: center; }
+  #pvBody img, #pvBody video { max-width: 100%; max-height: 100%; object-fit: contain; }
+  #pvBody pre { align-self: start; justify-self: stretch; margin: 0; padding: 16px; white-space: pre-wrap; word-break: break-word;
+    font: 14px/1.5 ui-monospace, Menlo, monospace; color: var(--text); -webkit-user-select: text; user-select: text; }
+  #pvBody .none { color: var(--muted); padding: 24px; text-align: center; max-width: 420px; }
+
+  /* avviso file in arrivo */
+  #toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 16px); transform: translateX(-50%);
+    z-index: 9; display: none; align-items: center; gap: 10px; max-width: calc(100vw - 24px);
+    background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; padding: 8px 8px 8px 14px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .6); }
+  #toast.show { display: flex; }
+  #toastText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #toast button { min-height: 40px; }
+
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+</style>
+</head>
+<body class="idle">
+<div id="stage"></div>
+<canvas id="ink" aria-hidden="true"></canvas>
+<video id="nosleep" src="nosleep.mp4" muted playsinline loop></video>
+
+<div id="status"><div class="spinner"></div><div id="statusText">Connessione al PC…</div></div>
+<div id="dot"></div>
+
+<button id="menuBtn" aria-label="Menu" aria-expanded="false">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+</button>
+
+<div id="menu" role="dialog" aria-label="Impostazioni">
+  <button id="filesBtn">File</button>
+  <h2>Comandi</h2>
+  <div class="seg" role="group" aria-label="Modalità di input">
+    <button id="modeTouch" aria-pressed="true">Tocco</button>
+    <button id="modeMouse" aria-pressed="false">Mouse</button>
+  </div>
+  <p class="hint" id="modeHint"></p>
+  <h2>Apple Pencil</h2>
+  <div class="seg seg3" id="penMode" role="group" aria-label="Apple Pencil">
+    <button data-p="penna" aria-pressed="true">Penna</button>
+    <button data-p="gomma" aria-pressed="false">Gomma</button>
+    <button data-p="mouse" aria-pressed="false">Mouse</button>
+  </div>
+  <p class="hint" id="penHint"></p>
+  <h2>Opzioni</h2>
+  <div class="seg" role="group" aria-label="Opzioni">
+    <button id="optInk" aria-pressed="true">Inchiostro immediato<small>meno ritardo visibile</small></button>
+    <button id="optBar" aria-pressed="true">Sotto la barra<small>ora e batteria non coprono</small></button>
+  </div>
+  <h2>Motore</h2>
+  <div class="seg" id="engine" role="group" aria-label="Motore video">
+    <button data-e="diretto" aria-pressed="false">Diretto<small>meno ritardo</small></button>
+    <button data-e="compatibile" aria-pressed="false">Compatibile<small>più stabile</small></button>
+  </div>
+  <h2>Qualità</h2>
+  <div class="seg seg4" id="quality" role="group" aria-label="Qualità video">
+    <button data-q="0" aria-pressed="false">Massima<small>60 fps</small></button>
+    <button data-q="1" aria-pressed="false">Fluida<small>30 fps</small></button>
+    <button data-q="2" aria-pressed="false">Media<small>75%</small></button>
+    <button data-q="3" aria-pressed="false">Leggera<small>50%</small></button>
+  </div>
+  <p class="hint">Se Safari si chiude da solo, la qualità scende in automatico.</p>
+  <h2>Connessione</h2>
+  <dl class="stats">
+    <dt>Fotogrammi</dt><dd id="sFps">–</dd>
+    <dt>Ritardo rete</dt><dd id="sRtt">–</dd>
+    <dt>Dati</dt><dd id="sRate">–</dd>
+    <dt>Salti</dt><dd id="sDrop">0</dd>
+    <dt>Risoluzione</dt><dd id="sRes">–</dd>
+  </dl>
+  <div class="row">
+    <button class="ghost" id="reconnect">Ricollega</button>
+    <button class="ghost" id="changePin">Abbina di nuovo</button>
+  </div>
+</div>
+
+<div id="files" role="dialog" aria-label="File">
+  <div class="sheet">
+    <header><h2>File</h2><button class="ghost icon" id="filesClose" aria-label="Chiudi">✕</button></header>
+    <div class="drop" id="drop">
+      <button id="pick">Aggiungi file</button>
+      <p class="hint">oppure trascinali qui. Li vedono tutti i dispositivi, anche quelli che si collegheranno dopo.</p>
+    </div>
+    <input type="file" id="picker" multiple hidden>
+    <div class="progress hidden" id="upload"><div></div><span></span></div>
+    <h3>Cartella download del PC</h3>
+    <p class="hint">Tocca un file per l'anteprima. L'icona di condivisione lo porta nelle app dell'iPad
+      (Salva su File, Foto, AirDrop…). I file si tolgono solo cancellandoli dalla cartella sul PC.</p>
+    <p class="err" id="fileMsg" role="status"></p>
+    <ul id="fileList"></ul>
+    <details class="help">
+      <summary>Inviare dalle altre app dell'iPad</summary>
+      <p>Le app web non possono comparire nel menu Condividi: si usa un Comando rapido, una volta sola.</p>
+      <ol>
+        <li>Tocca <b>Copia indirizzo</b> qui sotto.</li>
+        <li>Apri l'app <b>Comandi</b> → <b>+</b> → nome: <i>Invia a Schermo Esteso</i>.</li>
+        <li>Tocca <b>ⓘ</b> e attiva <b>Mostra nel foglio di condivisione</b>.</li>
+        <li>Aggiungi l'azione <b>Ottieni contenuti dell'URL</b>: incolla l'indirizzo, Metodo <b>POST</b>,
+          Corpo richiesta <b>Modulo</b>, aggiungi un campo <b>File</b> con chiave <code>file</code> e valore
+          <b>Input comando</b>.</li>
+        <li>(Facoltativo) aggiungi <b>Mostra notifica</b>: «Inviato al PC».</li>
+      </ol>
+      <p>Da qualsiasi app: Condividi → <b>Invia a Schermo Esteso</b>. L'indirizzo contiene la chiave di questo
+        dispositivo: non condividerlo.</p>
+      <button class="ghost" id="copyShortcut">Copia indirizzo</button>
+    </details>
+    <details class="help">
+      <summary>Connessione sicura (certificato del PC)</summary>
+      <p>Serve una volta sola per dispositivo: toglie l'avviso di Safari, cifra la connessione e attiva la condivisione.</p>
+      <ol>
+        <li><a href="/certificato.crt">Scarica il certificato</a> e tocca <b>Consenti</b>.</li>
+        <li><b>Impostazioni</b> → <b>Profilo scaricato</b> (o Generali → VPN e gestione dispositivi) → <b>Installa</b>.</li>
+        <li><b>Impostazioni → Generali → Info → Impostazioni attendibilità certificati</b>: attiva
+          <i>Schermo Esteso - certificato del PC</i>.</li>
+      </ol>
+      <p>Il certificato vale solo per la rete di casa o dell'hotspot: non può essere usato per altri siti.</p>
+    </details>
+  </div>
+</div>
+
+<div id="preview" role="dialog" aria-label="Anteprima">
+  <header>
+    <span id="pvName"></span>
+    <button class="ghost icon" id="pvShare" aria-label="Condividi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M6 11v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8"/></svg></button>
+    <button class="ghost" id="pvClose">Chiudi</button>
+  </header>
+  <div id="pvBody"></div>
+</div>
+
+<div id="toast" role="status">
+  <span id="toastText"></span>
+  <button id="toastOpen">Apri</button>
+  <button class="ghost icon" id="toastClose" aria-label="Chiudi">✕</button>
+</div>
+
+<div id="pinBox">
+  <form class="card" id="pinForm">
+    <h1>Schermo Esteso</h1>
+    <p>Questo dispositivo è nuovo: inserisci il PIN di 6 cifre che compare ora sul PC. Serve solo la prima volta.</p>
+    <p class="small">Safari ha mostrato un avviso di sicurezza? <a href="/certificato.crt">Installa il certificato del PC</a>
+      (istruzioni nel menu → File).</p>
+    <input id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" aria-label="PIN">
+    <div class="err" id="pinErr" role="alert"></div>
+    <button type="submit">Collega</button>
+  </form>
+</div>
+
+<script src="render.js"></script>
+<script src="mse.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
