@@ -212,3 +212,10 @@ avviso con il pulsante *Copia*.
 
 **Tieni premuto** (mezzo secondo, senza muovere il dito): compare lo stesso fumetto, con in più
 *Altro (clic destro)* per il menu di Windows.
+
+## iPhone
+
+La stessa app nativa (`ipa\SchermoEsteso.ipa`) funziona anche su iPhone: ha il suo schermo
+virtuale e il suo PIN. In orizzontale lo schermo virtuale esclude ai lati la tacca o la Dynamic
+Island, così niente finisce sotto la fotocamera. Installazione come per l'iPad: iPhone col cavo,
+AltServer → *Install AltStore* → iPhone, poi *Sideload .ipa*.

@@ -98,9 +98,9 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
              NSURLErrorServerCertificateNotYetValid, NSURLErrorServerCertificateHasBadDate, NSURLErrorSecureConnectionFailed:
             hint = "Certificato del PC non attendibile: installalo e attivalo in Impostazioni → Generali → Info → Impostazioni attendibilità certificati."
         case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost:
-            hint = "L'iPad non raggiunge la rete: controlla il Wi-Fi e il permesso Rete locale (Impostazioni → Privacy e sicurezza → Rete locale)."
+            hint = "Il dispositivo non raggiunge la rete: controlla il Wi-Fi e il permesso Rete locale (Impostazioni → Privacy e sicurezza → Rete locale)."
         case NSURLErrorCannotConnectToHost, NSURLErrorTimedOut, NSURLErrorCannotFindHost:
-            hint = "Il PC non risponde: Schermo Esteso è aperto sul PC? L'indirizzo è giusto? PC e iPad sono sulla stessa rete?"
+            hint = "Il PC non risponde: Schermo Esteso è aperto sul PC? L'indirizzo è giusto? PC e dispositivo sono sulla stessa rete?"
         case NSURLErrorBadServerResponse:
             hint = "Il PC ha rifiutato il collegamento."
         default:
