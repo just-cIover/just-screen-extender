@@ -21,7 +21,9 @@ protocol ConnectionDelegate: AnyObject {
 /// Collegamento cifrato (WebSocket su HTTPS) con il server sul PC: stesso protocollo dell'app web.
 final class Connection: NSObject, URLSessionWebSocketDelegate {
     weak var delegate: ConnectionDelegate?
-    var onPenUse: ((String) -> Void)?   // "penna" o "dito": come il PC usa la Pencil nel tratto in corso
+    var onPenUse: ((String) -> Void)?
+    var onClipboard: (([String: Any]) -> Void)?  // appunti copiati sul PC
+    var onNotice: ((String) -> Void)?            // avvisi brevi (es. qualità cambiata in automatico)   // "penna" o "dito": come il PC usa la Pencil nel tratto in corso
     private(set) var ready = false
     private(set) var rtt: Double?          // ritardo di andata e ritorno in ms
     private(set) var pairing = false
@@ -185,7 +187,15 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
             delegate?.connection(self, config: VideoConfig(width: w, height: h, fps: m["fps"] as? Int ?? 30, avcC: avcC))
         case "quality":
             // la qualità la ricorda il PC (e la può imporre): la tengo allineata nel menu
-            if let level = m["level"] as? Int { Settings.quality = level }
+            if let level = m["level"] as? Int {
+                Settings.quality = level
+                if m["auto"] as? Bool == true {
+                    let names = ["Massima", "Fluida", "Media", "Leggera"]
+                    onNotice?("Qualità \(names[max(0, min(level, 3))]): impostata in automatico dal PC")
+                }
+            }
+        case "appunti":
+            onClipboard?(m)
         case "penna":
             if let use = m["uso"] as? String { onPenUse?(use) }
         case "pong":

@@ -155,6 +155,7 @@ function onMessage(ev) {
     else if (m.t === 'quality') {
       // decisa dal PC (o confermata): aggiorno il menu senza rimandarla indietro
       quality = m.level; store.set('quality', String(quality));
+      if (m.auto) notice(`Qualità ${QUALITY_NAMES[quality]}: impostata in automatico dal PC`, null, null, 5000);
       document.querySelectorAll('#quality button').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.q === quality));
     }
     else if (m.t === 'hello') {
@@ -179,6 +180,8 @@ function onMessage(ev) {
         : m.nuovo ? 'Il PIN è cambiato: inserisci quello nuovo che vedi sul PC.' : 'PIN errato, riprova.');
     } else if (m.t === 'file') {
       showToast(m);
+    } else if (m.t === 'appunti') {
+      clipFromPC(m);
     } else if (m.t === 'full') {
       pairing = false; $('pinBox').classList.remove('show');
       setStatus(`Il PC ha già ${m.max} dispositivi abbinati: rimuovine uno dal PC.`);
@@ -788,25 +791,69 @@ function upload(list) {
   x.send(form);
 }
 
-let toastFile = null, toastTimer = null;
+let toastTimer = null, toastAction = null;
+// avviso in basso: testo, pulsante facoltativo (label + azione), durata
+function notice(text, label, action, ms = 20000) {
+  $('toastText').textContent = text;
+  $('toastOpen').textContent = label || '';
+  $('toastOpen').hidden = !action;
+  toastAction = action;
+  $('toast').classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $('toast').classList.remove('show'), ms);
+}
 function showToast(m) {
   if ($('files').classList.contains('show')) refreshFiles();
   if (!m.nomi.length) return; // solo file tolti: aggiorno l'elenco e basta
-  toastFile = m.nomi[0];
-  $('toastText').textContent = m.nomi.length === 1
-    ? `Nuovo file da ${m.da}: ${m.nomi[0]}`
-    : `${m.nomi.length} nuovi file da ${m.da}`;
-  $('toastOpen').textContent = 'Vedi';
-  $('toast').classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => $('toast').classList.remove('show'), 20000);
-  m.multi = m.nomi.length > 1;
-  showToast.last = m;
+  const one = m.nomi.length === 1 ? m.nomi[0] : null;
+  notice(one ? `Nuovo file da ${m.da}: ${one}` : `${m.nomi.length} nuovi file da ${m.da}`, 'Vedi', () => {
+    openFiles();
+    if (one) preview(one);
+  });
 }
 $('toastOpen').addEventListener('click', () => {
   $('toast').classList.remove('show');
-  openFiles();
-  if (showToast.last && !showToast.last.multi && toastFile) preview(toastFile);
+  if (toastAction) toastAction();
+});
+
+// Appunti condivisi. Safari scrive e legge gli appunti solo dopo un tocco: per questo "Copia" e "Invia".
+function clipFromPC(m) {
+  if (m.tipo === 'testo') {
+    const short = m.testo.length > 40 ? m.testo.slice(0, 40).trim() + '…' : m.testo;
+    notice(`Appunti dal PC: “${short.replace(/\s+/g, ' ')}”`, 'Copia', async () => {
+      try { await navigator.clipboard.writeText(m.testo); notice('Copiato negli appunti', null, null, 3000); }
+      catch { notice('Copia non riuscita', null, null, 4000); }
+    });
+  } else {
+    notice('Immagine negli appunti del PC', 'Copia', async () => {
+      try {
+        // la promessa va passata subito, dentro il tocco: Safari aspetta il download
+        const png = fetch(api('/api/appunti/immagine')).then((r) => { if (!r.ok) throw new Error(); return r.blob(); });
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+        notice('Immagine copiata negli appunti', null, null, 3000);
+      } catch { notice("Copia dell'immagine non riuscita", null, null, 4000); }
+    });
+  }
+}
+$('clipSend').addEventListener('click', async () => {
+  try {
+    for (const item of await navigator.clipboard.read()) {
+      const img = item.types.find((t) => t.startsWith('image/'));
+      if (img) {
+        const r = await fetch(api('/api/appunti/immagine'), { method: 'POST', body: await item.getType(img) });
+        notice(r.ok ? 'Immagine copiata negli appunti del PC' : 'Invio non riuscito', null, null, 4000);
+        return;
+      }
+      if (item.types.includes('text/plain')) {
+        send({ t: 'appunti', testo: await (await item.getType('text/plain')).text() });
+        notice('Testo copiato negli appunti del PC', null, null, 4000);
+        return;
+      }
+    }
+    notice("Gli appunti dell'iPad sono vuoti", null, null, 3000);
+  } catch {
+    notice('Safari non ha dato gli appunti: tocca "Incolla" quando compare', null, null, 5000);
+  }
 });
 $('toastClose').addEventListener('click', () => $('toast').classList.remove('show'));
 
