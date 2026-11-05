@@ -118,9 +118,24 @@ def ensure_server(ips):
     return True
 
 
-def ssl_context(ips):
+def ssl_context(ips, on_alert=None):
     ensure_server(ips)
     ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    if on_alert:
+        # diagnosi: se un dispositivo rifiuta la connessione cifrata (es. certificato non attendibile)
+        # lo comunica con un "allarme TLS", che altrimenti andrebbe perso senza traccia
+        def watch(conn, direction, version, content_type, msg_type, data):
+            try:
+                # un allarme ricevuto prima che la connessione cifrata sia stabilita = rifiuto del dispositivo
+                # (con TLS 1.3 se ne vede solo l'intestazione: tipo di record 21)
+                if direction == 'read' and int(msg_type) == 21 and int(content_type) in (21, 256)                         and conn.version() is None:
+                    on_alert('allarme TLS durante la connessione')
+            except Exception:
+                pass
+        try:
+            ctx._msg_callback = watch  # interfaccia di diagnosi di Python (non pubblica)
+        except Exception:
+            pass
     ctx.minimum_version = ssl.TLSVersion.TLSv1_2  # niente TLS 1.0/1.1
     ctx.load_cert_chain(SRV_CRT, SRV_KEY)
     return ctx
