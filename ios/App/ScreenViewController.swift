@@ -95,6 +95,8 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
     private var statsTimer: Timer?
     private var active = false
     private weak var pinAlert: UIAlertController?
+    private weak var filesPanel: FilesViewController?
+    private var pendingShared: [URL] = []  // file arrivati da altre app prima che il PC fosse configurato
     private static let qualityNames = ["Massima (60 fps)", "Fluida (30 fps)", "Media (75%)", "Leggera (50%)"]
 
     // tocco
@@ -240,6 +242,11 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
 
     func connectionReady(_ c: Connection) {
         pinAlert?.dismiss(animated: true)
+        if !pendingShared.isEmpty {
+            let waiting = pendingShared
+            pendingShared = []
+            receiveShared(waiting)
+        }
         UIApplication.shared.isIdleTimerDisabled = true  // l'iPad non va in standby mentre fa da schermo
         let info = Bundle.main.infoDictionary
         let version = "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
@@ -277,6 +284,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
 
     func connection(_ c: Connection, newFiles names: [String], from sender: String) {
         showToast(names.count == 1 ? "Nuovo file da \(sender): \(names[0])" : "\(names.count) nuovi file da \(sender)")
+        filesPanel?.reload()
     }
 
     // MARK: statistiche per la finestra del PC
@@ -520,6 +528,9 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
         })
         let ink = UIAction(title: "Inchiostro immediato", image: UIImage(systemName: "scribble"),
                            state: Settings.instantInk ? .on : .off) { _ in Settings.instantInk.toggle() }
+        let files = UIAction(title: "File condivisi", image: UIImage(systemName: "folder")) { [weak self] _ in
+            self?.showFiles()
+        }
         let reconnect = UIAction(title: "Ricollega", image: UIImage(systemName: "arrow.clockwise")) { [weak self] _ in
             self?.connection.connect()
         }
@@ -529,7 +540,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
         let host = UIAction(title: "Cambia PC…", image: UIImage(systemName: "desktopcomputer")) { [weak self] _ in
             self?.askHost()
         }
-        return [state, quality, fingersMenu, pencil, ink,
+        return [state, files, quality, fingersMenu, pencil, ink,
                 UIMenu(options: .displayInline, children: [reconnect, repair, host])]
     }
 
@@ -558,6 +569,47 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
         } else {
             present(alert, animated: true)
         }
+    }
+
+    // MARK: file
+
+    func showFiles() {
+        if let panel = filesPanel { panel.reload(); return }
+        let panel = FilesViewController()
+        panel.openOnPC = { [weak self] name in
+            self?.connection.send(["t": "apri", "nome": name])
+            self?.showToast("Apro \(name) sul PC, su questo schermo…")
+        }
+        let nav = UINavigationController(rootViewController: panel)
+        nav.modalPresentationStyle = .formSheet
+        filesPanel = panel
+        if let shown = presentedViewController {
+            shown.dismiss(animated: false) { [weak self] in self?.present(nav, animated: true) }
+        } else {
+            present(nav, animated: true)
+        }
+    }
+
+    /// File condivisi da un'altra app con "Condividi → Schermo Esteso": vanno subito al PC.
+    func receiveShared(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        loadViewIfNeeded()  // può arrivare all'avvio, prima che lo schermo sia pronto
+        if Settings.host.isEmpty || Settings.token.isEmpty {
+            pendingShared += urls
+            showToast("Prima collega l'app al PC: invierò il file subito dopo")
+            return
+        }
+        showToast(urls.count == 1 ? "Invio al PC: \(urls[0].lastPathComponent)…" : "Invio al PC di \(urls.count) file…")
+        Uploader.send(urls, progress: { _ in }, done: { [weak self] result in
+            for u in urls where u.path.contains("/Inbox/") { try? FileManager.default.removeItem(at: u) }  // copie fatte da iOS
+            switch result {
+            case .success(let names):
+                self?.showToast(names.count == 1 ? "Inviato al PC: \(names[0])" : "Inviati al PC \(names.count) file")
+                self?.filesPanel?.reload()
+            case .failure(let error):
+                self?.showToast("Invio non riuscito: \(error.localizedDescription)")
+            }
+        })
     }
 
     // MARK: messaggi a schermo

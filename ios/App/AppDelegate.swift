@@ -21,6 +21,12 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.rootViewController = screen
         window.makeKeyAndVisible()
         self.window = window
+        // aperta con un file da un'altra app (Condividi → Schermo Esteso)
+        screen.receiveShared(connectionOptions.urlContexts.map(\.url))
+    }
+
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        screen.receiveShared(URLContexts.map(\.url))
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) { screen.resume() }

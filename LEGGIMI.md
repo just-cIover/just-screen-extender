@@ -160,3 +160,12 @@ Virtual Display Driver (winget `VirtualDrivers.Virtual-Display-Driver`).
   il permesso del firewall per Python, consenti.
 - **Scatti periodici**: meglio la rete a 5 GHz e il PC non in modalità risparmio energia.
   Spacedesk (ancora installato) non serve più e si può disinstallare.
+
+## App nativa per iPad: file
+
+Menu (☰) → **File condivisi**: i file della cartella `download` del PC.
+- Tocca un file per l'**anteprima**; tienilo premuto per *Condividi…*, *Salva in File* oppure
+  *Apri sul PC* (si apre sullo schermo dell'iPad).
+- **Carica** (in alto a destra): da *Foto e video* o *Da File*, anche più elementi insieme.
+- Da un'altra app (File, Safari, Mail…): *Condividi* → **Schermo Esteso** (o *Apri in…*): il file
+  va subito al PC. Se l'icona non compare tra le app suggerite, scorri la fila fino a *Altro*.
