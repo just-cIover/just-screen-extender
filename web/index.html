@@ -100,6 +100,8 @@
   #menu.show { display: block; }
   #menu h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
   .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+  .typeBox input { width: 100%; box-sizing: border-box; margin-bottom: 6px; padding: 10px 12px; font: inherit;
+    background: #0c0d11; color: var(--text); border: 1px solid var(--line); border-radius: 10px; }
   .seg button { background: #0c0d11; color: var(--text); border: 1px solid var(--line); }
   .seg button[aria-pressed="true"] { background: var(--accent); color: #1a1405; border-color: var(--accent); }
   .hint { font-size: 14px; color: var(--muted); margin: 0 0 14px; }
@@ -234,6 +236,17 @@
     <button id="clipSend">Invia appunti al PC<small>testo o immagine copiati qui</small></button>
   </div>
   <p class="hint">Quello che copi sul PC compare qui con il pulsante <b>Copia</b>.</p>
+  <h2>Scrivi sul PC</h2>
+  <div class="typeBox">
+    <input id="typeUser" autocomplete="username" autocapitalize="off" autocorrect="off" placeholder="Nome utente (facoltativo)">
+    <input id="typePass" type="password" autocomplete="current-password" placeholder="Password (chiave sopra la tastiera)">
+    <input id="typeText" placeholder="Oppure un testo qualsiasi">
+  </div>
+  <div class="seg" role="group" aria-label="Scrivi sul PC">
+    <button id="typeGo">Inserisci</button>
+    <button id="typeEnter">Inserisci e Invio</button>
+  </div>
+  <p class="hint">Tocca prima sul PC il campo dove scrivere. Le password vanno solo lì: niente appunti, niente console.</p>
   <h2>Motore</h2>
   <div class="seg" id="engine" role="group" aria-label="Motore video">
     <button data-e="diretto" aria-pressed="false">Diretto<small>meno ritardo</small></button>

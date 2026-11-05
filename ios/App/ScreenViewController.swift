@@ -543,6 +543,12 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
         let clipSend = UIAction(title: "Invia appunti al PC", image: UIImage(systemName: "arrow.up.doc.on.clipboard")) { [weak self] _ in
             self?.clipboardToPC(force: true)
         }
+        let password = UIAction(title: "Inserisci password…", image: UIImage(systemName: "key.fill")) { [weak self] _ in
+            self?.askPassword()
+        }
+        let typeText = UIAction(title: "Scrivi sul PC…", image: UIImage(systemName: "keyboard")) { [weak self] _ in
+            self?.askText()
+        }
         let reconnect = UIAction(title: "Ricollega", image: UIImage(systemName: "arrow.clockwise")) { [weak self] _ in
             self?.connection.connect()
         }
@@ -553,6 +559,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
             self?.askHost()
         }
         return [state, files, UIMenu(title: "Appunti", image: UIImage(systemName: "doc.on.clipboard"), children: [clipSync, clipSend]),
+                UIMenu(options: .displayInline, children: [password, typeText]),
                 quality, fingersMenu, pencil, ink,
                 UIMenu(options: .displayInline, children: [reconnect, repair, host])]
     }
@@ -623,6 +630,68 @@ final class ScreenViewController: UIViewController, ConnectionDelegate {
                 self?.showToast("Invio non riuscito: \(error.localizedDescription)")
             }
         })
+    }
+
+    // MARK: scrivere sul PC (anche password dal Portachiavi dell'iPad)
+
+    /// Campo nativo dell'iPad: sopra la tastiera compare la chiave delle password salvate (Face ID).
+    /// La password va solo nel campo selezionato sul PC: niente appunti, niente console.
+    private func askPassword() {
+        let alert = UIAlertController(title: "Inserisci password",
+                                      message: "Tocca prima sul PC il campo della password (o del nome utente). Poi scegli qui la password salvata: la tastiera mostra la chiave delle Password.",
+                                      preferredStyle: .alert)
+        alert.addTextField { f in
+            f.placeholder = "Nome utente (facoltativo)"
+            f.textContentType = .username
+            f.autocapitalizationType = .none
+            f.autocorrectionType = .no
+        }
+        alert.addTextField { f in
+            f.placeholder = "Password"
+            f.textContentType = .password
+            f.isSecureTextEntry = true
+        }
+        let type = { [weak self, weak alert] (enter: Bool) in
+            let user = alert?.textFields?[0].text ?? ""
+            let pass = alert?.textFields?[1].text ?? ""
+            guard let self, !(user.isEmpty && pass.isEmpty) else { return }
+            if !user.isEmpty {
+                self.connection.send(["t": "scrivi", "testo": user])
+                if !pass.isEmpty { self.connection.send(["t": "tasto", "k": "tab"]) }
+            }
+            if !pass.isEmpty { self.connection.send(["t": "scrivi", "testo": pass, "segreto": true]) }
+            if enter { self.connection.send(["t": "tasto", "k": "invio"]) }
+            alert?.textFields?.forEach { $0.text = "" }
+        }
+        alert.addAction(UIAlertAction(title: "Annulla", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Inserisci", style: .default) { _ in type(false) })
+        alert.addAction(UIAlertAction(title: "Inserisci e premi Invio", style: .default) { _ in type(true) })
+        presentReplacing(alert)
+    }
+
+    private func askText() {
+        let alert = UIAlertController(title: "Scrivi sul PC",
+                                      message: "Il testo viene scritto nel punto selezionato sul PC, come con una tastiera.",
+                                      preferredStyle: .alert)
+        alert.addTextField { f in f.placeholder = "Testo" }
+        let type = { [weak self, weak alert] (enter: Bool) in
+            let text = alert?.textFields?.first?.text ?? ""
+            guard let self else { return }
+            if !text.isEmpty { self.connection.send(["t": "scrivi", "testo": text]) }
+            if enter { self.connection.send(["t": "tasto", "k": "invio"]) }
+        }
+        alert.addAction(UIAlertAction(title: "Annulla", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Scrivi", style: .default) { _ in type(false) })
+        alert.addAction(UIAlertAction(title: "Scrivi e premi Invio", style: .default) { _ in type(true) })
+        presentReplacing(alert)
+    }
+
+    private func presentReplacing(_ vc: UIViewController) {
+        if let shown = presentedViewController {
+            shown.dismiss(animated: false) { [weak self] in self?.present(vc, animated: true) }
+        } else {
+            present(vc, animated: true)
+        }
     }
 
     // MARK: appunti
