@@ -37,10 +37,10 @@ enum Settings {
         set { d.set(newValue, forKey: "touchMode") }
     }
 
-    /// "penna", "gomma" oppure "mouse".
+    /// "auto" (scrive nei programmi da disegno, altrove fa da dito), "penna", "gomma" oppure "mouse".
     static var penMode: String {
-        get { d.string(forKey: "penMode") ?? "penna" }
-        set { d.set(newValue, forKey: "penMode") }
+        get { d.string(forKey: "penMode2") ?? "auto" }
+        set { d.set(newValue, forKey: "penMode2") }
     }
 
     /// Inchiostro immediato: il tratto della Pencil compare subito, prima che arrivi quello vero dal PC.
