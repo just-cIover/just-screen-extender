@@ -1,5 +1,6 @@
 import AVFoundation
 import UIKit
+import UniformTypeIdentifiers
 
 /// Il video del PC: decodificato e disegnato dall'hardware dell'iPad.
 final class VideoView: UIView {
@@ -78,7 +79,8 @@ final class InkView: UIView {
     }
 }
 
-final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMenuInteractionDelegate {
+final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMenuInteractionDelegate,
+                                  UIDropInteractionDelegate {
     let connection = Connection()
     private let video = VideoView()
     private let ink = InkView()
@@ -117,6 +119,12 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
     private var longPress: Timer?
     private var longPressed: ObjectIdentifier?  // dito tenuto premuto: il fumetto è aperto, il resto lo ignoro
     private var menuPoint = CGPoint.zero        // dove mostrare il fumetto (e dove fare il clic destro)
+    // zoom con due dita: solo l'immagine sul dispositivo, Windows non cambia
+    private var zoom: CGFloat = 1
+    private var pan = CGPoint.zero
+    private var two: (a: ObjectIdentifier, b: ObjectIdentifier, a0: CGPoint, b0: CGPoint)?  // pizzico o scorrimento?
+    private var pinching: (a: ObjectIdentifier, b: ObjectIdentifier, zoom0: CGFloat, d0: CGFloat, q0: CGPoint)?
+    private var ignored = Set<ObjectIdentifier>()  // dita di un gesto già finito (o terze dita)
     // modalità mouse con le dita
     private var mouseFingers: [UITouch] = []
     private var dragging = false
@@ -124,11 +132,16 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
     private var twoMoved = false
     private var lastMid: CGPoint?
 
-    override func loadView() { view = video }
+    override func loadView() { view = UIView() }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
+        // il video sta in un contenitore: così lo posso ingrandire senza ingrandire inchiostro, menu e avvisi
+        video.backgroundColor = .black
+        video.isUserInteractionEnabled = false
+        view.addSubview(video)
+        view.addInteraction(UIDropInteraction(delegate: self))
         view.isMultipleTouchEnabled = true
         video.display.videoGravity = .resizeAspect
         connection.delegate = self
@@ -196,6 +209,13 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             menuButton.heightAnchor.constraint(equalToConstant: 44),
         ])
         showStatus("Avvio…")
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        video.bounds = view.bounds
+        video.center = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
+        applyZoom()
     }
 
     // schermo intero vero: niente barra di iPadOS, indicatore Home nascosto, bordi meno sensibili
@@ -336,18 +356,27 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
 
     // MARK: coordinate
 
-    private var contentRect: CGRect { AVMakeRect(aspectRatio: videoSize, insideRect: view.bounds) }
+    private var contentRect: CGRect { AVMakeRect(aspectRatio: videoSize, insideRect: video.bounds) }
 
     private func norm(_ p: CGPoint) -> (x: Double, y: Double) {
+        let q = video.convert(p, from: view)  // tiene conto dello zoom
         let r = contentRect
         guard r.width > 0, r.height > 0 else { return (0, 0) }
-        return (Double((p.x - r.minX) / r.width), Double((p.y - r.minY) / r.height))
+        return (Double((q.x - r.minX) / r.width), Double((q.y - r.minY) / r.height))
     }
 
     // MARK: tocchi
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         editMenu?.dismissMenu()
+        let fingersOnly = touches.allSatisfy { $0.type != .pencil }
+        if fingersOnly && Settings.touchMode != "mouse" && !penBusy && touches.count == 2 && fingers.isEmpty
+            && pending == nil && two == nil && pinching == nil {
+            // due dita appoggiate insieme: aspetto di capire se è un pizzico (zoom) o uno scorrimento
+            let t = Array(touches)
+            two = (ObjectIdentifier(t[0]), ObjectIdentifier(t[1]), t[0].location(in: view), t[1].location(in: view))
+            return
+        }
         for t in touches {
             let key = ObjectIdentifier(t)
             if t.type == .pencil {
@@ -356,6 +385,13 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
                 continue  // palmo appoggiato mentre si scrive con la Pencil
             } else if Settings.touchMode == "mouse" {
                 mouseBegan(t)
+            } else if two != nil || pinching != nil {
+                ignored.insert(key)  // terzo dito durante un pizzico
+            } else if let p = pending, fingers.isEmpty {
+                // secondo dito mentre il primo aspetta: pizzico (zoom qui) o scorrimento a due dita (Windows)?
+                longPress?.invalidate()
+                pending = nil
+                two = (p.key, key, p.point, t.location(in: view))
             } else if fingers.isEmpty && pending == nil && touches.count == 1 {
                 pending = (key, t.location(in: view), CACurrentMediaTime())
                 startLongPress(key)
@@ -392,7 +428,13 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             } else if Settings.touchMode == "mouse" {
                 mouseMoved(t)
                 continue
-            } else if key == longPressed {
+            } else if key == longPressed || ignored.contains(key) {
+                continue
+            } else if let g = two, key == g.a || key == g.b {
+                twoMoved(g, event)
+                continue
+            } else if let g = pinching, key == g.a || key == g.b {
+                pinchMoved(g, event)
                 continue
             }
             if let p = pending, p.key == key {
@@ -420,6 +462,20 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
                 penEnded(t, cancelled: cancelled)
             } else if Settings.touchMode == "mouse" {
                 mouseEnded(t)
+            } else if ignored.remove(key) != nil {
+                continue
+            } else if let g = two, key == g.a || key == g.b {
+                // due dita sollevate senza muoverle: clic destro, come il tocco a due dita del trackpad
+                two = nil
+                ignored.insert(key == g.a ? g.b : g.a)
+                if !cancelled {
+                    let n = norm(CGPoint(x: (g.a0.x + g.b0.x) / 2, y: (g.a0.y + g.b0.y) / 2))
+                    connection.send(["t": "m", "e": "click", "b": 2, "x": n.x, "y": n.y])
+                }
+            } else if let g = pinching, key == g.a || key == g.b {
+                pinching = nil
+                ignored.insert(key == g.a ? g.b : g.a)
+                if zoom < 1.08 { setZoom(1, CGPoint.zero, animated: true) }  // quasi al 100%: lo rimetto preciso
             } else if let p = pending, p.key == key {
                 pending = nil
                 longPress?.invalidate()
@@ -455,11 +511,119 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         pending = nil
         longPressed = nil
         longPress?.invalidate()
+        two = nil
+        pinching = nil
+        ignored.removeAll()
         mouseFingers.removeAll()
         dragging = false
         penTouch = nil
         lastPenPoint = nil
         ink.endStroke()
+    }
+
+    // MARK: zoom con due dita (solo sul dispositivo)
+
+    private func positions(_ a: ObjectIdentifier, _ b: ObjectIdentifier, _ event: UIEvent?) -> (CGPoint, CGPoint)? {
+        let all = event?.allTouches ?? []
+        guard let ta = all.first(where: { ObjectIdentifier($0) == a }),
+              let tb = all.first(where: { ObjectIdentifier($0) == b }) else { return nil }
+        return (ta.location(in: view), tb.location(in: view))
+    }
+
+    private func twoMoved(_ g: (a: ObjectIdentifier, b: ObjectIdentifier, a0: CGPoint, b0: CGPoint), _ event: UIEvent?) {
+        guard let pos = positions(g.a, g.b, event) else { return }
+        let (pa, pb) = pos
+        let d0 = hypot(g.a0.x - g.b0.x, g.a0.y - g.b0.y), d = hypot(pa.x - pb.x, pa.y - pb.y)
+        let m0 = CGPoint(x: (g.a0.x + g.b0.x) / 2, y: (g.a0.y + g.b0.y) / 2)
+        let m = CGPoint(x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2)
+        if abs(d - d0) > 20 || (zoom > 1.01 && hypot(m.x - m0.x, m.y - m0.y) > 8) {
+            // le dita si allargano o si stringono (o l'immagine è già ingrandita): zoom qui
+            two = nil
+            let c = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
+            let q0 = CGPoint(x: c.x + (m.x - c.x - pan.x) / zoom, y: c.y + (m.y - c.y - pan.y) / zoom)
+            pinching = (g.a, g.b, zoom, max(d, 1), q0)
+        } else if hypot(m.x - m0.x, m.y - m0.y) > 12 {
+            // si muovono insieme: scorrimento a due dita di Windows, dai punti in cui sono state appoggiate
+            two = nil
+            fingerDown(g.a, at: g.a0)
+            fingerDown(g.b, at: g.b0)
+            for (key, p) in [(g.a, pa), (g.b, pb)] {
+                if var f = fingers[key] {
+                    let n = norm(p)
+                    f.x = n.x
+                    f.y = n.y
+                    fingers[key] = f
+                    connection.send(["t": "p", "e": "m", "id": f.id, "x": n.x, "y": n.y])
+                }
+            }
+        }
+    }
+
+    private func pinchMoved(_ g: (a: ObjectIdentifier, b: ObjectIdentifier, zoom0: CGFloat, d0: CGFloat, q0: CGPoint),
+                            _ event: UIEvent?) {
+        guard let pos = positions(g.a, g.b, event) else { return }
+        let (pa, pb) = pos
+        let d = hypot(pa.x - pb.x, pa.y - pb.y)
+        let m = CGPoint(x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2)
+        let c = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
+        let z = min(5, max(1, g.zoom0 * d / g.d0))
+        // il punto dell'immagine che era tra le dita resta tra le dita
+        setZoom(z, CGPoint(x: m.x - c.x - z * (g.q0.x - c.x), y: m.y - c.y - z * (g.q0.y - c.y)), animated: false)
+    }
+
+    private func setZoom(_ z: CGFloat, _ p: CGPoint, animated: Bool) {
+        zoom = z
+        // l'immagine ingrandita copre sempre tutto lo schermo: niente bordi vuoti
+        let maxX = (z - 1) * view.bounds.width / 2, maxY = (z - 1) * view.bounds.height / 2
+        pan = CGPoint(x: min(maxX, max(-maxX, p.x)), y: min(maxY, max(-maxY, p.y)))
+        if animated {
+            UIView.animate(withDuration: 0.2) { self.applyZoom() }
+        } else {
+            applyZoom()
+        }
+    }
+
+    private func applyZoom() {
+        video.transform = CGAffineTransform(translationX: pan.x, y: pan.y).scaledBy(x: zoom, y: zoom)
+    }
+
+    // MARK: file trascinati sullo schermo (da File, Foto, Safari…)
+
+    func dropInteraction(_ interaction: UIDropInteraction, canHandle session: UIDropSession) -> Bool {
+        session.hasItemsConforming(toTypeIdentifiers: [UTType.item.identifier])
+    }
+
+    func dropInteraction(_ interaction: UIDropInteraction, sessionDidUpdate session: UIDropSession) -> UIDropProposal {
+        UIDropProposal(operation: .copy)
+    }
+
+    func dropInteraction(_ interaction: UIDropInteraction, performDrop session: UIDropSession) {
+        let point = session.location(in: view)
+        let providers = session.items.map(\.itemProvider)
+        showToast(providers.count == 1 ? "Invio al PC…" : "Invio al PC di \(providers.count) elementi…")
+        Task { @MainActor in
+            var urls: [URL] = []
+            for provider in providers {
+                if let url = await FilesViewController.copy(provider) { urls.append(url) }
+            }
+            guard !urls.isEmpty else {
+                showToast("Non riesco a leggere quello che hai trascinato")
+                return
+            }
+            Uploader.send(urls, progress: { _ in }, done: { [weak self] result in
+                guard let self else { return }
+                switch result {
+                case .success(let names):
+                    guard let first = names.first else { return }
+                    // si apre sul PC nel programma su cui l'hai lasciato (gli altri restano nella cartella)
+                    let n = self.norm(point)
+                    self.connection.send(["t": "deposita", "nome": first, "x": n.x, "y": n.y])
+                    self.showToast(names.count == 1 ? "Inviato: apro \(first) sul PC" : "Inviati \(names.count) file: apro \(first)")
+                case .failure(let error):
+                    self.showToast("Invio non riuscito: \(error.localizedDescription)")
+                }
+            })
+        }
     }
 
     // MARK: Apple Pencil
@@ -646,7 +810,11 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         let host = UIAction(title: "Cambia PC…", image: UIImage(systemName: "desktopcomputer")) { [weak self] _ in
             self?.askHost()
         }
-        return [state, files, UIMenu(title: "Appunti", image: UIImage(systemName: "doc.on.clipboard"), children: [clipSync, clipSend]),
+        let unzoom = UIAction(title: "Torna al 100%", image: UIImage(systemName: "arrow.down.right.and.arrow.up.left")) { [weak self] _ in
+            self?.setZoom(1, .zero, animated: true)
+        }
+        let extra: [UIMenuElement] = zoom > 1.01 ? [unzoom] : []
+        return extra + [state, files, UIMenu(title: "Appunti", image: UIImage(systemName: "doc.on.clipboard"), children: [clipSync, clipSend]),
                 UIMenu(options: .displayInline, children: [password, typeText]),
                 quality, fingersMenu, pencil, ink,
                 UIMenu(options: .displayInline, children: [reconnect, repair, host])]

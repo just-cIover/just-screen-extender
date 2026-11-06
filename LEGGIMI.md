@@ -219,3 +219,16 @@ La stessa app nativa (`ipa\SchermoEsteso.ipa`) funziona anche su iPhone: ha il s
 virtuale e il suo PIN. In orizzontale lo schermo virtuale esclude ai lati la tacca o la Dynamic
 Island, così niente finisce sotto la fotocamera. Installazione come per l'iPad: iPhone col cavo,
 AltServer → *Install AltStore* → iPhone, poi *Sideload .ipa*.
+
+## Zoom e file trascinati (app nativa)
+
+- **Zoom:** allarga o stringi due dita per ingrandire solo l'immagine sul dispositivo (fino a 5
+  volte), Windows non cambia. Con l'immagine ingrandita due dita la spostano; stringendo fino in
+  fondo, o dal menu *Torna al 100%*, torni alla vista intera. Al 100% due dita che si muovono
+  insieme scorrono le pagine di Windows; un tocco con due dita è un clic destro.
+- **Trascinare file:** trascina un file o una foto da un'altra app (File, Foto, Safari) e lascialo
+  sullo schermo: arriva nella cartella condivisa e sul PC parte un trascinamento vero nello stesso
+  punto, come se l'avessi trascinato con il mouse. Decide il programma che sta lì: una cartella di
+  Esplora file o il desktop lo copiano, Obsidian lo mette nella cartella del vault, Word o una chat
+  lo inseriscono. Se nessun programma lo prende, si apre con il suo programma (solo documenti e
+  file multimediali, mai programmi o script). Serve il pacchetto `pywin32` (`pip install pywin32`).
