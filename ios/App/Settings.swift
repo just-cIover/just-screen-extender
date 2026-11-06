@@ -12,6 +12,13 @@ enum Settings {
         set { d.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "host") }
     }
 
+    /// Tutti gli indirizzi del PC visti finora (rete di casa, hotspot…): se quello attuale non risponde
+    /// l'app li prova uno per uno.
+    static var knownHosts: [String] {
+        get { d.stringArray(forKey: "knownHosts") ?? [] }
+        set { d.set(Array(newValue.prefix(12)), forKey: "knownHosts") }
+    }
+
     /// Codice casuale di questo dispositivo, creato la prima volta.
     static var deviceId: String {
         if let id = d.string(forKey: "devId") { return id }

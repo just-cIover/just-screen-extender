@@ -240,3 +240,27 @@ eventuale scheda grafica dedicata o batteria; da scheda ridotta compare la media
 **LibreHardwareMonitor** (gratuito, open source), che parte da solo all'accesso ridotto vicino
 all'orologio (attività *Schermo Esteso - sensori*, creata da `strumenti\sensori.ps1`). Il suo server
 interno è protetto da password (in `certs\sensori.json`) e il firewall lo chiude agli altri dispositivi.
+
+## Hotspot dell'iPhone
+
+Se il Wi-Fi di casa non è affidabile: attiva l'*Hotspot personale* sull'iPhone e collega il PC a
+quella rete. L'app nativa, se il PC non risponde all'indirizzo solito, lo cerca da sola tra gli
+indirizzi già visti e su quelli dell'hotspot (172.20.10.x) e si ricollega. Il firewall
+(`strumenti\firewall.ps1`) sulle reti pubbliche accetta solo l'hotspot di un iPhone, quindi non
+serve cambiare il tipo di rete; Windows può comunque chiedere che tipo di rete è: scegli pure
+*Pubblica*. Anche l'iPad può collegarsi allo stesso hotspot.
+
+**Con il cavo, PC sul Wi-Fi di casa:** attiva l'Hotspot personale e collega l'iPhone al PC con il
+cavo USB. Il PC resta sul Wi-Fi per Internet e parla con l'iPhone attraverso il cavo (più stabile
+del Wi-Fi, e l'iPhone si ricarica). La prima volta esegui come amministratore
+`strumenti\usb-iphone.ps1`: mette la rete dell'iPhone come ultima scelta, così Internet non
+consuma i giga dell'iPhone.
+
+## Fuori casa o con il Wi-Fi che non regge: Tailscale
+
+Con **Tailscale** (gratuito per uso personale) PC e dispositivi si vedono come se fossero in casa,
+da qualsiasi rete (anche i dati del telefono), con un collegamento cifrato tra i soli dispositivi
+del tuo account. Installalo sul PC e sull'iPhone/iPad con lo stesso account. Il certificato del PC
+vale anche per gli indirizzi di Tailscale (100.x.x.x) e il firewall li accetta da qualsiasi rete.
+L'app impara l'indirizzo Tailscale del PC al primo collegamento in casa e, se quello solito non
+risponde, lo usa da sola. Il video passa dalla rete mobile: a *Fluida* circa 2-3 GB all'ora.
