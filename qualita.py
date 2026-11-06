@@ -6,8 +6,8 @@ Livelli: 0 Massima, 1 Fluida, 2 Media, 3 Leggera (numero più alto = più legger
 LOWEST = 3
 BAD_RTT = 250       # ms: oltre, il dispositivo è in affanno
 GOOD_RTT = 100      # ms: sotto, è fluido
-BAD_TURNS = 2       # controlli consecutivi in affanno prima di abbassare (uno ogni ~2 s)
-SETTLE = 8          # s dopo un cambio in cui non giudico (la cattura sta ripartendo)
+BAD_TURNS = 3       # controlli consecutivi in affanno prima di abbassare (uno ogni ~2 s: 6 s di fila)
+SETTLE = 10         # s dopo un cambio o un ricollegamento in cui non giudico (la cattura sta ripartendo)
 RAISE_WAIT = 60     # s fluidi prima di provare a rialzare
 RAISE_WAIT_MAX = 600
 

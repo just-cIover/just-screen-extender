@@ -49,6 +49,7 @@ QUALITY_LABELS = ['Massima', 'Fluida', 'Media', 'Leggera']
 MAX_QUEUE = 8        # fotogrammi in coda per client oltre i quali salto al prossimo fotogramma completo
 GRACE = 15           # secondi dopo la chiusura dell'app prima di spegnere il suo schermo
 STARTUP_GRACE = 20   # all'avvio aspetto un po' i dispositivi prima di spegnere gli schermi senza nessuno
+MIN_HEIGHT_PT = 768    # altezza minima dello schermo per Windows, in punti (pixel / ridimensionamento)
 DISPLAY_GAP = 3      # secondi minimi tra due cambi di configurazione degli schermi
 RELOAD_WAIT = 8      # secondi di attesa dopo il riavvio del driver
 
@@ -398,6 +399,10 @@ class Session:
             d.pop('t', None)
             log(f'info: {json.dumps(d, ensure_ascii=False)}', self.name)
         elif t == 'stats':
+            if d.get('pausa'):  # il dispositivo è stato in pausa (cambio app, Centro di controllo): dati non validi
+                self.stats['ora'] = time.time()
+                self.auto.changed(time.monotonic())
+                return
             self.stats = {k: d.get(k) for k in ('fps', 'dec', 'rtt', 'mbit', 'queue', 'render', 'q', 'batt')}
             self.stats['ora'] = time.time()  # mostrate nella finestra del PC, non nella console
             self.check_quality(d)
@@ -451,6 +456,7 @@ class App:
         c = Client(ws)
         s.clients.add(c)
         s.stats = {'ora': time.time()}  # da qui conto il silenzio del dispositivo
+        s.auto.changed(time.monotonic())  # appena ricollegato (es. tornato dall'app switcher): non giudico subito
         s.last_seen = time.monotonic()
         self.devices.update(dev_id, visto=time.strftime('%Y-%m-%d %H:%M'), ip=request.remote)
         log(f'collegato da {request.remote}', s.name)
@@ -684,6 +690,10 @@ class App:
                 # tengo quello impostato in Windows
                 if s.info.get('scala_da_impostare'):
                     scale = min(200, max(100, round(s.info.get('dpr', 1) * 100 / 25) * 25))
+                    # schermi bassi (iPhone in orizzontale): almeno ~768 punti di altezza, se no i menu
+                    # delle app escono dallo schermo
+                    while scale > 100 and h * 100 / scale < MIN_HEIGHT_PT:
+                        scale -= 25
                     if monitors.get_scale(st['device']) != scale:
                         await self.display_change(f'Imposto il ridimensionamento {scale}% per {s.name}',
                                                   monitors.set_scale, st['device'], scale)
