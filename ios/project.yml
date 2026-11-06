@@ -38,12 +38,16 @@ targets:
         UIViewControllerBasedStatusBarAppearance: true
         UILaunchScreen:
           UIColorName: ""
+        # anche in verticale: lo schermo virtuale gira con il dispositivo (si può bloccare dal menu)
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+          - UIInterfaceOrientationPortrait
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         # compare nel foglio Condividi delle altre app: il file arriva qui e va al PC

@@ -332,8 +332,11 @@ function deviceCard(d, fresh) {
   const sub = d.online
     ? `Schermo ${d.numero} · ${d.schermo}${d.ris ? ' · ' + d.ris.replace('x', '×') : ''}`
     : `Non collegato${d.visto ? ' · ultima volta ' + d.visto.slice(8, 10) + '/' + d.visto.slice(5, 7) + d.visto.slice(10) : ''}`;
+  // batteria del dispositivo (solo app nativa): sotto il 15% e non in carica diventa rossa
+  const battLow = d.batt != null && d.batt <= 15 && !d.carica;
+  const battText = d.batt == null ? '' : ` · ${d.carica ? '⚡' : ''}${d.batt}%`;
   const essential = d.online
-    ? `${d.fps ?? d.fpsInviati ?? '–'} fps · ${d.rtt ?? '–'} ms · ${d.mbit ?? '–'} Mbit/s`
+    ? `${d.fps ?? d.fpsInviati ?? '–'} fps · ${d.rtt ?? '–'} ms · ${d.mbit ?? '–'} Mbit/s${battText}`
     : 'non collegato';
   if (compact.has(d.id)) {
     return el('div', { className: 'card compact' + (d.online ? '' : ' offline') }, cardHead(d.id, d.online, d.nome, essential));
@@ -349,7 +352,9 @@ function deviceCard(d, fresh) {
         metric('Dati', d.mbit, 'Mbit/s'),
         metric('Qualità', d.qualita, d.auto && d.livello > d.scelta ? 'auto' : ''),
         metric('Motore', d.motore ? d.motore.split('/')[0] : null),
-        metric('Salti', d.salti, '', d.salti ? 'warn' : '')),
+        metric('Salti', d.salti, '', d.salti ? 'warn' : ''),
+        metric(d.carica ? 'Batteria (in carica)' : 'Batteria', d.batt, '%',
+          battLow ? 'bad' : d.batt != null && d.batt <= 30 && !d.carica ? 'warn' : '')),
       spark(h, 30));
   }
   // qualità decisa dal PC: arriva al dispositivo anche se è troppo lento per usare il suo menu
