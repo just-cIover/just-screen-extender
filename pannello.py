@@ -13,6 +13,7 @@ from ctypes import wintypes
 
 import sicurezza
 from gpu import Gpu
+from sensori import Sensors
 
 from aiohttp import WSMsgType, web
 
@@ -35,6 +36,7 @@ class PcStats:
     def __init__(self):
         self.prev = None
         self.gpu = Gpu()
+        self.sensors = Sensors()
 
     def read(self):
         idle, kern, user = wintypes.FILETIME(), wintypes.FILETIME(), wintypes.FILETIME()
@@ -48,7 +50,8 @@ class PcStats:
         m = _MEM(); m.len = ctypes.sizeof(m)
         ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m))
         return {'cpu': cpu, 'ram': m.load, 'ramGb': round((m.total - m.avail) / 2**30, 1),
-                'ramTot': round(m.total / 2**30, 1), 'gpu': self.gpu.read()}
+                'ramTot': round(m.total / 2**30, 1), 'gpu': self.gpu.read(),
+                'temp': self.sensors.read(), 'tempAttese': bool(self.sensors.url)}
 
 
 class Panel:
