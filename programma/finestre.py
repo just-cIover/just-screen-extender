@@ -240,6 +240,11 @@ BROWSER_EXES = {'msedge.exe', 'chrome.exe', 'brave.exe', 'firefox.exe', 'opera.e
 INK_APPS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'dati', 'programmi-penna.txt')
 
 
+def panel_window_open(title='Schermo Esteso'):
+    """La finestra di controllo (Edge in modalità app, titolo "Schermo Esteso") esiste ancora, anche ridotta a icona?"""
+    return any(_title(h) == title and process_name(h) == 'msedge.exe' for h in _every_window())
+
+
 def process_name(hwnd):
     pid = wintypes.DWORD()
     user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))

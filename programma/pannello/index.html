@@ -728,6 +728,7 @@ try { setTheme(wanted || localStorage.getItem('aspetto')); } catch { setTheme(wa
 /* ---------- collegamento al server ---------- */
 function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
 function connect() {
+  if (ws && ws.readyState <= 1) return;   // già collegata o in collegamento
   ws = new WebSocket(`ws://${location.host}/pc/ws`);
   ws.onopen = () => { $('down').classList.remove('show'); $('state').classList.remove('off'); $('state').textContent = 'Attivo'; };
   ws.onmessage = (e) => {
@@ -758,6 +759,8 @@ $('quit').addEventListener('click', () => {
   closing = true; send({ t: 'esci' });
 });
 connect();
+// finestra coperta o ridotta a icona: Edge rallenta i timer; appena torna visibile mi ricollego subito
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !closing) connect(); });
 </script>
 </body>
 </html>

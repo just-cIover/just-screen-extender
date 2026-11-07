@@ -12,6 +12,7 @@ import re
 import time
 from ctypes import wintypes
 
+import finestre
 import sicurezza
 from gpu import Gpu
 from sensori import Sensors
@@ -71,6 +72,8 @@ class Panel:
         self.prev = {}              # dispositivo -> (ora, fotogrammi, byte) per calcolare i valori al secondo
         self.started = time.monotonic()
         self.last_client = None
+        self.last_clean = True
+        self.paused_logged = False
 
     def _local(self, request):
         sicurezza.local_only(request, self.app.local_port)
@@ -147,10 +150,12 @@ class Panel:
     # ---- websocket della finestra ----
     async def ws(self, request):
         self._local(request)
-        ws = web.WebSocketResponse(heartbeat=5)
+        # heartbeat largo: con il PC carico (RAM piena) la finestra può rispondere in ritardo senza essere chiusa
+        ws = web.WebSocketResponse(heartbeat=20)
         await ws.prepare(request)
         self.clients.add(ws)
         self.last_client = None
+        self.paused_logged = False
         queue = asyncio.Queue()
 
         def on_line(line):
@@ -210,6 +215,10 @@ class Panel:
                 t.cancel()
             if not self.clients:
                 self.last_client = time.monotonic()
+                # chiusa davvero (la finestra manda 1000/1001) o solo collegamento perso (PC carico, finestra rallentata)
+                self.last_clean = ws.close_code in (1000, 1001)
+                if not self.last_clean:
+                    self.log('la finestra non risponde (PC carico?): aspetto che si ricolleghi, fino a 3 minuti', 'PC')
         return ws
 
     def force_quality(self, dev_id, level):
@@ -244,7 +253,16 @@ class Panel:
             if self.clients:
                 continue
             never = self.last_client is None and now - self.started > 60
-            closed = self.last_client is not None and now - self.last_client > 8
+            attesa = 8 if self.last_clean else 180
+            closed = self.last_client is not None and now - self.last_client > attesa
+            if (never or closed) and await asyncio.to_thread(finestre.panel_window_open):
+                # la finestra c'è ancora: Edge l'ha solo messa in pausa (coperta, PC carico). Non spengo niente,
+                # e dopo un clic su di lei si ricollega da sola
+                if not self.paused_logged:
+                    self.log('la finestra è aperta ma in pausa (Edge): resto acceso', 'PC')
+                    self.paused_logged = True
+                self.last_client = now
+                continue
             if never or closed:
                 self.log('finestra chiusa: spengo gli schermi virtuali e chiudo', 'PC')
                 self.app.stop.set()
