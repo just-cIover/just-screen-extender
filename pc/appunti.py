@@ -14,6 +14,8 @@ from ctypes import wintypes
 
 from aiohttp import web
 
+import riposo
+
 user32 = ctypes.WinDLL('user32', use_last_error=True)
 kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
 
@@ -156,7 +158,7 @@ class Clipboard:
 
     async def watch(self):
         while True:
-            await asyncio.sleep(0.5)
+            await riposo.nap(0.5)
             seq = sequence()
             if seq == self.seq:
                 continue

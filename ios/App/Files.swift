@@ -137,6 +137,7 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
     private var files: [SharedFile] = []
     private var previewURL: URL?
     private var busy = false
+    private let banner = UploadBanner()
     private let dateFormat: DateFormatter = {
         let f = DateFormatter()
         f.dateStyle = .short
@@ -367,18 +368,20 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
 
     func send(_ urls: [URL]) {
         busy = true
-        navigationItem.prompt = "Invio al PC…"
+        navigationItem.prompt = nil
+        banner.attach(to: navigationController?.view ?? view)
+        banner.start(urls.count == 1 ? "Invio al PC: \(urls[0].lastPathComponent)" : "Invio al PC di \(urls.count) file", files: urls)
         Uploader.send(urls, progress: { [weak self] p in
-            self?.navigationItem.prompt = "Invio al PC… \(Int(p * 100))%"
+            self?.banner.update(p)
         }, done: { [weak self] result in
             guard let self else { return }
             self.busy = false
             switch result {
             case .success(let names):
-                self.navigationItem.prompt = names.count == 1 ? "Inviato: \(names[0])" : "Inviati \(names.count) file"
+                self.banner.finish(names.count == 1 ? "Inviato: \(names[0])" : "Inviati \(names.count) file", ok: true)
                 self.reload()
             case .failure(let error):
-                self.navigationItem.prompt = "Invio non riuscito: \(error.localizedDescription)"
+                self.banner.finish("Invio non riuscito: \(error.localizedDescription)", ok: false)
             }
         })
     }
@@ -400,4 +403,103 @@ enum Uploader {
             }
         }
     }
+}
+
+/// Barra di avanzamento dell'invio dei file al PC: percentuale, MB inviati e un avviso se si ferma,
+/// così si vede che il caricamento va avanti e l'app non si è bloccata.
+final class UploadBanner: UIView {
+    private let title = UILabel()
+    private let detail = UILabel()
+    private let bar = UIProgressView(progressViewStyle: .default)
+    private var total: Int64 = 0
+    private var lastFraction = -1.0
+    private var lastMove = Date()
+    private var watchdog: Timer?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = UIColor(red: 0.08, green: 0.09, blue: 0.11, alpha: 0.95)
+        layer.cornerRadius = 14
+        layer.masksToBounds = true
+        alpha = 0
+        title.font = .systemFont(ofSize: 15, weight: .semibold)
+        title.textColor = .white
+        detail.font = .monospacedDigitSystemFont(ofSize: 13, weight: .regular)
+        detail.textColor = UIColor(white: 0.75, alpha: 1)
+        detail.numberOfLines = 2
+        bar.progressTintColor = UIColor(red: 0.95, green: 0.72, blue: 0.29, alpha: 1)
+        bar.trackTintColor = UIColor(white: 1, alpha: 0.15)
+        let stack = UIStackView(arrangedSubviews: [title, bar, detail])
+        stack.axis = .vertical
+        stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            stack.topAnchor.constraint(equalTo: topAnchor, constant: 12),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
+        ])
+        isAccessibilityElement = true
+        accessibilityTraits = .updatesFrequently
+    }
+    required init?(coder: NSCoder) { fatalError("non usato") }
+
+    /// Mette la barra in basso nella vista indicata (sopra l'eventuale indicatore Home).
+    func attach(to host: UIView) {
+        guard superview !== host else { return }
+        removeFromSuperview()
+        translatesAutoresizingMaskIntoConstraints = false
+        host.addSubview(self)
+        NSLayoutConstraint.activate([
+            centerXAnchor.constraint(equalTo: host.centerXAnchor),
+            widthAnchor.constraint(equalTo: host.widthAnchor, constant: -32).withPriority(.defaultHigh),
+            widthAnchor.constraint(lessThanOrEqualToConstant: 480),
+            bottomAnchor.constraint(equalTo: host.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+        ])
+    }
+
+    func start(_ text: String, files: [URL]) {
+        total = files.reduce(0) { $0 + Int64((try? $1.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
+        title.text = text
+        lastFraction = -1
+        update(0)
+        watchdog?.invalidate()
+        watchdog = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.checkStalled() }
+        layer.removeAllAnimations()  // un invio precedente stava sparendo
+        superview?.bringSubviewToFront(self)
+        UIView.animate(withDuration: 0.2) { self.alpha = 1 }
+    }
+
+    func update(_ fraction: Double) {
+        let f = max(0, min(1, fraction))
+        if f > lastFraction { lastFraction = f; lastMove = Date() }
+        bar.setProgress(Float(f), animated: f > 0)
+        detail.text = "\(Int(f * 100))%" + (total > 0 ? "  ·  \(Self.mb(Int64(Double(total) * f))) di \(Self.mb(total))" : "")
+        if f >= 1 { detail.text = "Inviato, il PC lo sta salvando…" }
+        accessibilityLabel = "\(title.text ?? ""), \(detail.text ?? "")"
+    }
+
+    func finish(_ text: String, ok: Bool) {
+        watchdog?.invalidate()
+        title.text = text
+        if ok { bar.setProgress(1, animated: true) }
+        detail.text = ok ? "Completato" : "Riprova: il file non è arrivato al PC"
+        accessibilityLabel = "\(text), \(detail.text ?? "")"
+        UIView.animate(withDuration: 0.4, delay: ok ? 3 : 6, options: []) { self.alpha = 0 }
+    }
+
+    private func checkStalled() {
+        let still = Date().timeIntervalSince(lastMove)
+        guard lastFraction < 1, still >= 10 else { return }
+        detail.text = "\(Int(max(0, lastFraction) * 100))%  ·  fermo da \(Int(still)) s: la rete è lenta o il PC non risponde"
+    }
+
+    private static func mb(_ bytes: Int64) -> String {
+        bytes < 1_000_000 ? "\(max(1, bytes / 1000)) kB" : String(format: "%.1f MB", Double(bytes) / 1_000_000)
+    }
+}
+
+private extension NSLayoutConstraint {
+    func withPriority(_ p: UILayoutPriority) -> NSLayoutConstraint { priority = p; return self }
 }

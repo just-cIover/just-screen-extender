@@ -13,6 +13,7 @@ import time
 from ctypes import wintypes
 
 import finestre
+import riposo
 import sicurezza
 from gpu import Gpu
 from sensori import Sensors
@@ -248,9 +249,13 @@ class Panel:
         if not self.ui_mode:
             await asyncio.Future()  # avviato da terminale: resta acceso finché non lo chiudi tu
         while True:
-            await asyncio.sleep(1)
+            await riposo.nap(1)
             now = time.monotonic()
             if self.clients:
+                continue
+            if riposo.woke_since(30):
+                # appena svegliato: Edge ci mette un po' a ricollegare la finestra, non è stata chiusa
+                self.last_client = now
                 continue
             never = self.last_client is None and now - self.started > 60
             attesa = 8 if self.last_clean else 180

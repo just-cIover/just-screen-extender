@@ -19,6 +19,7 @@ from urllib.parse import quote, unquote
 
 from aiohttp import web
 
+import riposo
 import sicurezza
 
 # IPAD_SCHERMO_CARTELLA serve solo per le prove, per non toccare la cartella vera
@@ -111,7 +112,7 @@ class Exchange:
         """Si accorge dei file copiati o cancellati con Esplora file."""
         pending = {}  # file nuovi ancora in copia: aspetto che la dimensione smetta di cambiare
         while True:
-            await asyncio.sleep(SCAN)
+            await riposo.nap(SCAN)
             try:
                 now = await asyncio.to_thread(self._scan)
             except OSError:
