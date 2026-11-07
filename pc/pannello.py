@@ -1,6 +1,6 @@
 """Finestra di controllo sul PC: console a sinistra (2/3), prestazioni a destra (1/3).
 
-La pagina (pannello/index.html) è servita solo al PC stesso (127.0.0.1), in una finestra di
+La pagina (panel/index.html) è servita solo al PC stesso (127.0.0.1), in una finestra di
 Edge senza barre aperta da avvio.pyw. Riceve le righe della console e, ogni secondo, lo stato
 di PC e dispositivi.
 """
@@ -20,7 +20,7 @@ from sensori import Sensors
 from aiohttp import WSMsgType, web
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PAGE = os.path.join(HERE, 'pannello', 'index.html')
+PAGE = os.path.join(HERE, 'panel', 'index.html')
 QUALITY_NAMES = ['Massima', 'Fluida', 'Media', 'Leggera']
 
 
@@ -85,7 +85,7 @@ class Panel:
         return resp
 
     async def background(self, request):
-        """Immagini di sfondo dei temi (cartella pannello/sfondi), solo per la finestra di questo PC."""
+        """Immagini di sfondo dei temi (cartella panel/sfondi), solo per la finestra di questo PC."""
         self._local(request)
         name = request.match_info['nome']
         if not re.fullmatch(r'[a-z0-9-]+\.jpg', name):

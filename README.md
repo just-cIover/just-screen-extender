@@ -42,7 +42,7 @@ The full user guide is in Italian: [LEGGIMI.md](LEGGIMI.md).
   contains clipboard or password contents.
 
 Everything personal (certificates, paired devices, settings, logs, shared files) lives in
-`dati\`, which is git-ignored.
+`data\`, which is git-ignored.
 
 ## Requirements
 
@@ -65,7 +65,7 @@ Everything personal (certificates, paired devices, settings, logs, shared files)
    ```
 2. Run `driver\Installa driver.bat` as administrator. It installs the virtual display driver
    with the resolutions in `driver\vdd_settings.xml`.
-3. Run `strumenti\firewall.ps1` as administrator to open port 8770 on private networks only.
+3. Run `tools\firewall.ps1` as administrator to open port 8770 on private networks only.
 4. Start the program with `avvio.pyw` (no console, opens the control window), or
    `Avvia.bat` (with a console).
 5. On the device:
@@ -76,20 +76,41 @@ Everything personal (certificates, paired devices, settings, logs, shared files)
    - **Safari:** open `https://<pc-address>:8770`, accept the warning the first time (or install
      the PC certificate from the menu), enter the PIN, then *Share → Add to Home Screen*.
 
-Optional admin scripts in `strumenti\`: `sensori.ps1` (temperatures through LibreHardwareMonitor,
+Optional admin scripts in `tools\`: `sensori.ps1` (temperatures through LibreHardwareMonitor,
 password-protected) and `usb-iphone.ps1` (iPhone over USB while the PC stays on Wi-Fi).
+
+## Using it on several networks
+
+Home, work, a phone hotspot, a friend's Wi-Fi: each PC creates **its own root certificate** on
+first start. Install it once on each device (menu → File → *Secure connection*) and it keeps
+working on every network:
+
+- On a new network the PC notices the new address within 30 s and reissues its server
+  certificate for it, signed by the same root. Devices trust it without reinstalling anything.
+- Networks you have already used stay in the certificate (up to 16, dropping the ones unused
+  the longest), so going back and forth between home and work changes nothing.
+- The iPhone hotspot range (172.20.10.x, the same on every iPhone) is included from the start.
+  The native app also looks for the PC there and on previously seen addresses when the usual
+  one stops answering.
+- Only private addresses (10.x, 172.16–31.x, 192.168.x) and Tailscale (100.64.0.0/10) are
+  allowed: the root certificate is restricted to them by design.
+
+The firewall rule opens the port only on **Private** networks, plus the iPhone hotspot and
+Tailscale on any network. On a new home or work Wi-Fi, mark it as private in Windows
+(*Settings → Network & internet → Wi-Fi → network → Private network*). Some work or public
+networks isolate devices from each other: use the hotspot, a USB cable or Tailscale there.
 
 ## Project layout
 
 ```
 avvio.pyw, Avvia.bat   start the server and the control window
-programma\             PC server (Python, aiohttp)
+pc\                    PC server (Python, aiohttp)
   web\                 web app for Safari
-  pannello\            PC control window
+  panel\               PC control window
 ios\                   native iPad/iPhone app (Swift, XcodeGen; built by GitHub Actions)
 driver\                virtual display driver setup
-strumenti\             admin scripts: firewall, sensors, USB
-dati\                  your data, created at first start (never committed)
+tools\                 admin scripts: firewall, sensors, USB
+data\                  your data, created at first start (never committed)
 ```
 
 ## Credits

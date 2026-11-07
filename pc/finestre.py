@@ -237,7 +237,7 @@ INK_APPS = {'mspaint.exe', 'onenote.exe', 'onenoteim.exe', 'whiteboard.exe', 'wi
             'zoomit.exe', 'zoomit64.exe', 'goodnotes.exe', 'notability.exe'}
 BROWSER_EXES = {'msedge.exe', 'chrome.exe', 'brave.exe', 'firefox.exe', 'opera.exe', 'vivaldi.exe'}
 # altri programmi da disegno: uno per riga in programmi-penna.txt (es. "notepad3.exe"), senza toccare il codice
-INK_APPS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'dati', 'programmi-penna.txt')
+INK_APPS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'programmi-penna.txt')
 
 
 def panel_window_open(title='Schermo Esteso'):
