@@ -5,7 +5,9 @@ via Wi-Fi (fino a 4 dispositivi insieme, ognuno con il suo schermo).
 
 ## Uso quotidiano
 
-1. Sul PC apri **Schermo Esteso** dal menu Start: si apre la finestra di controllo (console a
+1. Sul PC apri **Schermo Esteso** dal menu Start (la prima volta avvia `avvio.pyw` o `Avvia.bat` dalla
+   cartella: il programma si aggiunge da solo al menu Start e a clic destro → *Invia a*; se sposti la
+   cartella i collegamenti si aggiornano al primo avvio; con l'interfaccia in inglese si chiama *Screen Extender*): si apre la finestra di controllo (console a
    sinistra; prestazioni di PC, scheda grafica e dispositivi a destra, riducibili con un clic sul
    titolo; file condivisi). In alto c'è l'indirizzo da aprire sul dispositivo.
 2. Sul dispositivo apri in Safari l'indirizzo **https://…:8770**. La prima volta:
@@ -196,6 +198,7 @@ File in `pc\`:
 - `finestre.py` — finestre: Start sullo schermo giusto, app da disegno, spostamenti quando uno schermo si spegne.
 - `devices.py`, `certificati.py`, `sicurezza.py` — abbinamento con PIN, certificati, file "da Internet".
 - `scambio.py`, `trascina.py`, `invia.py` — file condivisi, trascinamento nei programmi, comando *Invia a*.
+- `collegamenti.py` — collegamenti nel menu Start e in *Invia a*, creati e aggiornati da soli all'avvio.
 - `appunti.py` — appunti condivisi. `sensori.py`, `gpu.py` — temperature e scheda grafica.
 - `pannello.py` — la finestra di controllo del PC.
 

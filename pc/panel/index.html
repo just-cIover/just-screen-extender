@@ -29,7 +29,7 @@
   button.primary { background: var(--accent); color: #1a1405; border-color: var(--accent); }
   button.danger { color: var(--bad); }
 
-  /* testata */
+  /* header */
   header { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
   header img { width: 28px; height: 28px; border-radius: 7px; }
   header h1 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
@@ -47,7 +47,7 @@
   .pinbar .code { font-family: var(--mono); font-size: 30px; font-weight: 700; letter-spacing: .12em; color: var(--accent); }
   .pinbar small { color: var(--muted); display: block; }
 
-  /* corpo: console 2/3, prestazioni 1/3 */
+  /* body: console 2/3, performance 1/3 */
   main { flex: 1; min-height: 0; display: grid; grid-template-columns: 2fr 1fr; gap: 12px; padding: 12px 16px 16px; }
   section { min-height: 0; display: flex; flex-direction: column; background: var(--panel);
     border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
@@ -126,15 +126,15 @@
   .foot button { font-size: 12px; padding: 3px 10px; }
   .empty { color: var(--muted); font-size: 13px; padding: 4px 2px; }
 
-  /* server non raggiungibile */
+  /* server unreachable */
   #down { position: fixed; inset: 0; display: none; place-items: center; background: rgba(11, 12, 16, .92); text-align: center; }
   #down.show { display: grid; }
   #down p { color: var(--muted); }
 
 
-  /* ---------- aspetto moderno (facoltativo: pulsante "Aspetto moderno" in alto) ----------
-     Blu notte con un solo alone di luce, come lo sfondo Bloom di Windows 11; pannelli di vetro;
-     ogni dispositivo è un mini-schermo con le sue proporzioni vere che si accende con lui. */
+  /* ---------- modern style (optional: "Modern style" picker at the top) ----------
+     Midnight blue with a single glow of light, like the Windows 11 Bloom wallpaper; glass panels;
+     every device is a mini screen with its real proportions that lights up with it. */
   .screen { display: none; }
   body.moderno {
     --bg: #121a2e; --panel: rgba(23, 33, 57, .78); --panel2: rgba(255, 255, 255, .035);
@@ -176,7 +176,7 @@
   body.moderno .bar i { border-radius: 999px; }
   body.moderno .gpu { border-top-color: var(--line); }
   body.moderno .dot.on { background: var(--ok); box-shadow: 0 0 0 3px rgba(56, 217, 192, .18); }
-  /* qualità: un unico selettore a pillola */
+  /* quality: a single pill-shaped selector */
   body.moderno .levels { gap: 2px; padding: 3px; border-radius: 999px; background: rgba(0, 0, 0, .25); }
   body.moderno .levels button { background: transparent; border: 1px solid transparent; padding: 5px 0; }
   body.moderno .levels button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -190,7 +190,7 @@
   body.moderno #tip { background: #1d2944; border-color: var(--line); border-radius: 10px; }
   body.moderno #dropcover { background: rgba(18, 26, 46, .85); border-color: var(--accent); color: #fff; border-radius: 0; }
   body.moderno #down { background: rgba(18, 26, 46, .94); }
-  /* il mini-schermo del dispositivo: proporzioni vere, verticale se girato; acceso = illuminato */
+  /* the device mini screen: real proportions, portrait if rotated; on = lit up */
   body.moderno .fold:has(.screen) .dot { display: none; }
   body.moderno .screen { display: inline-block; flex: none; height: 15px; max-width: 30px; border-radius: 3px;
     border: 1.5px solid #4a5677; background: rgba(255, 255, 255, .03); }
@@ -199,10 +199,10 @@
     box-shadow: 0 0 12px rgba(56, 217, 192, .45); }
   @media (prefers-reduced-transparency: reduce) { body.moderno section { backdrop-filter: none; background: #172139; } }
 
-  /* ---------- aspetto "Abisso" (ispirato a Made in Abyss): stessa struttura del moderno ----------
-     l'oscurità calda della voragine in basso a sinistra, la luce dorata e muschio che scende dall'alto
-     a destra, particelle sospese; oro per i comandi, rosso del cappello per gli avvisi, turchese
-     (gli occhi del cappello di Nanachi, le reliquie) per ciò che è acceso. */
+  /* ---------- "Abyss" style (inspired by Made in Abyss): same structure as modern ----------
+     the warm darkness of the chasm at the bottom left, golden and moss-green light coming down from the top
+     right, floating particles; gold for controls, the red of the hat for warnings, turquoise
+     (the eyes on Nanachi's hat, the relics) for what's on. */
   body.abisso {
     --bg: #221915; --panel: rgba(40, 29, 24, .62); --panel2: rgba(255, 238, 205, .05);
     --line: rgba(242, 197, 92, .17); --text: #f3e9d2; --muted: #b9a88c;
@@ -215,7 +215,7 @@
       #221915;
   }
   html:has(body.abisso) { background: #221915; }
-  /* particelle sospese (ferme: solo atmosfera) */
+  /* floating particles (still: just atmosphere) */
   body.abisso::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 2; opacity: .5;
     background:
       radial-gradient(2px 2px at 12% 18%, #fff8e6 50%, transparent 51%),
@@ -235,7 +235,7 @@
   body.abisso section > h2 { font-size: 17px; }
   body.abisso .card h3 { font-size: 16px; }
   body.abisso .m b { color: #fbf3e2; }
-  /* la luce che scende dall'alto a destra si posa anche sui pannelli */
+  /* the light coming down from the top right also falls on the panels */
   body.abisso section { background-image: radial-gradient(600px 300px at 100% 0%, rgba(242, 210, 120, .10), transparent 70%);
     backdrop-filter: blur(10px) saturate(1.2); -webkit-backdrop-filter: blur(10px) saturate(1.2); }
   body.abisso button.primary, body.abisso h2 button.toggle[aria-pressed="true"], body.abisso #follow[aria-pressed="true"],
@@ -254,36 +254,46 @@
   body.abisso .screen { border-color: #6b5848; }
   body.abisso .screen.on { border-color: var(--ok); background: rgba(63, 198, 184, .18); box-shadow: 0 0 14px rgba(63, 198, 184, .55); }
   body.abisso .dot.on { box-shadow: 0 0 0 3px rgba(63, 198, 184, .2), 0 0 10px rgba(63, 198, 184, .5); }
-  /* lingua: due pulsanti con bandiera e sigla del paese */
-  .lingue { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); }
-  .lingue button { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 0; border-radius: 6px;
-    background: transparent; font-size: 12px; letter-spacing: .04em; }
-  .lingue button[aria-pressed="true"] { background: var(--accent); color: #1a1405; }
-  .lingue .bandiera { width: 18px; height: 12px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .35); }
-  body.moderno .lingue { border-radius: 999px; border-color: transparent; background: rgba(255, 255, 255, .055); }
-  body.moderno .lingue button { border-radius: 999px; }
-  body.moderno .lingue button[aria-pressed="true"] { color: #fff; }
-  body.abisso .lingue button[aria-pressed="true"] { color: #2a1d10; }
-  body.cyber .lingue { border-radius: 2px; border-color: rgba(139, 233, 255, .35); }
-  body.cyber .lingue button { border-radius: 1px; }
-  body.cyber .lingue button[aria-pressed="true"] { background: var(--sel); color: #0b0a14; }
-  body.foto header .lingue { background: rgba(30, 21, 17, .62); }
-  #theme { font: inherit; font-weight: 600; color: var(--text); background: var(--panel2); border: 1px solid var(--line);
-    border-radius: 8px; padding: 6px 10px; cursor: pointer; }
-  body.moderno #theme { border-radius: 999px; background: rgba(255, 255, 255, .055); border-color: transparent; }
-  /* elenco del menu: sfondo pieno del tema e testo chiaro (le opzioni non vedono la trasparenza) */
-  #theme { color-scheme: dark; --menu: #1a1d25; }
-  body.moderno #theme { --menu: #1d2944; }
-  body.abisso #theme { --menu: #33251f; }
-  #theme option { background: var(--menu); color: var(--text); }
-  #theme option:checked { background: var(--accent); color: #111; }
+  /* dropdowns (language and style): a button with the current choice that opens a list;
+     the list has a solid theme background so it stays readable over any panel */
+  .lingue, .tendina { position: relative; --menu: #1a1d25; }
+  .lingua-scelta, .tendina-scelta { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; }
+  .lingua-scelta { letter-spacing: .04em; }
+  .lingue .freccia, .tendina .freccia { font-size: 10px; opacity: .6; }
+  .lingue .bandiera { width: 18px; height: 12px; flex: none; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .35); }
+  /* style swatch: the theme background and its accent color */
+  .tendina .campione { width: 14px; height: 14px; flex: none; border-radius: 50%;
+    background: linear-gradient(135deg, var(--a) 50%, var(--b) 50%); box-shadow: 0 0 0 1px rgba(255, 255, 255, .28); }
+  .lingua-lista, .tendina-lista { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; min-width: 150px; padding: 4px;
+    display: flex; flex-direction: column; gap: 2px; background: var(--menu); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: 0 14px 40px rgba(0, 0, 0, .5); }
+  .tendina-lista { min-width: 210px; }
+  .lingua-lista[hidden], .tendina-lista[hidden] { display: none; }
+  .lingua-lista button, .tendina-lista button { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 0;
+    border-radius: 7px; background: transparent; text-align: left; font-weight: 600; white-space: nowrap; }
+  .lingua-lista button:hover, .tendina-lista button:hover { background: rgba(255, 255, 255, .08); }
+  .lingua-lista button[aria-selected="true"], .tendina-lista button[aria-selected="true"] { background: var(--accent); color: #1a1405; }
+  .lingua-lista .nome { font-weight: 500; opacity: .75; }
+  body.moderno .lingue, body.moderno .tendina { --menu: #1d2944; }
+  body.moderno .lingua-lista, body.moderno .tendina-lista { border-radius: 14px; }
+  body.moderno .lingua-lista button, body.moderno .tendina-lista button { border-radius: 10px; background: transparent; }
+  body.moderno .lingua-lista button[aria-selected="true"], body.moderno .tendina-lista button[aria-selected="true"] {
+    background: var(--accent); color: #fff; }
+  body.abisso .lingue, body.abisso .tendina { --menu: #33251f; }
+  body.abisso .lingua-lista button[aria-selected="true"], body.abisso .tendina-lista button[aria-selected="true"] { color: #2a1d10; }
+  body.cyber .lingue, body.cyber .tendina { --menu: #0a2328; }
+  body.cyber .lingua-lista, body.cyber .tendina-lista { border-radius: 2px; border-color: rgba(139, 233, 255, .35); }
+  body.cyber .lingua-lista button, body.cyber .tendina-lista button { border: 0; border-radius: 1px; }
+  body.cyber .lingua-lista button[aria-selected="true"], body.cyber .tendina-lista button[aria-selected="true"] {
+    background: var(--sel); color: #0b0a14; }
+  body.foto header .lingua-scelta, body.foto header .tendina-scelta { background: rgba(30, 21, 17, .62); border-color: rgba(255, 236, 200, .2); }
 
-  /* ---------- aspetto "Cyberpunk": struttura del moderno, insegne al neon sotto la pioggia ----------
-     viola-notte con un alone magenta e uno ciano; pannelli con gli angoli tagliati come un visore;
-     ciano per i comandi, giallo segnale per le scelte (testo scuro), magenta per gli avvisi,
-     verde neon per ciò che è acceso; Bahnschrift per titoli e numeri; linee di scansione ferme. */
-  /* Edgerunners: cielo blu-petrolio, la Luna che spunta dall'alto, la città rosa-magenta in basso,
-     giallo di David per le scelte, ciano-bianco di Lucy per i comandi, lime del monofilo per ciò che è acceso */
+  /* ---------- "Cyberpunk" style: modern structure, neon signs in the rain ----------
+     night purple with a magenta glow and a cyan one; panels with cut corners like a visor;
+     cyan for controls, signal yellow for choices (dark text), magenta for warnings,
+     neon green for what's on; Bahnschrift for titles and numbers; still scan lines. */
+  /* Edgerunners: petrol-blue sky, the Moon peeking from the top, the pink-magenta city at the bottom,
+     David's yellow for choices, Lucy's cyan-white for controls, monowire lime for what's on */
   body.cyber {
     --bg: #061a1d; --panel: rgba(6, 26, 30, .64); --panel2: rgba(139, 233, 255, .04);
     --line: rgba(139, 233, 255, .22); --text: #e8f8ff; --muted: #8fb3bd;
@@ -296,7 +306,7 @@
       linear-gradient(180deg, #061a1d 0%, #0a2328 55%, #1a1630 100%);
   }
   html:has(body.cyber) { background: #061a1d; }
-  /* stelle (ferme) */
+  /* stars (still) */
   body.cyber::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 3; opacity: .55;
     background:
       radial-gradient(1.5px 1.5px at 8% 12%, #fff 50%, transparent 51%),
@@ -318,7 +328,7 @@
     text-shadow: 0 0 14px rgba(244, 228, 9, .35); }
   body.cyber section > h2 { font-size: 16px; letter-spacing: .04em; }
   body.cyber .m b { font-weight: 600; font-size: 21px; }
-  /* angoli tagliati: pannelli e schede come le schermate di un visore */
+  /* cut corners: panels and cards like the screens of a visor */
   body.cyber section { border-radius: 0; border-color: var(--line);
     backdrop-filter: blur(8px) saturate(1.3); -webkit-backdrop-filter: blur(8px) saturate(1.3);
     clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px)); }
@@ -354,7 +364,7 @@
   body.cyber .dot.on { box-shadow: 0 0 0 3px rgba(184, 255, 74, .2), 0 0 10px rgba(184, 255, 74, .55); }
   body.cyber #theme { --menu: #0a2328; border-radius: 2px; background: rgba(139, 233, 255, .08); border: 1px solid rgba(139, 233, 255, .35); }
 
-  /* ---------- aspetto "Abisso con immagine": il disegno come sfondo, pannelli di vetro smerigliato ---------- */
+  /* ---------- "Abyss with picture" style: the artwork as background, frosted glass panels ---------- */
   body.foto {
     --panel: rgba(30, 21, 17, .25); --panel2: rgba(255, 238, 205, .063); --line: rgba(255, 236, 200, .18);
     background: linear-gradient(rgba(20, 13, 10, .30), rgba(20, 13, 10, .30)),
@@ -363,18 +373,20 @@
   body.foto section { background-image: none; background-color: var(--panel);
     backdrop-filter: blur(22px) saturate(1.15) brightness(.88); -webkit-backdrop-filter: blur(22px) saturate(1.15) brightness(.88);
     border-color: var(--line); }
-  /* la colonna di destra sta sopra la parte più luminosa del disegno: vetro un po' più scuro */
+  /* the right column sits over the brightest part of the artwork: slightly darker glass */
   body.foto .col section { background-color: rgba(30, 21, 17, .25); }
-  /* etichette (Processore, Memoria…): chiare, con un'ombra scura morbida che le stacca dalla luce del disegno */
+  /* labels (Processor, Memory…): light, with a soft dark shadow that lifts them off the artwork's light */
   body.foto .m small, body.foto .sub, body.foto .m span { color: #c9b795; text-shadow: 0 1px 3px rgba(20, 12, 6, .7); }
   body.foto header { background: linear-gradient(rgba(20, 13, 10, .45), transparent); }
   body.foto .sub, body.foto .m small, body.foto #flist .meta, body.foto .pill { text-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
   body.foto::before { opacity: .35; }
-  /* in alto a destra il disegno è molto chiaro: pulsanti su vetro scuro per leggerli bene */
-  body.foto header button, body.foto header #theme { background: rgba(30, 21, 17, .62); border-color: rgba(255, 236, 200, .2);
+  /* at the top right the artwork is very bright: buttons on dark glass to keep them readable */
+  body.foto header button { background: rgba(30, 21, 17, .62); border-color: rgba(255, 236, 200, .2);
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
   body.foto header button:hover { background: rgba(30, 21, 17, .78); }
-  body.foto #theme { --menu: #33251f; }
+  body.foto .tendina, body.foto .lingue { --menu: #33251f; }
+  /* the header (with its dropdowns) stays above the panels in every style */
+  body > header, body.abisso > header, body.cyber > header { position: relative; z-index: 20; }
 
   @media (max-width: 760px) { main { grid-template-columns: 1fr; grid-template-rows: 2fr 1fr; } .addr { display: none; } }
   @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
@@ -435,12 +447,12 @@
 const T = Lingua.t;
 const $ = (id) => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
-const history = {}; // dispositivo -> ultimi 60 valori di fotogrammi al secondo
+const history = {}; // device -> last 60 frames-per-second values
 const cpuHist = [];
 let ws = null, follow = true, closing = false;
 
 /* ---------- console ---------- */
-// un colore fisso per ogni dispositivo (PC sempre grigio-azzurro)
+// a fixed color for each device (PC always grey-blue)
 const TAG_COLORS = ['#f2b84b', '#57d1c4', '#b48cff', '#ff8fb1', '#7fb2ff', '#9be36d'];
 function tagColor(name) {
   if (name === 'PC') return '#9fb3c8';
@@ -462,7 +474,7 @@ function addLines(lines) {
     if (!line.trim() || /^\d\d:\d\d:\d\d\s*$/.test(line)) continue;
     const m = line.match(/^(\d\d:\d\d:\d\d) (.*)$/s);
     let text = m ? m[2] : line;
-    const tag = text.match(/^\[([^\]]{1,40})\] (.*)$/s);  // [iPad] azione
+    const tag = text.match(/^\[([^\]]{1,40})\] (.*)$/s);  // [iPad] action
     const row = el('div', {}, el('span', { className: 't', textContent: m ? m[1] : '' }));
     if (tag) { row.append(el('span', { className: 'who', translate: false, textContent: tag[1], style: `--c:${tagColor(tag[1])}` })); text = tag[2]; }
     row.className = kind(text);
@@ -484,7 +496,7 @@ $('follow').addEventListener('click', () => {
 });
 $('clear').addEventListener('click', () => $('log').replaceChildren());
 
-/* ---------- prestazioni ---------- */
+/* ---------- performance ---------- */
 function spark(values, max) {
   const w = 300, h = 34;
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -508,14 +520,14 @@ const metric = (label, value, unit = '', cls = '') =>
   el('div', { className: 'm' }, el('small', { textContent: label }),
     el('b', { className: cls, textContent: value ?? '–' }), unit && value != null ? el('span', { textContent: unit }) : '');
 
-/* schede riducibili: con un clic sul titolo resta solo l'essenziale (ricordato tra un'apertura e l'altra) */
+/* collapsible cards: one click on the title leaves only the essentials (remembered between openings) */
 const compact = new Set(JSON.parse(localStorage.getItem('compatte') || '[]'));
 function setCompact(id, on) {
   on ? compact.add(id) : compact.delete(id);
   try { localStorage.setItem('compatte', JSON.stringify([...compact])); } catch {}
 }
 function cardHead(id, dotOn, title, essential, ris, screenOn) {
-  // mini-schermo (aspetto moderno): le proporzioni vere dello schermo virtuale, verticale se il dispositivo è girato
+  // mini screen (modern style): the real proportions of the virtual screen, portrait if the device is rotated
   let screen = '';
   const m = /^(\d+)x(\d+)$/.exec(ris || '');
   if (m) {
@@ -564,7 +576,7 @@ function pcCard(pc, fresh) {
         metric('Memoria grafica', g.memGb, 'GB'))));
   }
   if (t) {
-    // colori: oltre 80 °C attenzione, oltre 90 °C troppo caldo
+    // colors: above 80 °C caution, above 90 °C too hot
     const hot = (v) => (v >= 90 ? 'bad' : v >= 80 ? 'warn' : '');
     const names = { CPU: 'Processore', Disco: 'Disco (SSD)', 'Scheda grafica': 'Scheda grafica', Batteria: 'Batteria' };
     card.append(el('div', { className: 'gpu' },
@@ -572,7 +584,7 @@ function pcCard(pc, fresh) {
       el('div', { className: 'grid' }, ...t.elenco.map((x) => {
         const m = metric(names[x.nome] || x.nome, x.valore, '°C', hot(x.valore));
         if (x.core && x.core.length) {
-          m.dataset.tip = 'temp-' + x.nome; // riquadro mio: resta aperto anche quando la scheda si ridisegna
+          m.dataset.tip = 'temp-' + x.nome; // my own tooltip: it stays open even when the card is redrawn
           m.dataset.tipText = 'Core: ' + x.core.map((c) => c + ' °C').join(' · ');
         }
         return m;
@@ -594,7 +606,7 @@ function deviceCard(d, fresh) {
   const sub = d.online
     ? `Schermo ${d.numero} · ${d.schermo}${d.ris ? ' · ' + d.ris.replace('x', '×') : ''}`
     : `Non collegato${d.visto ? ' · ultima volta ' + d.visto.slice(8, 10) + '/' + d.visto.slice(5, 7) + d.visto.slice(10) : ''}`;
-  // batteria del dispositivo (solo app nativa): sotto il 15% e non in carica diventa rossa
+  // device battery (native app only): below 15% and not charging it turns red
   const battLow = d.batt != null && d.batt <= 15 && !d.carica;
   const battText = d.batt == null ? '' : ` · ${d.carica ? '⚡' : ''}${d.batt}%`;
   const essential = d.online
@@ -620,7 +632,7 @@ function deviceCard(d, fresh) {
           battLow ? 'bad' : d.batt != null && d.batt <= 30 && !d.carica ? 'warn' : '')),
       spark(h, 30));
   }
-  // qualità decisa dal PC: arriva al dispositivo anche se è troppo lento per usare il suo menu
+  // quality set by the PC: it reaches the device even if it's too slow to use its own menu
   const levels = el('div', { className: 'levels', role: 'group', ariaLabel: 'Qualità di ' + d.nome },
     ...['Massima', 'Fluida', 'Media', 'Leggera'].map((name, i) => {
       const b = el('button', { textContent: name, title: ['60 fps', '30 fps', '30 fps, 75%', '30 fps, 50%'][i] });
@@ -629,7 +641,7 @@ function deviceCard(d, fresh) {
       b.addEventListener('click', () => send({ t: 'qualita', id: d.id, livello: i }));
       return b;
     }));
-  // automatica: se il dispositivo non regge abbassa da sola, poi torna fino al livello scelto
+  // automatic: if the device can't keep up it lowers by itself, then goes back up to the chosen level
   const auto = el('button', { textContent: 'Auto', className: 'auto',
     title: 'Qualità automatica: abbassa se il dispositivo non regge, poi torna al livello scelto' });
   auto.setAttribute('aria-pressed', d.auto);
@@ -649,7 +661,7 @@ function when(t) {
 let filesKey = '';
 function renderFiles(files) {
   const key = JSON.stringify(files);
-  if (key === filesKey) return; // invariato: non ridisegno (non perdo lo scorrimento)
+  if (key === filesKey) return; // unchanged: no redraw (scroll position isn't lost)
   filesKey = key;
   if (!files.length) {
     $('flist').replaceChildren(el('li', { className: 'empty', textContent: 'Nessun file nella cartella download.' }));
@@ -666,7 +678,7 @@ function renderFiles(files) {
   }));
 }
 
-/* ---------- trascinamento file ---------- */
+/* ---------- file drag and drop ---------- */
 let depth = 0;
 const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
 addEventListener('dragenter', (e) => { if (hasFiles(e)) { e.preventDefault(); depth++; document.body.classList.add('dragging'); } });
@@ -706,7 +718,7 @@ function render(st, fresh = true) {
     el('span', { className: 'code', translate: false, textContent: p.pin.slice(0, 3) + ' ' + p.pin.slice(3) }))));
 }
 
-/* ---------- riquadro informativo (sostituisce il title, che spariva a ogni aggiornamento) ---------- */
+/* ---------- tooltip (replaces title, which vanished on every update) ---------- */
 const tip = el('div', { id: 'tip', role: 'tooltip' });
 document.body.append(tip);
 let tipKey = null;
@@ -726,26 +738,70 @@ function refreshTip() {
   if (t) tip.textContent = t.dataset.tipText; else { tipKey = null; tip.classList.remove('show'); }
 }
 
-/* ---------- aspetto: classico o moderno (ricordato in questo PC) ---------- */
+/* ---------- style: classic or modern (remembered on this PC) ---------- */
 const THEMES = ['classico', 'moderno', 'abisso', 'abissofoto', 'cyber'];
+let refreshTheme = null;
 function setTheme(name) {
   if (!THEMES.includes(name)) name = 'classico';
-  // "abisso" e "cyber" usano la struttura del moderno con colori, forme e caratteri loro
+  // "abisso" and "cyber" use the modern structure with their own colors, shapes and fonts
   document.body.classList.toggle('moderno', name !== 'classico');
   document.body.classList.toggle('abisso', name === 'abisso' || name === 'abissofoto');
   document.body.classList.toggle('foto', name === 'abissofoto');
   document.body.classList.toggle('cyber', name === 'cyber');
   $('theme').value = name;
-  try { localStorage.setItem('aspetto', name); } catch { /* niente memoria: va bene lo stesso */ }
+  try { localStorage.setItem('aspetto', name); } catch { /* no storage: fine anyway */ }
+  refreshTheme?.();
 }
 $('theme').addEventListener('change', (e) => setTheme(e.target.value));
-const wanted = new URLSearchParams(location.search).get('aspetto');  // es. ?aspetto=abisso per un'anteprima
+/* the hidden <select> keeps the value; on screen a dropdown like the language one, with a swatch of each style
+   (background and accent color). Names are Italian keys, translated by lingua.js */
+const THEME_LOOK = { classico: ['Classico', '#0b0c10', '#f2b84b'], moderno: ['Moderno', '#121a2e', '#5b8cff'],
+  abisso: ['Abisso', '#221915', '#f2c55c'], abissofoto: ['Abisso con immagine', '#6b4a32', '#f2c55c'],
+  cyber: ['Edgerunners', '#061a1d', '#f4e409'] };
+refreshTheme = (() => {
+  const sel = $('theme');
+  sel.hidden = true;
+  const swatch = (v) => el('span', { className: 'campione', style: `--a:${THEME_LOOK[v][1]};--b:${THEME_LOOK[v][2]}` });
+  const btn = el('button', { type: 'button', className: 'tendina-scelta', title: sel.title });
+  btn.setAttribute('aria-haspopup', 'listbox'); btn.setAttribute('aria-expanded', 'false');
+  btn.setAttribute('aria-label', sel.getAttribute('aria-label'));
+  const list = el('div', { className: 'tendina-lista', hidden: true });
+  list.setAttribute('role', 'listbox');
+  const close = () => { list.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
+  for (const v of THEMES) {
+    const b = el('button', { type: 'button' }, swatch(v), el('span', { textContent: THEME_LOOK[v][0] }));
+    b.setAttribute('role', 'option'); b.dataset.v = v;
+    b.addEventListener('click', () => { close(); btn.focus(); setTheme(v); });
+    list.append(b);
+  }
+  btn.addEventListener('click', () => {
+    const open = list.hidden;
+    list.hidden = !open; btn.setAttribute('aria-expanded', open);
+    if (open) (list.querySelector('[aria-selected="true"]') || list.firstElementChild).focus();
+  });
+  document.addEventListener('click', (e) => { if (!box.contains(e.target)) close(); });
+  const box = el('div', { className: 'tendina' }, btn, list);
+  box.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !list.hidden) { close(); btn.focus(); return; }
+    if (list.hidden || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
+    e.preventDefault();
+    const opts = [...list.children], i = opts.indexOf(document.activeElement);
+    opts[(i + (e.key === 'ArrowDown' ? 1 : -1) + opts.length) % opts.length].focus();
+  });
+  sel.after(box);
+  return () => {
+    const v = sel.value;
+    btn.replaceChildren(swatch(v), el('span', { textContent: 'Aspetto: ' + THEME_LOOK[v][0] }), el('span', { className: 'freccia', textContent: '▾' }));
+    list.querySelectorAll('[role="option"]').forEach((b) => b.setAttribute('aria-selected', b.dataset.v === v));
+  };
+})();
+const wanted = new URLSearchParams(location.search).get('aspetto');  // e.g. ?aspetto=abisso for a preview
 try { setTheme(wanted || localStorage.getItem('aspetto')); } catch { setTheme(wanted); }
 
-/* ---------- collegamento al server ---------- */
+/* ---------- connection to the server ---------- */
 function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
 function connect() {
-  if (ws && ws.readyState <= 1) return;   // già collegata o in collegamento
+  if (ws && ws.readyState <= 1) return;   // already connected or connecting
   ws = new WebSocket(`ws://${location.host}/pc/ws`);
   ws.onopen = () => { $('down').classList.remove('show'); $('state').classList.remove('off'); $('state').textContent = 'Attivo'; };
   ws.onmessage = (e) => {
@@ -769,7 +825,7 @@ function connect() {
     setTimeout(connect, 1500);
   };
 }
-// lingua: subito quella ricordata (niente lampo in italiano), poi quella del server, che vale per tutti
+// language: the remembered one right away (no flash of Italian), then the server's, which applies to everyone
 try { Lingua.use(localStorage.getItem('lingua') || (navigator.language.startsWith('it') ? 'it' : 'en')); } catch { Lingua.use('it'); }
 $('langBox').replaceWith(Lingua.picker((l) => send({ t: 'lingua', lingua: l })));
 Lingua.onChange(() => { filesKey = ''; if (lastState) render(lastState, false); });
@@ -782,7 +838,7 @@ $('quit').addEventListener('click', () => {
   closing = true; send({ t: 'esci' });
 });
 connect();
-// finestra coperta o ridotta a icona: Edge rallenta i timer; appena torna visibile mi ricollego subito
+// window covered or minimized: Edge slows down timers; as soon as it's visible again I reconnect right away
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !closing) connect(); });
 </script>
 </body>

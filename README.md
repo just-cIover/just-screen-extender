@@ -73,8 +73,10 @@ Everything personal (certificates, paired devices, settings, logs, shared files)
 2. Run `driver\Installa driver.bat` as administrator. It installs the virtual display driver
    with the resolutions in `driver\vdd_settings.xml`.
 3. Run `tools\firewall.ps1` as administrator to open port 8770 on private networks only.
-4. Start the program with `avvio.pyw` (no console, opens the control window), or
-   `Avvia.bat` (with a console).
+4. Start the program once with `avvio.pyw` (no console, opens the control window), or
+   `Avvia.bat` (with a console). On its first start it adds itself to the Start menu and to
+   right-click → *Send to*: from then on just search for **Screen Extender** (or **Schermo Esteso**
+   with the interface in Italian) in Start. If you move the folder, the shortcuts follow on the next start.
 5. On the device:
    - **Native app (recommended):** download `SchermoEsteso.ipa` from the
      [releases](../../releases) and sideload it with AltStore or SideStore. You can also build it

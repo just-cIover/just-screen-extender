@@ -1,18 +1,18 @@
 'use strict';
-/* Lingua dell'interfaccia (finestra del PC e pagina dei dispositivi): italiano o inglese.
+/* Interface language (PC window and device page): Italian or English.
 
-   I testi restano scritti in italiano; la traduzione sta in /lingue/en.json (lo stesso file del server):
-   - "testi": frase italiana -> inglese, con {} al posto delle parti che cambiano ({1}, {2}... per cambiarne l'ordine);
-   - "valori": parole che finiscono dentro le frasi ("a destra", "Massima"...).
-   La pagina si traduce da sola: ogni testo che compare (anche quelli scritti dopo dal programma) viene tradotto,
-   e l'originale italiano resta da parte per tornare indietro. Un elemento con data-i18n-html si traduce intero
-   (frasi con parole in grassetto o link in mezzo); translate="no" esclude nomi di file, dispositivi, indirizzi. */
+   Texts stay written in Italian; the translation is in /lingue/en.json (the same file as the server):
+   - "testi": Italian sentence -> English, with {} in place of the changing parts ({1}, {2}... to change their order);
+   - "valori": words that end up inside sentences ("a destra", "Massima"...).
+   The page translates itself: every text that appears (including those written later by the program) is translated,
+   and the Italian original is kept aside to switch back. An element with data-i18n-html is translated as a whole
+   (sentences with bold words or links inside); translate="no" excludes file names, devices, addresses. */
 const Lingua = (() => {
   let lang = 'it';
   const exact = new Map(), values = new Map(), pats = [];
   const listeners = [];
   const ready = fetch('/lingue/en.json', { cache: 'no-cache' }).then((r) => r.json()).then((d) => {
-    // spazi uniformi: nella pagina i testi arrivano con gli spazi doppi ridotti a uno
+    // uniform spaces: in the page texts arrive with double spaces reduced to one
     const norm = (s) => s.replace(/\s+/g, ' ');
     for (const [k, v] of Object.entries(d.valori || {})) values.set(norm(k), v);
     for (const [raw, v] of Object.entries(d.testi || {})) {
@@ -48,21 +48,21 @@ const Lingua = (() => {
     return tpl.replace(/\{(\d*)\}/g, (_, n) => (n ? parts[+n - 1] ?? '' : parts[i++] ?? ''));
   }
   const LETTERS = /[a-zà-ú]/i;
-  /** Il testo nella lingua scelta (in italiano, o senza traduzione, resta com'è). */
+  /** The text in the chosen language (in Italian, or without a translation, it stays as it is). */
   function t(s) {
     if (lang === 'it' || !s || !LETTERS.test(s)) return s;
     const core = s.trim();
-    const r = translate(core.replace(/\s+/g, ' '));  // testi dell'HTML scritti su più righe
+    const r = translate(core.replace(/\s+/g, ' '));  // HTML texts written over several lines
     if (r == null) return s;
     const i = s.indexOf(core);
     return s.slice(0, i) + r + s.slice(i + core.length);
   }
 
-  /* ---------- traduzione automatica della pagina ---------- */
+  /* ---------- automatic page translation ---------- */
   const ATTRS = ['title', 'aria-label', 'placeholder', 'alt', 'data-tip-text'];
-  const texts = new WeakMap();   // nodo di testo -> [originale, mostrato]
-  const attrs = new WeakMap();   // elemento -> { attributo: [originale, mostrato] }
-  const htmls = new WeakMap();   // elemento data-i18n-html -> [originale, mostrato]
+  const texts = new WeakMap();   // text node -> [original, shown]
+  const attrs = new WeakMap();   // element -> { attribute: [original, shown] }
+  const htmls = new WeakMap();   // data-i18n-html element -> [original, shown]
   const excluded = (e) => !e || !!e.closest('script, style, [translate="no"]');
   function doText(n) {
     const e = n.parentElement;
@@ -117,7 +117,7 @@ const Lingua = (() => {
     const changed = l !== lang;
     lang = l;
     document.documentElement.lang = l;
-    try { localStorage.setItem('lingua', l); } catch { /* niente memoria: va bene lo stesso */ }
+    try { localStorage.setItem('lingua', l); } catch { /* no storage: fine anyway */ }
     ready.then(() => {
       walk(document.documentElement);
       document.querySelectorAll('.lingue').forEach(mark);
@@ -125,7 +125,7 @@ const Lingua = (() => {
     });
   }
 
-  /* ---------- selettore: bandiera e sigla del paese ---------- */
+  /* ---------- picker: flag and country code ---------- */
   let uid = 0;
   function flag(code) {
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -147,21 +147,47 @@ const Lingua = (() => {
     return s;
   }
   const LANGS = [['it', 'IT', 'Italiano'], ['en', 'GB', 'English']];
+  const span = (cls, text) => Object.assign(document.createElement('span'), { className: cls, textContent: text });
+  /** The button shows the current language; in the list the chosen one is marked. */
   function mark(box) {
-    box.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.lingua === lang));
+    const [code, short] = LANGS.find((l) => l[0] === lang) || LANGS[0];
+    box.querySelector('.lingua-scelta').replaceChildren(flag(code), span('sigla', short), span('freccia', '▾'));
+    box.querySelectorAll('[role="option"]').forEach((o) => o.setAttribute('aria-selected', o.dataset.lingua === lang));
   }
-  /** Due pulsanti 🇮🇹 IT / 🇬🇧 GB; onPick(lingua) quando ne tocchi uno. */
+  /** Dropdown: a button with flag and code (🇮🇹 IT, 🇬🇧 GB) that opens the list of languages.
+      The flags are drawn: Windows doesn't show flag emoji (only the letters). onPick(language) on choice. */
   function picker(onPick) {
     const box = document.createElement('div');
-    box.className = 'lingue'; box.setAttribute('role', 'group'); box.setAttribute('aria-label', 'Lingua');
+    box.className = 'lingue';
     box.setAttribute('translate', 'no');
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'lingua-scelta';
+    btn.setAttribute('aria-haspopup', 'listbox'); btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-label', 'Lingua / Language');
+    const list = document.createElement('div');
+    list.className = 'lingua-lista'; list.setAttribute('role', 'listbox'); list.hidden = true;
+    const close = () => { list.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
     for (const [code, short, name] of LANGS) {
-      const b = document.createElement('button');
-      b.type = 'button'; b.dataset.lingua = code; b.title = name;
-      b.append(flag(code), short);
-      b.addEventListener('click', () => { use(code); onPick(code); });
-      box.append(b);
+      const o = document.createElement('button');
+      o.type = 'button'; o.setAttribute('role', 'option'); o.dataset.lingua = code;
+      o.append(flag(code), span('sigla', short), span('nome', name));
+      o.addEventListener('click', () => { close(); btn.focus(); use(code); onPick(code); });
+      list.append(o);
     }
+    btn.addEventListener('click', () => {
+      const open = list.hidden;
+      list.hidden = !open; btn.setAttribute('aria-expanded', open);
+      if (open) (list.querySelector('[aria-selected="true"]') || list.firstElementChild).focus();
+    });
+    document.addEventListener('click', (e) => { if (!box.contains(e.target)) close(); });
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !list.hidden) { e.stopPropagation(); close(); btn.focus(); return; }
+      if (list.hidden || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
+      e.preventDefault();
+      const opts = [...list.children], i = opts.indexOf(document.activeElement);
+      opts[(i + (e.key === 'ArrowDown' ? 1 : -1) + opts.length) % opts.length].focus();
+    });
+    box.append(btn, list);
     mark(box);
     return box;
   }

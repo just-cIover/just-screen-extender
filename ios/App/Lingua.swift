@@ -1,10 +1,10 @@
 import Foundation
 
-/// Lingua dell'app: italiano (i testi scritti nel codice) o inglese.
-/// È una sola per PC e dispositivi: il PC la manda appena ci si collega, e il menu Lingua la cambia per tutti.
-/// Le frasi con parti che cambiano (nomi, numeri) hanno {} nella chiave italiana; nella traduzione {} in ordine
-/// oppure {1}, {2}... per cambiarne l'ordine. Le parole che finiscono dentro le frasi ("a destra", "Massima")
-/// sono in `valori`. La stessa idea della finestra del PC (pc/web/lingue/en.json).
+/// App language: Italian (the texts written in the code) or English.
+/// It's one for the PC and every device: the PC sends it as soon as you connect, and the Language menu changes it for everyone.
+/// Sentences with changing parts (names, numbers) have {} in the Italian key; the translation uses {} in order
+/// or {1}, {2}... to change their order. Words that end up inside sentences ("a destra", "Massima")
+/// are in `valori`. Same idea as the PC window (pc/web/lingue/en.json).
 enum Lingua {
     static let changed = Notification.Name("SchermoEstesoLinguaCambiata")
     static var current: String { Settings.language }
@@ -17,7 +17,7 @@ enum Lingua {
 
     private static let patterns: [(NSRegularExpression, String)] = testi.keys
         .filter { $0.contains("{}") }
-        .sorted { $0.count > $1.count }   // le frasi più lunghe (più precise) per prime
+        .sorted { $0.count > $1.count }   // longest (most specific) sentences first
         .compactMap { k in
             let rx = "^" + NSRegularExpression.escapedPattern(for: k).replacingOccurrences(of: "\\{\\}", with: "(.+?)") + "$"
             guard let re = try? NSRegularExpression(pattern: rx, options: [.dotMatchesLineSeparators]), let v = testi[k] else { return nil }
@@ -37,7 +37,7 @@ enum Lingua {
         return nil
     }
 
-    /// Una parte variabile: un valore noto, una frase intera o un elenco "a, b".
+    /// A variable part: a known value, a whole sentence or a list "a, b".
     private static func part(_ s: String) -> String {
         if let v = valori[s] { return v }
         if let r = translate(s) { return r }
@@ -95,7 +95,7 @@ enum Lingua {
         "Abbina di nuovo": "Pair again",
         "Cambia PC…": "Change PC…",
         "Torna al 100%": "Back to 100%",
-        // collegamento e abbinamento
+        // connection and pairing
         "Avvio…": "Starting…",
         "Connessione al PC…": "Connecting to the PC…",
         "Riconnessione…": "Reconnecting…",
@@ -132,12 +132,12 @@ enum Lingua {
         "Scrivi l'indirizzo che compare in alto nella finestra di Schermo Esteso sul PC, senza https://. Esempio: 192.168.1.20:8770":
             "Type the address shown at the top of the Screen Extender window on the PC, without https://. Example: 192.168.1.20:8770",
         "Qualità {}: impostata in automatico dal PC": "Quality {}: set automatically by the PC",
-        // spinta del mouse
+        // mouse push
         "Schermo {} del PC?": "Screen {} the PC?",
         "Hai spinto il mouse {}. Se questo {} si trova lì, tocca Qui e il suo schermo si sposta da quella parte.":
             "You pushed the mouse {1} the PC. If this {2} is there, tap Here and its screen moves to that side.",
         "Qui": "Here",
-        // scrivere sul PC
+        // typing on the PC
         "Inserisci password": "Enter password",
         "Tocca prima sul PC il campo della password (o del nome utente). Poi scegli qui la password salvata: la tastiera mostra la chiave delle Password.":
             "First tap the password (or user name) field on the PC. Then pick the saved password here: the keyboard shows the Passwords key.",
@@ -156,14 +156,14 @@ enum Lingua {
         "Incolla": "Paste",
         "Seleziona tutto": "Select all",
         "Altro (clic destro)": "More (right click)",
-        // appunti
+        // clipboard
         "Appunti dal PC copiati su {}": "Clipboard from the PC copied to {}",
         "Immagine dagli appunti del PC copiata su {}": "Image from the PC clipboard copied to {}",
         "Appunti di {} copiati sul PC": "{} clipboard copied to the PC",
         "Immagine di {} copiata negli appunti del PC": "{} image copied to the PC clipboard",
         "Appunti non inviati: {}": "Clipboard not sent: {}",
         "Gli appunti di {} sono vuoti": "The {} clipboard is empty",
-        // file
+        // files
         "Nuovo file da {}: {}": "New file from {}: {}",
         "{} nuovi file da {}": "{} new files from {}",
         "Invio al PC…": "Sending to the PC…",
@@ -210,8 +210,8 @@ enum Lingua {
     ]
 }
 
-/// Il testo nella lingua dell'app. Si traduce riga per riga (i messaggi di stato ne hanno più d'una);
-/// in italiano, o senza traduzione, resta com'è.
+/// The text in the app language. Translated line by line (status messages have more than one);
+/// in Italian, or without a translation, it stays as it is.
 func L(_ s: String) -> String {
     guard Lingua.current == "en" else { return s }
     return s.components(separatedBy: "\n").map { line in
