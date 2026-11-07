@@ -321,7 +321,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
 
     func connectionNeedsPin(_ c: Connection, message: String?) {
         hideStatus()
-        let text = (message.map { L($0) + "\n\n" } ?? "") + L("Questo \(UIDevice.current.model) è nuovo per il PC: inserisci il PIN di 6 cifre che compare ora nella finestra di Schermo Esteso.")
+        let text = (message.map { L($0) + "\n\n" } ?? "") + L("Questo \(UIDevice.current.model) è nuovo per il PC: inserisci il PIN di 6 cifre che compare ora nella finestra di Screen Extender.")
         if let alert = pinAlert {
             alert.message = text
             alert.textFields?.first?.text = ""
@@ -357,7 +357,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         let version = "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"  // e.g. 1.1.0 (23): version and build
         let device = UIDevice.current
         c.send(["t": "diag", "motore": "nativo", "avvio": true,
-                "ua": "Schermo Esteso iOS \(version), \(device.model) \(device.systemName) \(device.systemVersion)"])
+                "ua": "Screen Extender iOS \(version), \(device.model) \(device.systemName) \(device.systemVersion)"])
         lastArea = []  // new connection: send the sizes again anyway
         sendArea()
     }
@@ -947,7 +947,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
 
     private func askHost() {
         let alert = UIAlertController(title: L("Collega al PC"),
-                                      message: L("Scrivi l'indirizzo che compare in alto nella finestra di Schermo Esteso sul PC, senza https://. Esempio: 192.168.1.20:8770"),
+                                      message: L("Scrivi l'indirizzo che compare in alto nella finestra di Screen Extender sul PC, senza https://. Esempio: 192.168.1.20:8770"),
                                       preferredStyle: .alert)
         alert.addTextField { f in
             f.text = Settings.host
@@ -991,7 +991,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         }
     }
 
-    /// Files shared from another app with "Share → Schermo Esteso": they go straight to the PC.
+    /// Files shared from another app with "Share → Screen Extender": they go straight to the PC.
     func receiveShared(_ urls: [URL]) {
         guard !urls.isEmpty else { return }
         loadViewIfNeeded()  // may arrive at startup, before the screen is ready
@@ -1158,7 +1158,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
     }
 
     /// iPad clipboard -> PC. Automatically only if it changed since I last saw it
-    /// (iPadOS may ask "Allow Paste?": in Settings → Schermo Esteso you can choose Allow).
+    /// (iPadOS may ask "Allow Paste?": in Settings → Screen Extender you can choose Allow).
     private func clipboardToPC(force: Bool) {
         let pb = UIPasteboard.general
         if Settings.pasteboardSeen < 0 { Settings.pasteboardSeen = pb.changeCount }  // first time: nothing sent

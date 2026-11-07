@@ -1,6 +1,6 @@
-# Temperatures for Schermo Esteso: LibreHardwareMonitor starts at sign-in, with the rights needed
+# Temperatures for Screen Extender: LibreHardwareMonitor starts at sign-in, with the rights needed
 # to read the sensors, minimized next to the clock. Run as administrator.
-param([string]$Exe, [string]$Report = "$env:TEMP\schermo-esteso-sensori.txt")
+param([string]$Exe, [string]$Report = "$env:TEMP\screen-extender-sensori.txt")
 $out = @()
 $dir = Split-Path $Exe
 # settings: starts minimized, goes to the notification area, closing the window minimizes it
@@ -21,9 +21,11 @@ $action = New-ScheduledTaskAction -Execute $Exe -WorkingDirectory $dir
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit 0
-Register-ScheduledTask -TaskName 'Schermo Esteso - sensori' -Action $action -Trigger $trigger -Principal $principal `
-    -Settings $settings -Description 'LibreHardwareMonitor per le temperature nella finestra di Schermo Esteso' -Force | Out-Null
+# the task of earlier versions had the Italian name
+Unregister-ScheduledTask -TaskName 'Schermo Esteso - sensori' -Confirm:$false -ErrorAction SilentlyContinue
+Register-ScheduledTask -TaskName 'Screen Extender - sensori' -Action $action -Trigger $trigger -Principal $principal `
+    -Settings $settings -Description 'LibreHardwareMonitor per le temperature nella finestra di Screen Extender' -Force | Out-Null
 $out += "Attività all'accesso creata"
-Start-ScheduledTask -TaskName 'Schermo Esteso - sensori'
+Start-ScheduledTask -TaskName 'Screen Extender - sensori'
 $out += "Avviato"
 $out | Out-File -FilePath $Report -Encoding utf8

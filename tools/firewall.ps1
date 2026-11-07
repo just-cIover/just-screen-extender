@@ -1,11 +1,11 @@
-# Firewall for Schermo Esteso (run as administrator).
+# Firewall for Screen Extender (run as administrator).
 # 1. the current Wi-Fi network, if it's the home one and set to Public, becomes Private
 # 2. port 8770: Private networks only from the local network; Public networks only from an iPhone hotspot
 #    (172.20.10.0/28: the iPhone is always 172.20.10.1, whoever joins its hotspot 172.20.10.2-14)
 # 3. rules for the Python programs too, so Windows doesn't ask "Allow access?"
 #    (cancelling would create a block rule that would stop the devices too)
 # 4. remove the "Python" rules that are too broad (all ports) and the block rules created by those prompts
-param([string]$Report = "$env:TEMP\schermo-esteso-firewall.txt", [switch]$HomePrivate)
+param([string]$Report = "$env:TEMP\screen-extender-firewall.txt", [switch]$HomePrivate)
 $ErrorActionPreference = 'Continue'
 $out = @()
 $Hotspot = '172.20.10.0/28'
@@ -21,13 +21,13 @@ if ($HomePrivate) {
 }
 
 # our rules: remove them and create them again
-Get-NetFirewallRule | Where-Object { $_.DisplayName -like 'Schermo Esteso*' -or $_.DisplayName -eq 'iPad Schermo (TCP 8770)' } |
+Get-NetFirewallRule | Where-Object { $_.DisplayName -like 'Screen Extender*' -or $_.DisplayName -like 'Schermo Esteso*' -or $_.DisplayName -eq 'iPad Schermo (TCP 8770)' } |
     Remove-NetFirewallRule
-New-NetFirewallRule -DisplayName 'Schermo Esteso (TCP 8770)' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8770 `
+New-NetFirewallRule -DisplayName 'Screen Extender (TCP 8770)' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8770 `
     -Profile Private -RemoteAddress LocalSubnet -Description 'Dispositivi della rete di casa' | Out-Null
-New-NetFirewallRule -DisplayName 'Schermo Esteso (TCP 8770, hotspot iPhone)' -Direction Inbound -Action Allow -Protocol TCP `
+New-NetFirewallRule -DisplayName 'Screen Extender (TCP 8770, hotspot iPhone)' -Direction Inbound -Action Allow -Protocol TCP `
     -LocalPort 8770 -Profile Public -RemoteAddress $Hotspot -Description "Solo l'hotspot di un iPhone sulle reti pubbliche" | Out-Null
-New-NetFirewallRule -DisplayName 'Schermo Esteso (TCP 8770, Tailscale)' -Direction Inbound -Action Allow -Protocol TCP `
+New-NetFirewallRule -DisplayName 'Screen Extender (TCP 8770, Tailscale)' -Direction Inbound -Action Allow -Protocol TCP `
     -LocalPort 8770 -Profile Any -RemoteAddress $Tailscale -Description 'I propri dispositivi via Tailscale, da qualsiasi rete' | Out-Null
 $out += 'Porta 8770: reti private (rete locale), hotspot iPhone, dispositivi Tailscale'
 
@@ -37,11 +37,11 @@ $pys = Get-ChildItem 'C:\Program Files\WindowsApps' -Directory -Filter 'PythonSo
     Select-Object -ExpandProperty FullName
 foreach ($py in $pys) {
     $n = Split-Path $py -Leaf
-    New-NetFirewallRule -DisplayName "Schermo Esteso ($n, casa)" -Direction Inbound -Action Allow -Program $py -Protocol TCP `
+    New-NetFirewallRule -DisplayName "Screen Extender ($n, casa)" -Direction Inbound -Action Allow -Program $py -Protocol TCP `
         -LocalPort 8770 -Profile Private -RemoteAddress LocalSubnet | Out-Null
-    New-NetFirewallRule -DisplayName "Schermo Esteso ($n, hotspot iPhone)" -Direction Inbound -Action Allow -Program $py `
+    New-NetFirewallRule -DisplayName "Screen Extender ($n, hotspot iPhone)" -Direction Inbound -Action Allow -Program $py `
         -Protocol TCP -LocalPort 8770 -Profile Public -RemoteAddress $Hotspot | Out-Null
-    New-NetFirewallRule -DisplayName "Schermo Esteso ($n, Tailscale)" -Direction Inbound -Action Allow -Program $py `
+    New-NetFirewallRule -DisplayName "Screen Extender ($n, Tailscale)" -Direction Inbound -Action Allow -Program $py `
         -Protocol TCP -LocalPort 8770 -Profile Any -RemoteAddress $Tailscale | Out-Null
     $out += "Regole per $py"
 }

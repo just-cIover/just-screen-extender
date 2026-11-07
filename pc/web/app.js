@@ -1,5 +1,5 @@
 'use strict';
-// Schermo Esteso – client: receives H.264 from the PC, decodes it in hardware
+// Screen Extender – client: receives H.264 from the PC, decodes it in hardware
 // (WebCodecs) and sends touches and mouse back to Windows.
 
 const $ = (id) => document.getElementById(id);
@@ -680,7 +680,7 @@ async function refreshFiles() {
     return;
   }
   if (!data.file.length) {
-    $('fileList').replaceChildren(el('li', { className: 'empty', textContent: 'Nessun file. Sul PC copiali nella cartella download dell’app, oppure clic destro > Invia a > Schermo Esteso.' }));
+    $('fileList').replaceChildren(el('li', { className: 'empty', textContent: 'Nessun file. Sul PC copiali nella cartella download dell’app, oppure clic destro > Invia a > Screen Extender.' }));
     return;
   }
   $('fileList').replaceChildren(...data.file.map((f) => {

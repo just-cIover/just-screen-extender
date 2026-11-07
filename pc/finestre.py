@@ -240,8 +240,8 @@ BROWSER_EXES = {'msedge.exe', 'chrome.exe', 'brave.exe', 'firefox.exe', 'opera.e
 INK_APPS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'programmi-penna.txt')
 
 
-def panel_window_open(title='Schermo Esteso'):
-    """Does the control window (Edge in app mode, title "Schermo Esteso") still exist, even minimized?"""
+def panel_window_open(title='Screen Extender'):
+    """Does the control window (Edge in app mode, title "Screen Extender") still exist, even minimized?"""
     return any(_title(h) == title and process_name(h) == 'msedge.exe' for h in _every_window())
 
 

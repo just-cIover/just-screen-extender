@@ -141,7 +141,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost:
             hint = "Il dispositivo non raggiunge la rete: controlla il Wi-Fi e il permesso Rete locale (Impostazioni → Privacy e sicurezza → Rete locale)."
         case NSURLErrorCannotConnectToHost, NSURLErrorTimedOut, NSURLErrorCannotFindHost:
-            hint = "Il PC non risponde: Schermo Esteso è aperto sul PC? L'indirizzo è giusto? PC e dispositivo sono sulla stessa rete?"
+            hint = "Il PC non risponde: Screen Extender è aperto sul PC? L'indirizzo è giusto? PC e dispositivo sono sulla stessa rete?"
         case NSURLErrorBadServerResponse:
             hint = "Il PC ha rifiutato il collegamento."
         default:
@@ -220,7 +220,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
     }
 
     /// Tries the known PC addresses and the iPhone hotspot ones (172.20.10.2-14) together:
-    /// the first that answers on the Schermo Esteso port becomes the address to use.
+    /// the first that answers on the Screen Extender port becomes the address to use.
     private func findPC() {
         guard !finding else { return }
         finding = true
@@ -253,7 +253,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
             guard let self else { return }
             self.finding = false
             if !done {
-                self.say("PC non trovato. Schermo Esteso è aperto sul PC? PC e dispositivo sono sulla stessa rete (o il PC è collegato all'hotspot)? Riprovo…")
+                self.say("PC non trovato. Screen Extender è aperto sul PC? PC e dispositivo sono sulla stessa rete (o il PC è collegato all'hotspot)? Riprovo…")
                 DispatchQueue.main.asyncAfter(deadline: .now() + max(2, self.retryDelay)) { [weak self] in self?.connect() }
             }
         }

@@ -1,4 +1,4 @@
-"""Sleep: when the PC sleeps, Schermo Esteso stops too.
+"""Sleep: when the PC sleeps, Screen Extender stops too.
 
 With Windows modern standby (low-power S0) programs keep running in bursts even
 with the PC "off". The server, checking screens, clipboard and files several times a second,
@@ -135,10 +135,10 @@ class Watcher:
 
         self._proc = WNDPROC(proc)  # must be kept alive
         inst = kernel32.GetModuleHandleW(None)
-        cls = WNDCLASSW(lpfnWndProc=self._proc, hInstance=inst, lpszClassName='SchermoEstesoRiposo')
+        cls = WNDCLASSW(lpfnWndProc=self._proc, hInstance=inst, lpszClassName='ScreenExtenderRiposo')
         user32.RegisterClassW(ctypes.byref(cls))
         # a normal window that is never shown: "message-only" windows don't receive sleep notifications
-        hwnd = user32.CreateWindowExW(0, cls.lpszClassName, 'Schermo Esteso riposo', 0, 0, 0, 0, 0,
+        hwnd = user32.CreateWindowExW(0, cls.lpszClassName, 'Screen Extender riposo', 0, 0, 0, 0, 0,
                                       None, None, inst, None)
         if not hwnd or not user32.RegisterPowerSettingNotification(hwnd, ctypes.byref(DISPLAY_STATE), 0):
             self.log(f'Riposo non disponibile (errore {ctypes.get_last_error()}): il programma resta sempre attivo')

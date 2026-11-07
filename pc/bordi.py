@@ -25,7 +25,7 @@ PUSH_TIME = 0.4      # seconds of continuous push, at least
 GAP = 0.25           # a pause longer than this resets the push
 COOLDOWN = 4.0       # after a move, seconds before recognizing another one
 SIDES = ('destra', 'sinistra', 'sopra', 'sotto')
-SIGNATURE = 0x53450001  # dwExtraInfo of the mouse events simulated by Schermo Esteso (inject.py)
+SIGNATURE = 0x53450001  # dwExtraInfo of the mouse events simulated by Screen Extender (inject.py)
 TOUCH_PEN = 0xFF515700  # Windows signature on mouse input derived from touch and pen (MI_WP_SIGNATURE)
 
 user32 = ctypes.WinDLL('user32', use_last_error=True)
@@ -175,9 +175,9 @@ class EdgeWatcher:
 
         self._proc = WNDPROC(proc)  # must be kept alive
         inst = kernel32.GetModuleHandleW(None)
-        cls = WNDCLASSW(lpfnWndProc=self._proc, hInstance=inst, lpszClassName='SchermoEstesoBordi')
+        cls = WNDCLASSW(lpfnWndProc=self._proc, hInstance=inst, lpszClassName='ScreenExtenderBordi')
         user32.RegisterClassW(ctypes.byref(cls))
-        hwnd = user32.CreateWindowExW(0, cls.lpszClassName, 'Schermo Esteso bordi', 0, 0, 0, 0, 0,
+        hwnd = user32.CreateWindowExW(0, cls.lpszClassName, 'Screen Extender bordi', 0, 0, 0, 0, 0,
                                       HWND_MESSAGE, None, inst, None)
         rid = RAWINPUTDEVICE(1, 2, RIDEV_INPUTSINK, hwnd)  # page 1, usage 2 = mouse (touchpads too)
         if not hwnd or not user32.RegisterRawInputDevices(ctypes.byref(rid), 1, ctypes.sizeof(rid)):

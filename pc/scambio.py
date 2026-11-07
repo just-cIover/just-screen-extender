@@ -4,7 +4,7 @@ Everything goes through the "downloads" folder inside the app (data\\downloads).
 Every file in the folder is visible to all devices, connected now or in the future.
 A file can be added in three ways:
 - by copying it into the folder with File Explorer (the folder is checked every 2 seconds);
-- from the PC with right-click > Send to > Schermo Esteso (invia.py);
+- from the PC with right-click > Send to > Screen Extender (invia.py);
 - from the app, with "Add files" or by dragging it into the Files panel.
 Files disappear only when you delete them from the folder on the PC: devices can't delete them.
 """

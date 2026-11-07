@@ -1,8 +1,8 @@
 # iPhone connected with the cable and Personal Hotspot on: the PC sees it as an extra network adapter.
 # Here I make it the last choice for Internet (which stays on the home Wi-Fi): the cable is only for
-# Schermo Esteso, without using the iPhone's data. Run as administrator (once:
+# Screen Extender, without using the iPhone's data. Run as administrator (once:
 # Windows remembers the setting for that adapter).
-param([string]$Report = "$env:TEMP\schermo-esteso-usb.txt")
+param([string]$Report = "$env:TEMP\screen-extender-usb.txt")
 $out = @()
 $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object {
     $_.InterfaceDescription -match 'Apple Mobile Device Ethernet|iPhone' -or

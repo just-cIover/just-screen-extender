@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Schermo Esteso</title>
+<title>Screen Extender</title>
 <link rel="icon" href="/icon.png">
 <style>
   :root {
@@ -395,7 +395,7 @@
 <body>
 <header>
   <img src="/icon.png" alt="">
-  <h1>Schermo Esteso</h1>
+  <h1 translate="no">Screen Extender</h1>
   <span class="pill" id="state">Attivo</span>
   <div class="addr" id="addr" title="Indirizzo da aprire in Safari sul dispositivo (clic per copiarlo)"></div>
   <div class="spacer"></div>
@@ -439,7 +439,7 @@
 </main>
 <div id="dropcover"><div>Rilascia per condividere con i dispositivi</div></div>
 
-<div id="down"><div><h2>Il server non risponde</h2><p>Riaprilo dal menu Start: <b translate="no">Schermo Esteso</b>.</p></div></div>
+<div id="down"><div><h2>Il server non risponde</h2><p>Riaprilo dal menu Start: <b translate="no">Screen Extender</b>.</p></div></div>
 
 <script src="/lingua.js"></script>
 <script>
@@ -834,7 +834,7 @@ $('folder2').addEventListener('click', () => send({ t: 'cartella' }));
 let clipOn = true;
 $('clipBtn').addEventListener('click', () => send({ t: 'appunti', on: !clipOn }));
 $('quit').addEventListener('click', () => {
-  if (!confirm(T('Chiudere Schermo Esteso? Gli schermi virtuali si spengono e le loro finestre tornano sul monitor principale.'))) return;
+  if (!confirm(T('Chiudere Screen Extender? Gli schermi virtuali si spengono e le loro finestre tornano sul monitor principale.'))) return;
   closing = true; send({ t: 'esci' });
 });
 connect();

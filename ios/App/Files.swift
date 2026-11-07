@@ -90,7 +90,7 @@ enum FileAPI {
 
     /// Sends the files to the PC in a single request. progress goes from 0 to 1.
     static func upload(_ files: [URL], progress: @escaping (Double) -> Void) async throws -> [String] {
-        let boundary = "SchermoEsteso-\(UUID().uuidString)"
+        let boundary = "ScreenExtender-\(UUID().uuidString)"
         let body = FileManager.default.temporaryDirectory.appendingPathComponent("invio-\(UUID().uuidString)")
         FileManager.default.createFile(atPath: body.path, contents: nil)
         defer { try? FileManager.default.removeItem(at: body) }
@@ -387,7 +387,7 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
     }
 }
 
-/// Sending files to the PC, used by the panel and by files coming from other apps (Share → Schermo Esteso).
+/// Sending files to the PC, used by the panel and by files coming from other apps (Share → Screen Extender).
 enum Uploader {
     static func send(_ urls: [URL], progress: @escaping (Double) -> Void,
                      done: @escaping (Result<[String], Error>) -> Void) {

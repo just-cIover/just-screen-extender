@@ -1,4 +1,4 @@
-"""Right-click on one or more files > Send to > Schermo Esteso.
+"""Right-click on one or more files > Send to > Screen Extender.
 
 Copies the files into the exchange folder and notifies the connected devices, which can
 open or save them. Runs with pythonw (no window): messages appear in a dialog box.
@@ -15,7 +15,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def message(text, error=False):
-    ctypes.windll.user32.MessageBoxW(None, lingua.t(text), lingua.t('Schermo Esteso'), 0x10 if error else 0x40)
+    ctypes.windll.user32.MessageBoxW(None, lingua.t(text), lingua.t('Screen Extender'), 0x10 if error else 0x40)
 
 
 def main():
@@ -38,7 +38,7 @@ def main():
         with urllib.request.urlopen(req, timeout=600) as r:
             res = json.load(r)
     except OSError:
-        message('Schermo Esteso non è avviato.\nAvvialo dal menu Start e riprova.', True)
+        message('Screen Extender non è avviato.\nAvvialo dal menu Start e riprova.', True)
         return
     n, d = len(res['inviati']), res['dispositivi']
     if d:

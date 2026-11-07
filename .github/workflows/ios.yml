@@ -30,7 +30,7 @@ jobs:
           # build number: the GitHub run number, which always goes up,
           # so iOS sees every ipa as an update. The version (1.1.0...) is in ios/project.yml
           N=${{ github.run_number }}
-          xcodebuild -quiet -project SchermoEsteso.xcodeproj -scheme SchermoEsteso \
+          xcodebuild -quiet -project ScreenExtender.xcodeproj -scheme ScreenExtender \
             -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build \
             CURRENT_PROJECT_VERSION=$N CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
@@ -38,11 +38,11 @@ jobs:
       - name: Crea il file .ipa
         run: |
           mkdir -p Payload
-          cp -R ios/build/Build/Products/Release-iphoneos/SchermoEsteso.app Payload/
-          zip -qry SchermoEsteso.ipa Payload
+          cp -R ios/build/Build/Products/Release-iphoneos/ScreenExtender.app Payload/
+          zip -qry ScreenExtender.ipa Payload
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SchermoEsteso-ipa
-          path: SchermoEsteso.ipa
+          name: ScreenExtender-ipa
+          path: ScreenExtender.ipa
           retention-days: 30

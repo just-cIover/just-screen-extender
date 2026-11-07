@@ -21,7 +21,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.rootViewController = screen
         window.makeKeyAndVisible()
         self.window = window
-        // opened with a file from another app (Share → Schermo Esteso)
+        // opened with a file from another app (Share → Screen Extender)
         screen.receiveShared(connectionOptions.urlContexts.map(\.url))
     }
 

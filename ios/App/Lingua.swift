@@ -6,7 +6,7 @@ import Foundation
 /// or {1}, {2}... to change their order. Words that end up inside sentences ("a destra", "Massima")
 /// are in `valori`. Same idea as the PC window (pc/web/lingue/en.json).
 enum Lingua {
-    static let changed = Notification.Name("SchermoEstesoLinguaCambiata")
+    static let changed = Notification.Name("ScreenExtenderLinguaCambiata")
     static var current: String { Settings.language }
 
     static func use(_ lang: String) {
@@ -110,16 +110,16 @@ enum Lingua {
             "PC certificate not trusted: install it and turn it on in Settings → General → About → Certificate Trust Settings.",
         "Il dispositivo non raggiunge la rete: controlla il Wi-Fi e il permesso Rete locale (Impostazioni → Privacy e sicurezza → Rete locale).":
             "The device can't reach the network: check Wi-Fi and the Local Network permission (Settings → Privacy & Security → Local Network).",
-        "Il PC non risponde: Schermo Esteso è aperto sul PC? L'indirizzo è giusto? PC e dispositivo sono sulla stessa rete?":
+        "Il PC non risponde: Screen Extender è aperto sul PC? L'indirizzo è giusto? PC e dispositivo sono sulla stessa rete?":
             "The PC is not responding: is Screen Extender open on the PC? Is the address right? Are the PC and the device on the same network?",
         "Il PC ha rifiutato il collegamento.": "The PC refused the connection.",
         "Il PC non risponde a {}: lo cerco sulle altre reti (anche l'hotspot)…": "The PC doesn't answer at {}: looking for it on the other networks (hotspot too)…",
-        "PC non trovato. Schermo Esteso è aperto sul PC? PC e dispositivo sono sulla stessa rete (o il PC è collegato all'hotspot)? Riprovo…":
+        "PC non trovato. Screen Extender è aperto sul PC? PC e dispositivo sono sulla stessa rete (o il PC è collegato all'hotspot)? Riprovo…":
             "PC not found. Is Screen Extender open on the PC? Are the PC and the device on the same network (or is the PC on the hotspot)? Retrying…",
         "PC trovato: {}": "PC found: {}",
         "Il PC ha già il numero massimo di dispositivi abbinati: rimuovine uno dal PC.": "The PC already has the maximum number of paired devices: remove one from the PC.",
         "Abbinamento": "Pairing",
-        "Questo {} è nuovo per il PC: inserisci il PIN di 6 cifre che compare ora nella finestra di Schermo Esteso.":
+        "Questo {} è nuovo per il PC: inserisci il PIN di 6 cifre che compare ora nella finestra di Screen Extender.":
             "This {} is new to the PC: enter the 6-digit PIN that now appears in the Screen Extender window.",
         "Troppi tentativi sbagliati: riprova tra {} minuti.": "Too many wrong attempts: try again in {} minutes.",
         "Troppe richieste di abbinamento in corso: riprova tra poco.": "Too many pairing requests in progress: try again shortly.",
@@ -129,7 +129,7 @@ enum Lingua {
         "Cambia PC": "Change PC",
         "Collega": "Connect",
         "Collega al PC": "Connect to the PC",
-        "Scrivi l'indirizzo che compare in alto nella finestra di Schermo Esteso sul PC, senza https://. Esempio: 192.168.1.20:8770":
+        "Scrivi l'indirizzo che compare in alto nella finestra di Screen Extender sul PC, senza https://. Esempio: 192.168.1.20:8770":
             "Type the address shown at the top of the Screen Extender window on the PC, without https://. Example: 192.168.1.20:8770",
         "Qualità {}: impostata in automatico dal PC": "Quality {}: set automatically by the PC",
         // mouse push

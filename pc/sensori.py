@@ -1,6 +1,6 @@
 """PC temperatures, read from LibreHardwareMonitor.
 
-LibreHardwareMonitor runs with administrator rights (task "Schermo Esteso - sensori",
+LibreHardwareMonitor runs with administrator rights (task "Screen Extender - sensori",
 created by tools\\sensori.ps1) and publishes the sensors on its built-in web server, password only
 (saved in data\\certs\\sensori.json, outside git). Here I read them every 2 seconds in a separate thread.
 """

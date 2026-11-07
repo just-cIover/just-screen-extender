@@ -81,7 +81,7 @@ def _data_object(path):
 
 def _grip_window(x, y):
     """Tiny almost transparent window under the cursor: it receives the button press instead of the program."""
-    cls = 'SchermoEstesoTrascina'
+    cls = 'ScreenExtenderTrascina'
     wc = win32gui.WNDCLASS()
     wc.lpszClassName = cls
     wc.lpfnWndProc = {}

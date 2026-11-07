@@ -27,7 +27,7 @@ DATA = os.path.join(os.path.dirname(HERE), 'data')  # personal data (outside git
 DIR = os.path.join(DATA, 'certs')
 CA_KEY, CA_CRT = os.path.join(DIR, 'ca.key'), os.path.join(DIR, 'ca.crt')
 SRV_KEY, SRV_CRT = os.path.join(DIR, 'server.key'), os.path.join(DIR, 'server.crt')
-CA_NAME = 'Schermo Esteso - certificato del PC'
+CA_NAME = 'Screen Extender - certificato del PC'
 LOCAL_ONLY = [x509.IPAddress(ipaddress.ip_network(n)) for n in
               ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '127.0.0.0/8', '169.254.0.0/16',
                '100.64.0.0/10')] + \
