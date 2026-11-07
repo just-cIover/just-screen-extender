@@ -56,6 +56,12 @@ enum Settings {
         set { d.set(newValue, forKey: "rotate") }
     }
 
+    /// Dove sta il pulsante del menu (si sposta trascinandolo): 0…7 = angoli e metà dei bordi, vedi ScreenViewController.
+    static var menuSpot: Int {
+        get { d.object(forKey: "menuSpot") as? Int ?? 2 }  // 2 = in alto a destra
+        set { d.set(newValue, forKey: "menuSpot") }
+    }
+
     /// Appunti condivisi con il PC.
     static var clipboardSync: Bool {
         get { d.object(forKey: "clipboardSync") as? Bool ?? true }

@@ -188,11 +188,16 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             done(self?.menuItems() ?? [])
         }])
         menuButton.accessibilityLabel = "Menu"
+        // si sposta trascinandolo, come la barra della Pencil in Note: lasciato, si aggancia al punto più vicino
+        let drag = UIPanGestureRecognizer(target: self, action: #selector(dragMenu(_:)))
+        drag.delegate = self
+        menuButton.addGestureRecognizer(drag)
 
-        for v in [statusLabel, spinner, toast, menuButton] as [UIView] {
+        for v in [statusLabel, spinner, toast] as [UIView] {
             v.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(v)
         }
+        view.addSubview(menuButton)  // posizione a mano (placeMenu), non con i vincoli
         NSLayoutConstraint.activate([
             spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),
@@ -203,10 +208,6 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             toast.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             toast.heightAnchor.constraint(equalToConstant: 44),
             toast.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor, constant: -32),
-            menuButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 6),
-            menuButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -6),
-            menuButton.widthAnchor.constraint(equalToConstant: 44),
-            menuButton.heightAnchor.constraint(equalToConstant: 44),
         ])
         showStatus("Avvio…")
     }
@@ -216,6 +217,59 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         video.bounds = view.bounds
         video.center = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
         applyZoom()
+        if !menuDragging { placeMenu(animated: false) }
+    }
+
+    // MARK: pulsante del menu spostabile
+
+    private var menuDragging = false
+    private var menuGrab = CGPoint.zero  // dove il dito ha preso il pulsante, rispetto al suo centro
+
+    /// I punti dove il pulsante si può agganciare: 0 alto-sx, 1 alto-centro, 2 alto-dx, 3 metà-dx,
+    /// 4 basso-dx, 5 basso-centro, 6 basso-sx, 7 metà-sx (dentro l'area sicura, a 6 pt dal bordo).
+    private func menuSpots() -> [CGPoint] {
+        let r = view.bounds.inset(by: view.safeAreaInsets).insetBy(dx: 6 + 22, dy: 6 + 22)
+        return [CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.midX, y: r.minY), CGPoint(x: r.maxX, y: r.minY),
+                CGPoint(x: r.maxX, y: r.midY), CGPoint(x: r.maxX, y: r.maxY), CGPoint(x: r.midX, y: r.maxY),
+                CGPoint(x: r.minX, y: r.maxY), CGPoint(x: r.minX, y: r.midY)]
+    }
+
+    private func placeMenu(animated: Bool) {
+        let spots = menuSpots()
+        let spot = spots[min(max(Settings.menuSpot, 0), spots.count - 1)]
+        let set = { self.menuButton.bounds.size = CGSize(width: 44, height: 44); self.menuButton.center = spot }
+        if animated {
+            UIView.animate(withDuration: 0.3, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.5,
+                           options: [.allowUserInteraction], animations: set)
+        } else {
+            set()
+        }
+    }
+
+    @objc private func dragMenu(_ g: UIPanGestureRecognizer) {
+        let p = g.location(in: view)
+        switch g.state {
+        case .began:
+            // il menu si apre al tocco: se invece il dito trascina, lo richiudo e sposto il pulsante
+            menuButton.contextMenuInteraction?.dismissMenu()
+            menuDragging = true
+            menuGrab = CGPoint(x: p.x - menuButton.center.x, y: p.y - menuButton.center.y)
+            UIView.animate(withDuration: 0.15) { self.menuButton.transform = CGAffineTransform(scaleX: 1.15, y: 1.15) }
+        case .changed:
+            let b = view.bounds.insetBy(dx: 22, dy: 22)
+            menuButton.center = CGPoint(x: min(max(p.x - menuGrab.x, b.minX), b.maxX),
+                                        y: min(max(p.y - menuGrab.y, b.minY), b.maxY))
+        default:
+            menuDragging = false
+            // agganciato al punto più vicino (tenendo conto della spinta del lancio, come in Note)
+            let v = g.velocity(in: view)
+            let aim = CGPoint(x: menuButton.center.x + v.x * 0.15, y: menuButton.center.y + v.y * 0.15)
+            let spots = menuSpots()
+            let best = spots.indices.min { hypot(spots[$0].x - aim.x, spots[$0].y - aim.y) < hypot(spots[$1].x - aim.x, spots[$1].y - aim.y) } ?? 2
+            Settings.menuSpot = best
+            UIView.animate(withDuration: 0.15) { self.menuButton.transform = .identity }
+            placeMenu(animated: true)
+        }
     }
 
     // schermo intero vero: niente barra di iPadOS, indicatore Home nascosto, bordi meno sensibili
@@ -1122,5 +1176,12 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         toast.text = "   \(text)   "
         UIView.animate(withDuration: 0.2) { self.toast.alpha = 1 }
         UIView.animate(withDuration: 0.4, delay: 6, options: []) { self.toast.alpha = 0 }
+    }
+}
+
+extension ScreenViewController: UIGestureRecognizerDelegate {
+    // il trascinamento del pulsante convive con il tocco che apre il menu
+    func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+        true
     }
 }

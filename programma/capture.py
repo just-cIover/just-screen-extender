@@ -80,9 +80,9 @@ def encoder_args(kind, s):
 
 
 def ffmpeg_cmd(kind, output_idx, s, size=None):
-    # dup_frames=0: solo i fotogrammi che cambiano. Con lo schermo fermo non parte niente, e iPad e iPhone
-    # non devono ricevere e decodificare 30 copie al secondo della stessa immagine (batteria e rete)
-    grab = f"ddagrab=output_idx={output_idx}:framerate={s['fps']}:draw_mouse=1:dup_frames=0"
+    # niente dup_frames=0: con lo schermo fermo non uscirebbe nessun fotogramma e il controllo "FFmpeg bloccato"
+    # lo riavvierebbe ogni 3 s. Le copie dell'immagine ferma, compresse, pesano poche centinaia di byte.
+    grab = f"ddagrab=output_idx={output_idx}:framerate={s['fps']}:draw_mouse=1"
     if kind == 'qsv':
         chain = grab + ',hwmap=derive_device=qsv,format=qsv'
         if size:

@@ -35,8 +35,10 @@ from pannello import Panel
 from scambio import FOLDER, Exchange
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CONFIG = os.path.join(HERE, 'config.json')
-DEVICES = os.path.join(HERE, 'dispositivi.json')
+DATA = os.path.join(os.path.dirname(HERE), 'dati')  # dati personali (fuori da git)
+os.makedirs(DATA, exist_ok=True)
+CONFIG = os.path.join(DATA, 'config.json')
+DEVICES = os.path.join(DATA, 'dispositivi.json')
 DEFAULTS = {
     'port': 8770,         # porta per i dispositivi (HTTPS)
     'porta_locale': 8769,  # porta solo per questo PC (finestra di controllo, Invia a), senza cifratura
@@ -59,7 +61,7 @@ RELOAD_WAIT = 8      # secondi di attesa dopo il riavvio del driver
 
 LOG_LINES = collections.deque(maxlen=3000)  # ultime righe, per la finestra di controllo
 LOG_LISTENERS = set()
-LOG_FILE = os.path.join(HERE, 'server.log')
+LOG_FILE = os.path.join(DATA, 'server.log')
 
 
 def log(msg, chi=None):
@@ -613,7 +615,7 @@ class App:
             log(f'vuole aprire {name}, ma il suo schermo non è acceso', s.name)
             return
         log(f'aperto file {name} sul PC, sul suo schermo', s.name)
-        await asyncio.to_thread(finestre.open_on, path, m, log, 12, os.path.join(HERE, '.edge-profilo'))
+        await asyncio.to_thread(finestre.open_on, path, m, log, 12, os.path.join(DATA, '.edge-profilo'))
 
     async def drop_file(self, s, name, nx, ny):
         """File trascinato dal dispositivo sul suo schermo: sul PC faccio un trascinamento vero nello stesso
@@ -642,7 +644,7 @@ class App:
                 'di file non lo apro da solo: potrebbe essere un programma)', s.name)
             return
         log(f'ha trascinato {name} su {under}, che non lo ha preso: lo apro con il suo programma', s.name)
-        await asyncio.to_thread(finestre.open_on, path, m, log, 12, os.path.join(HERE, '.edge-profilo'))
+        await asyncio.to_thread(finestre.open_on, path, m, log, 12, os.path.join(DATA, '.edge-profilo'))
 
     # ---- schermi ----
     async def display_change(self, what, fn, *args):

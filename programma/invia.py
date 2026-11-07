@@ -23,7 +23,7 @@ def main():
         return
     port = 8769  # porta riservata a questo PC
     try:
-        with open(os.path.join(HERE, 'config.json'), encoding='utf-8') as f:
+        with open(os.path.join(os.path.dirname(HERE), 'dati', 'config.json'), encoding='utf-8') as f:
             port = json.load(f).get('porta_locale', port)
     except (OSError, ValueError):
         pass
