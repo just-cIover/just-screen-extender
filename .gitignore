@@ -1,9 +1,8 @@
-# segreti e dati personali: non vanno mai su GitHub
+# secrets and personal data: never on GitHub
 data/
-# generati
+# generated
 __pycache__/
 ios/build/
 ios/*.xcodeproj/
 *.ipa
 Payload/
-pc/panel/sfondi/
