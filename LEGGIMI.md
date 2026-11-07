@@ -1,13 +1,17 @@
-# Schermo Esteso
+# Screen Extender
 
 Usa l'iPad (6ª generazione, iPadOS 17), l'iPhone o altri dispositivi come **schermi aggiuntivi** del PC,
 via Wi-Fi (fino a 4 dispositivi insieme, ognuno con il suo schermo).
 
 ## Uso quotidiano
 
-1. Sul PC apri **Schermo Esteso** dal menu Start (la prima volta avvia `avvio.pyw` o `Avvia.bat` dalla
-   cartella: il programma si aggiunge da solo al menu Start e a clic destro → *Invia a*; se sposti la
-   cartella i collegamenti si aggiornano al primo avvio; con l'interfaccia in inglese si chiama *Screen Extender*): si apre la finestra di controllo (console a
+1. Sul PC apri **Screen Extender** dal menu Start. La prima volta avvia `avvio.pyw` o `Avvia.bat` dalla
+   cartella: il programma si aggiunge da solo al menu Start e a clic destro → *Invia a* (una volta sola,
+   cambiare lingua non li tocca; se sposti la cartella si sistemano all'avvio) e, se mancano, installa il
+   driver degli schermi virtuali e le regole del firewall. Per queste due cose Windows chiede *Consentire
+   all'app di apportare modifiche?*: rispondi **Sì**. Servono i permessi di amministratore perché un driver
+   e il firewall valgono per tutto il PC; il programma invece gira sempre come utente normale, e la
+   richiesta non compare più quando è tutto a posto (dettagli in `data\setup.log`). Poi si apre la finestra di controllo (console a
    sinistra; prestazioni di PC, scheda grafica e dispositivi a destra, riducibili con un clic sul
    titolo; file condivisi). In alto c'è l'indirizzo da aprire sul dispositivo.
 2. Sul dispositivo apri in Safari l'indirizzo **https://…:8770**. La prima volta:
@@ -83,8 +87,8 @@ puntatore ci entra. Funziona a destra, a sinistra, sopra e sotto.
 Tutti i file stanno nella cartella **`downloads`** dell'app (`data\downloads`).
 Ogni file è visibile a **tutti** i dispositivi, anche a quelli che si collegheranno dopo.
 
-- **Dal PC:** trascinali nella finestra di Schermo Esteso (sezione *File condivisi*), oppure
-  copiali nella cartella con Esplora file, oppure clic destro → **Invia a** → **Schermo Esteso**
+- **Dal PC:** trascinali nella finestra di Screen Extender (sezione *File condivisi*), oppure
+  copiali nella cartella con Esplora file, oppure clic destro → **Invia a** → **Screen Extender**
   (su Windows 11 è sotto *Mostra altre opzioni*). Doppio clic su un file nella finestra lo apre.
 - **Dal dispositivo:** menu → **File** → *Aggiungi file*, oppure trascinali nel pannello.
 - Quando arriva un file nuovo, i dispositivi collegati ricevono un avviso con *Apri*.
@@ -198,12 +202,14 @@ File in `pc\`:
 - `finestre.py` — finestre: Start sullo schermo giusto, app da disegno, spostamenti quando uno schermo si spegne.
 - `devices.py`, `certificati.py`, `sicurezza.py` — abbinamento con PIN, certificati, file "da Internet".
 - `scambio.py`, `trascina.py`, `invia.py` — file condivisi, trascinamento nei programmi, comando *Invia a*.
-- `collegamenti.py` — collegamenti nel menu Start e in *Invia a*, creati e aggiornati da soli all'avvio.
+- `collegamenti.py` — collegamenti *Screen Extender* nel menu Start e in *Invia a*, creati da soli se mancano.
+- `installa.py` — al primo avvio driver e firewall, con il permesso di amministratore (`tools\setup.ps1`).
 - `appunti.py` — appunti condivisi. `sensori.py`, `gpu.py` — temperature e scheda grafica.
 - `pannello.py` — la finestra di controllo del PC.
 
 Requisiti installati: Python 3.11 + `aiohttp`, FFmpeg (winget `Gyan.FFmpeg`),
-Virtual Display Driver (winget `VirtualDrivers.Virtual-Display-Driver`).
+Virtual Display Driver (winget `VirtualDrivers.Virtual-Display-Driver`, scaricato e installato dal programma
+al primo avvio).
 
 ## Problemi
 
@@ -217,15 +223,15 @@ Menu (☰) → **File condivisi**: i file della cartella `download` del PC.
 - Tocca un file per l'**anteprima**; tienilo premuto per *Condividi…*, *Salva in File* oppure
   *Apri sul PC* (si apre sullo schermo dell'iPad).
 - **Carica** (in alto a destra): da *Foto e video* o *Da File*, anche più elementi insieme.
-- Da un'altra app (File, Safari, Mail…): *Condividi* → **Schermo Esteso** (o *Apri in…*): il file
+- Da un'altra app (File, Safari, Mail…): *Condividi* → **Screen Extender** (o *Apri in…*): il file
   va subito al PC. Se l'icona non compare tra le app suggerite, scorri la fila fino a *Altro*.
 
 ## Appunti condivisi
 
 Quello che copi sul PC (testo o immagine) arriva sui dispositivi, e viceversa.
 - **App nativa:** tutto in automatico. Quello che copi sul PC è subito negli appunti dell'iPad;
-  quello che copi in un'altra app dell'iPad passa al PC quando torni su Schermo Esteso. iPadOS può
-  chiedere *Consentire di incollare?*: per non vederlo più, *Impostazioni → Schermo Esteso →
+  quello che copi in un'altra app dell'iPad passa al PC quando torni su Screen Extender. iPadOS può
+  chiedere *Consentire di incollare?*: per non vederlo più, *Impostazioni → Screen Extender →
   Incolla da altre app → Consenti*. Menu → *Appunti* per spegnerli o inviarli a mano.
 - **App web (Safari):** compare l'avviso *Appunti dal PC* con il pulsante **Copia**; nel menu,
   *Invia appunti al PC* (Safari non permette di farlo senza un tocco).
@@ -260,7 +266,7 @@ avviso con il pulsante *Copia*.
 
 ## iPhone
 
-La stessa app nativa (`data\ipa\SchermoEsteso.ipa`) funziona anche su iPhone: ha il suo schermo
+La stessa app nativa (`data\ipa\ScreenExtender.ipa`) funziona anche su iPhone: ha il suo schermo
 virtuale e il suo PIN. In orizzontale lo schermo virtuale esclude ai lati la tacca o la Dynamic
 Island, così niente finisce sotto la fotocamera. Installazione come per l'iPad: iPhone col cavo,
 AltServer → *Install AltStore* → iPhone, poi *Sideload .ipa*.
@@ -283,7 +289,7 @@ AltServer → *Install AltStore* → iPhone, poi *Sideload .ipa*.
 Nella scheda *Questo PC* della finestra: processore (con i singoli core passando sopra), disco ed
 eventuale scheda grafica dedicata o batteria; da scheda ridotta compare la media. Le legge
 **LibreHardwareMonitor** (gratuito, open source), che parte da solo all'accesso ridotto vicino
-all'orologio (attività *Schermo Esteso - sensori*, creata da `tools\sensori.ps1`). Il suo server
+all'orologio (attività *Screen Extender - sensori*, creata da `tools\sensori.ps1`). Il suo server
 interno è protetto da password (in `data\certs\sensori.json`) e il firewall lo chiude agli altri dispositivi.
 
 ## Hotspot dell'iPhone

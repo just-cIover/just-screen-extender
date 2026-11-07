@@ -1,9 +1,10 @@
-"""Starts Schermo Esteso from the Start menu: server without a terminal + control window.
+"""Starts Screen Extender from the Start menu: server without a terminal + control window.
 
 - If the server isn't running yet, starts it hidden (pythonw server.py --ui).
 - Opens the control window in Edge as an app without toolbars (separate profile in the
   data\\.edge-profile folder, no account or sync: it doesn't mix with your own Edge).
 - When the window is closed, the server shuts itself down after a few seconds.
+- With --window (used by Avvia.bat) it only opens the window, once the console server is up.
 """
 import ctypes
 import json
@@ -29,7 +30,7 @@ def message(text):
     except (OSError, ValueError):
         lang = None
     lingua.use(lang or lingua.default())
-    ctypes.windll.user32.MessageBoxW(None, lingua.t(text), lingua.t('Schermo Esteso'), 0x10)
+    ctypes.windll.user32.MessageBoxW(None, lingua.t(text), 'Screen Extender', 0x10)
 
 
 def port():
@@ -60,6 +61,13 @@ def edge():
 
 def main():
     base = f'http://127.0.0.1:{port()}'
+    if '--window' in sys.argv:  # from Avvia.bat: the server starts in the console, only wait for it
+        for _ in range(120):
+            if alive(base):
+                break
+            time.sleep(0.25)
+        else:
+            return
     if not alive(base):
         pyw = sys.executable
         if os.path.basename(pyw).lower() == 'python.exe':
@@ -71,7 +79,7 @@ def main():
             if alive(base):
                 break
         else:
-            message('Schermo Esteso non è partito.\nDettagli nel file data\\server.log nella cartella dell\'app.')
+            message('Screen Extender non è partito.\nDettagli nel file data\\server.log nella cartella dell\'app.')
             return
     url = base + '/pc'
     exe = edge()

@@ -1,4 +1,4 @@
-"""Schermo Esteso: use iPad, iPhone and other devices as extra Windows screens.
+"""Screen Extender: use iPad, iPhone and other devices as extra Windows screens.
 
 Start: python server.py  (or "Avvia.bat"), then on the device open in Safari
 the address shown. A new device must enter the PIN that appears here.
@@ -24,6 +24,7 @@ import appunti
 import bordi
 import certificati
 import collegamenti
+import installa
 import qualita
 import riposo
 import sicurezza
@@ -111,16 +112,45 @@ def save_setting(key, value):
 
 
 async def update_shortcuts(lang):
-    """Start menu and Send to shortcuts for this folder (see collegamenti.py). Never stops the program."""
+    """Start menu and Send to shortcuts, created only when missing (see collegamenti.py). Never stops the program."""
     if '--port' in sys.argv:  # second copy for testing: the shortcuts stay with the one in use
         return
     try:
-        changed = await asyncio.to_thread(collegamenti.sync, lingua.current)
+        changed = await asyncio.to_thread(collegamenti.sync, lang)
     except Exception as e:
         log(f'Collegamenti del menu Start non creati: {e!r}')
         return
     if changed:
-        log(f'Collegamenti aggiornati (menu Start e Invia a): {collegamenti.NAMES[lingua.current]}')
+        log(f'Collegamenti creati (menu Start e Invia a): {collegamenti.NAME}')
+
+
+SETUP_PARTS = {'driver': 'driver dello schermo virtuale', 'firewall': 'regole del firewall'}
+
+
+async def first_setup():
+    """Driver and firewall: if one is missing, asks for administrator permission and sets it up (see installa.py)."""
+    if '--port' in sys.argv:
+        return
+    try:
+        todo = await asyncio.to_thread(installa.missing)
+        if not todo:
+            return
+        log('Prima configurazione: serve il permesso di amministratore per ' +
+            ', '.join(SETUP_PARTS[x] for x in todo))
+        code = await asyncio.to_thread(installa.run)
+        if code is None:
+            log('Permesso negato: lo richiedo al prossimo avvio. Senza driver non ci sono schermi virtuali, '
+                'senza firewall i dispositivi non si collegano.')
+            return
+        left = await asyncio.to_thread(installa.missing)
+    except Exception as e:
+        log(f'Configurazione non riuscita: {e!r}')
+        return
+    for x in todo:
+        if x in left:
+            log(f'Non riuscito: {SETUP_PARTS[x]}. Dettagli nel file data\\setup.log')
+        else:
+            log(f'Fatto: {SETUP_PARTS[x]}')
 
 
 def lan_ips():
@@ -488,7 +518,6 @@ class App:
         lingua.use(lang)
         save_setting('lingua', lang)
         log(f'Lingua: {lingua.NOMI[lang]}', who)
-        asyncio.ensure_future(update_shortcuts(lang))  # the Start menu name follows the language
         msg = {'t': 'lingua', 'lingua': lang}
         for s in self.sessions.values():
             if s.clients:
@@ -1067,7 +1096,7 @@ async def touch_icon(request):
 async def ca_certificate(request):
     """The root certificate to install on the device (only once)."""
     return web.Response(body=certificati.ca_der(), content_type='application/x-x509-ca-cert',
-                        headers={'Content-Disposition': 'attachment; filename="Schermo Esteso.crt"'})
+                        headers={'Content-Disposition': 'attachment; filename="Screen Extender.crt"'})
 
 
 async def follow_start():
@@ -1153,11 +1182,12 @@ async def main():
     await web.TCPSite(runner, '0.0.0.0', port, ssl_context=ctx).start()  # devices: encrypted connection
     await web.TCPSite(runner, '127.0.0.1', local_port).start()  # this PC only
 
-    log('Schermo Esteso è attivo. Sul dispositivo apri in Safari: ' + '  oppure  '.join(urls))
+    log('Screen Extender è attivo. Sul dispositivo apri in Safari: ' + '  oppure  '.join(urls))
     known = [d['nome'] for d in app.devices.data.values()]
     log('Dispositivi abbinati: ' + (', '.join(known) if known else 'nessuno (il PIN compare qui quando ne colleghi uno)'))
     log(f'Cartella dei file condivisi con i dispositivi: {FOLDER}')
     await update_shortcuts(lingua.current)
+    asyncio.ensure_future(first_setup())  # in the background: the window is already usable while it runs
 
     tasks = [asyncio.create_task(app.keepalive()), asyncio.create_task(app.watch_monitors()),
              asyncio.create_task(app.reconciler()), asyncio.create_task(exchange.watch()),

@@ -1,12 +1,27 @@
-# Installs the Virtual Display Driver (virtual screen for the iPad).
-# Must run as administrator: "Installa driver.bat" already starts it that way.
+﻿# Installs the Virtual Display Driver (virtual screen for the iPad).
+# Must run as administrator: the program starts it that way on its first start (tools\setup.ps1),
+# and so does "Installa driver.bat" when run by hand.
+param([switch]$NoPause)
 $ErrorActionPreference = 'Stop'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$pkg = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Directory -Filter 'VirtualDrivers.Virtual-Display-Driver*' |
-    Select-Object -First 1
+
+function Find-Package {
+    foreach ($base in "$env:LOCALAPPDATA\Microsoft\WinGet\Packages", 'C:\Users\*\AppData\Local\Microsoft\WinGet\Packages') {
+        $p = Get-ChildItem $base -Directory -Filter 'VirtualDrivers.Virtual-Display-Driver*' -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($p) { return $p }
+    }
+}
+
+$pkg = Find-Package
 if (-not $pkg) {
-    $pkg = Get-ChildItem 'C:\Users\*\AppData\Local\Microsoft\WinGet\Packages' -Directory -Filter 'VirtualDrivers.Virtual-Display-Driver*' |
-        Select-Object -First 1
+    # not downloaded yet: winget gets it (official package of the VirtualDrivers project)
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        throw 'winget non trovato: installa il pacchetto VirtualDrivers.Virtual-Display-Driver a mano.'
+    }
+    Write-Host 'Scarico il Virtual Display Driver con winget...'
+    winget install --id VirtualDrivers.Virtual-Display-Driver -e --silent --accept-source-agreements --accept-package-agreements
+    $pkg = Find-Package
 }
 if (-not $pkg) { throw 'Pacchetto VirtualDrivers.Virtual-Display-Driver non trovato: installalo con winget.' }
 $drv = Join-Path $pkg.FullName 'SignedDrivers\x86\VDD'
@@ -23,11 +38,5 @@ if (Get-PnpDevice -FriendlyName '*Virtual Display*' -ErrorAction SilentlyContinu
     & $devcon install (Join-Path $drv 'MttVDD.inf') 'Root\MttVDD'
 }
 Write-Host "Driver: fatto (codice $LASTEXITCODE)."
-
-# The firewall must let the iPad through on the app port (even with the network set to "Public")
-if (-not (Get-NetFirewallRule -DisplayName 'iPad Schermo (TCP 8770)' -ErrorAction SilentlyContinue)) {
-    New-NetFirewallRule -DisplayName 'iPad Schermo (TCP 8770)' -Direction Inbound -Protocol TCP -LocalPort 8770 `
-        -Action Allow -Profile Any -RemoteAddress LocalSubnet | Out-Null
-    Write-Host 'Regola firewall aggiunta.'
-}
-Start-Sleep 3
+# the firewall is set up by tools\firewall.ps1 (private networks, iPhone hotspot and Tailscale only)
+if (-not $NoPause) { Start-Sleep 3 }
