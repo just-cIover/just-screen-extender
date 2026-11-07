@@ -23,6 +23,9 @@ The full user guide is in Italian: [LEGGIMI.md](LEGGIMI.md).
   zoom on the device only, and portrait mode.
 - **Clipboard and files:** shared clipboard (text and images) both ways; a shared folder for
   files, the share sheet, and drag and drop from other iPad apps straight into Windows programs.
+  Uploads show a progress bar with the amount sent, and say so if they stall.
+- **Sleep aware:** when the PC sleeps (lid closed, standby) the program pauses video and its
+  background checks, and the devices stop keeping their screen on. Everything resumes on wake.
 - **Typing passwords:** fill a password from the iPad Keychain into the selected field on the PC,
   without going through the clipboard.
 - **PC control window:** pairing PINs, console, CPU/GPU/disk temperatures (via
