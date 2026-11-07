@@ -15,11 +15,11 @@ enum FileError: LocalizedError {
     case noPC, server(Int), bad
     var errorDescription: String? {
         switch self {
-        case .noPC: return "Prima collega l'app al PC."
-        case .server(403): return "Il PC non riconosce più questo dispositivo: abbinalo di nuovo dal menu."
-        case .server(404): return "Il file non c'è più sul PC."
-        case .server(let code): return "Il PC ha risposto con un errore (\(code))."
-        case .bad: return "Risposta del PC non valida."
+        case .noPC: return L("Prima collega l'app al PC.")
+        case .server(403): return L("Il PC non riconosce più questo dispositivo: abbinalo di nuovo dal menu.")
+        case .server(404): return L("Il file non c'è più sul PC.")
+        case .server(let code): return L("Il PC ha risposto con un errore (\(code)).")
+        case .bad: return L("Risposta del PC non valida.")
         }
     }
 }
@@ -150,17 +150,17 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "File condivisi"
+        title = L("File condivisi")
         navigationItem.leftBarButtonItem = UIBarButtonItem(systemItem: .close, primaryAction: UIAction { [weak self] _ in
             self?.dismiss(animated: true)
         })
-        let photos = UIAction(title: "Foto e video", image: UIImage(systemName: "photo.on.rectangle")) { [weak self] _ in
+        let photos = UIAction(title: L("Foto e video"), image: UIImage(systemName: "photo.on.rectangle")) { [weak self] _ in
             self?.pickPhotos()
         }
-        let docs = UIAction(title: "Da File", image: UIImage(systemName: "folder")) { [weak self] _ in
+        let docs = UIAction(title: L("Da File"), image: UIImage(systemName: "folder")) { [weak self] _ in
             self?.pickDocuments()
         }
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Carica", image: UIImage(systemName: "square.and.arrow.up"),
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: L("Carica"), image: UIImage(systemName: "square.and.arrow.up"),
                                                             primaryAction: nil, menu: UIMenu(children: [photos, docs]))
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "file")
         refreshControl = UIRefreshControl()
@@ -187,8 +187,8 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
 
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
         files.isEmpty
-            ? "Nessun file. Carica qualcosa da qui, trascinalo nella finestra del PC o copialo nella cartella download."
-            : "Sono i file della cartella download del PC, visibili a tutti i dispositivi. Si tolgono solo cancellandoli dal PC."
+            ? L("Nessun file. Carica qualcosa da qui, trascinalo nella finestra del PC o copialo nella cartella download.")
+            : L("Sono i file della cartella download del PC, visibili a tutti i dispositivi. Si tolgono solo cancellandoli dal PC.")
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -196,7 +196,7 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
         let cell = tableView.dequeueReusableCell(withIdentifier: "file", for: indexPath)
         var c = cell.defaultContentConfiguration()
         c.text = f.name
-        c.secondaryText = "\(f.size) · da \(f.from) · \(dateFormat.string(from: f.date))"
+        c.secondaryText = L("\(f.size) · da \(f.from) · \(dateFormat.string(from: f.date))")
         c.secondaryTextProperties.color = .secondaryLabel
         c.image = UIImage(systemName: Self.icon(for: f.name))
         cell.contentConfiguration = c
@@ -224,12 +224,12 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
         let name = files[indexPath.row].name
         return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
             UIMenu(children: [
-                UIAction(title: "Anteprima", image: UIImage(systemName: "eye")) { _ in self?.preview(name) },
-                UIAction(title: "Condividi…", image: UIImage(systemName: "square.and.arrow.up")) { _ in
+                UIAction(title: L("Anteprima"), image: UIImage(systemName: "eye")) { _ in self?.preview(name) },
+                UIAction(title: L("Condividi…"), image: UIImage(systemName: "square.and.arrow.up")) { _ in
                     self?.share(name, at: indexPath)
                 },
-                UIAction(title: "Salva in File", image: UIImage(systemName: "folder.badge.plus")) { _ in self?.saveToFiles(name) },
-                UIAction(title: "Apri sul PC (su questo schermo)", image: UIImage(systemName: "desktopcomputer")) { _ in
+                UIAction(title: L("Salva in File"), image: UIImage(systemName: "folder.badge.plus")) { _ in self?.saveToFiles(name) },
+                UIAction(title: L("Apri sul PC (su questo schermo)"), image: UIImage(systemName: "desktopcomputer")) { _ in
                     self?.openOnPC?(name)
                     self?.dismiss(animated: true)
                 },
@@ -240,7 +240,7 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
     override func tableView(_ tableView: UITableView,
                             trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         let name = files[indexPath.row].name
-        let share = UIContextualAction(style: .normal, title: "Condividi") { [weak self] _, _, done in
+        let share = UIContextualAction(style: .normal, title: L("Condividi")) { [weak self] _, _, done in
             self?.share(name, at: indexPath)
             done(true)
         }
@@ -253,7 +253,7 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
 
     /// Scarica il file (con un messaggio di attesa) e poi esegue l'azione.
     private func fetch(_ name: String, then action: @escaping (URL) -> Void) {
-        navigationItem.prompt = "Scarico \(name)…"
+        navigationItem.prompt = L("Scarico \(name)…")
         Task { @MainActor in
             do {
                 let url = try await FileAPI.download(name)
@@ -325,14 +325,14 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
     func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
         picker.dismiss(animated: true)
         guard !results.isEmpty else { return }
-        navigationItem.prompt = "Preparo \(results.count) elementi…"
+        navigationItem.prompt = L("Preparo \(results.count) elementi…")
         Task { @MainActor in
             var urls: [URL] = []
             for r in results {
                 if let u = await Self.copy(r.itemProvider) { urls.append(u) }
             }
             if urls.isEmpty {
-                navigationItem.prompt = "Non sono riuscito a leggere gli elementi scelti."
+                navigationItem.prompt = L("Non sono riuscito a leggere gli elementi scelti.")
             } else {
                 send(urls)
             }
@@ -370,7 +370,7 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
         busy = true
         navigationItem.prompt = nil
         banner.attach(to: navigationController?.view ?? view)
-        banner.start(urls.count == 1 ? "Invio al PC: \(urls[0].lastPathComponent)" : "Invio al PC di \(urls.count) file", files: urls)
+        banner.start(urls.count == 1 ? L("Invio al PC: \(urls[0].lastPathComponent)") : L("Invio al PC di \(urls.count) file"), files: urls)
         Uploader.send(urls, progress: { [weak self] p in
             self?.banner.update(p)
         }, done: { [weak self] result in
@@ -378,7 +378,7 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
             self.busy = false
             switch result {
             case .success(let names):
-                self.banner.finish(names.count == 1 ? "Inviato: \(names[0])" : "Inviati \(names.count) file", ok: true)
+                self.banner.finish(names.count == 1 ? L("Inviato: \(names[0])") : L("Inviati \(names.count) file"), ok: true)
                 self.reload()
             case .failure(let error):
                 self.banner.finish("Invio non riuscito: \(error.localizedDescription)", ok: false)
@@ -460,6 +460,7 @@ final class UploadBanner: UIView {
     }
 
     func start(_ text: String, files: [URL]) {
+        let text = L(text)
         total = files.reduce(0) { $0 + Int64((try? $1.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
         title.text = text
         lastFraction = -1
@@ -475,16 +476,17 @@ final class UploadBanner: UIView {
         let f = max(0, min(1, fraction))
         if f > lastFraction { lastFraction = f; lastMove = Date() }
         bar.setProgress(Float(f), animated: f > 0)
-        detail.text = "\(Int(f * 100))%" + (total > 0 ? "  ·  \(Self.mb(Int64(Double(total) * f))) di \(Self.mb(total))" : "")
-        if f >= 1 { detail.text = "Inviato, il PC lo sta salvando…" }
+        detail.text = "\(Int(f * 100))%" + (total > 0 ? "  ·  " + L("\(Self.mb(Int64(Double(total) * f))) di \(Self.mb(total))") : "")
+        if f >= 1 { detail.text = L("Inviato, il PC lo sta salvando…") }
         accessibilityLabel = "\(title.text ?? ""), \(detail.text ?? "")"
     }
 
     func finish(_ text: String, ok: Bool) {
+        let text = L(text)
         watchdog?.invalidate()
         title.text = text
         if ok { bar.setProgress(1, animated: true) }
-        detail.text = ok ? "Completato" : "Riprova: il file non è arrivato al PC"
+        detail.text = ok ? L("Completato") : L("Riprova: il file non è arrivato al PC")
         accessibilityLabel = "\(text), \(detail.text ?? "")"
         UIView.animate(withDuration: 0.4, delay: ok ? 3 : 6, options: []) { self.alpha = 0 }
     }
@@ -492,7 +494,7 @@ final class UploadBanner: UIView {
     private func checkStalled() {
         let still = Date().timeIntervalSince(lastMove)
         guard lastFraction < 1, still >= 10 else { return }
-        detail.text = "\(Int(max(0, lastFraction) * 100))%  ·  fermo da \(Int(still)) s: la rete è lenta o il PC non risponde"
+        detail.text = L("\(Int(max(0, lastFraction) * 100))%  ·  fermo da \(Int(still)) s: la rete è lenta o il PC non risponde")
     }
 
     private static func mb(_ bytes: Int64) -> String {

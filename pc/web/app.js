@@ -9,6 +9,12 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch { /* modalità privata */ } },
 };
 
+// lingua: subito quella ricordata (o del dispositivo), poi quella del PC che arriva appena collegati.
+// Scelta dal menu vale per tutti (PC e altri dispositivi); dalla schermata del PIN solo qui, finché non è abbinato
+Lingua.use(store.get('lingua', navigator.language.startsWith('it') ? 'it' : 'en'));
+$('langMenu').replaceWith(Lingua.picker((l) => send({ t: 'lingua', lingua: l })));
+$('langPin').replaceWith(Lingua.picker(() => {}));
+
 let ws = null;
 let decoder = null;
 let config = null;
@@ -170,6 +176,7 @@ function onMessage(ev) {
   if (typeof ev.data === 'string') {
     const m = JSON.parse(ev.data);
     if (m.t === 'config') configure(m);
+    else if (m.t === 'lingua') Lingua.use(m.lingua);
     else if (m.t === 'penna') {
       // il PC ha deciso: sotto la punta non c'è un programma da disegno, quindi scorre e tocca
       penFinger = m.uso === 'dito';
@@ -658,8 +665,8 @@ function el(tag, props = {}, ...kids) {
 
 function when(t) {
   const d = new Date(t * 1000), now = new Date();
-  const hm = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-  return d.toDateString() === now.toDateString() ? 'oggi ' + hm : d.toLocaleDateString('it-IT') + ' ' + hm;
+  const hm = d.toLocaleTimeString(Lingua.locale(), { hour: '2-digit', minute: '2-digit' });
+  return d.toDateString() === now.toDateString() ? 'oggi ' + hm : d.toLocaleDateString(Lingua.locale()) + ' ' + hm;
 }
 
 async function refreshFiles() {
@@ -678,7 +685,7 @@ async function refreshFiles() {
   }
   $('fileList').replaceChildren(...data.file.map((f) => {
     const info = el('div', { className: 'info', title: 'Anteprima' },
-      el('div', { className: 'name', textContent: f.nome }),
+      el('div', { className: 'name', translate: false, textContent: f.nome }),
       el('div', { className: 'meta', textContent: `${f.dim} · da ${f.da} · ${when(f.ora)}` }));
     info.addEventListener('click', () => preview(f.nome));
     return el('li', {}, info, shareButton(f.nome), openHere(f.nome));

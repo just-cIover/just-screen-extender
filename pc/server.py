@@ -28,6 +28,7 @@ import riposo
 import sicurezza
 import trascina
 import finestre
+import lingua
 import monitors
 import vdd
 from capture import Capture
@@ -50,6 +51,7 @@ DEFAULTS = {
     'encoder': 'auto',  # auto | qsv | x264
     'appunti': True,    # appunti condivisi tra PC e dispositivi
     'spinta_bordo': True,  # spingi il mouse contro un bordo libero: lo schermo del dispositivo va lì
+    'lingua': None,     # 'it' o 'en' (per tutti: finestra del PC e dispositivi); None = quella di Windows
 }
 QUALITY_LABELS = ['Massima', 'Fluida', 'Media', 'Leggera']
 MAX_QUEUE = 4        # fotogrammi in coda per client oltre i quali salto al prossimo fotogramma completo
@@ -82,7 +84,7 @@ def log(msg, chi=None):
         fn(line)
     try:
         with open(LOG_FILE, 'a', encoding='utf-8') as f:
-            f.write(line + '\n')
+            f.write(lingua.line(line) + '\n')  # la finestra riceve l'italiano e lo traduce da sé
     except OSError:
         pass
 
@@ -431,6 +433,8 @@ class Session:
         elif t == 'diag':
             d.pop('t', None)
             log(f'info: {json.dumps(d, ensure_ascii=False)}', self.name)
+        elif t == 'lingua':  # scelta dal menu del dispositivo: vale per tutti
+            self.app.set_language(d.get('lingua'), self.name)
         elif t == 'stats':
             if d.get('pausa'):  # il dispositivo è stato in pausa (cambio app, Centro di controllo): dati non validi
                 self.stats['ora'] = time.time()
@@ -461,6 +465,21 @@ class App:
         self.mode_tries = {}  # slot -> tentativi di rimettere la risoluzione su misura
         self.edge_ask = None  # (lato, monitor, punto, scadenza): domanda "è qui?" ai dispositivi
         self.detach_wait = {}  # slot -> ora del prossimo tentativo, dopo uno spegnimento non riuscito
+        self.panel = None      # finestra di controllo (per avvisarla quando cambia la lingua)
+
+    def set_language(self, lang, who='PC'):
+        """Lingua scelta dalla finestra del PC o da un dispositivo: la ricordo e la mando a tutti."""
+        if lang not in lingua.LINGUE or lang == lingua.current:
+            return
+        lingua.use(lang)
+        save_setting('lingua', lang)
+        log(f'Lingua: {lingua.NOMI[lang]}', who)
+        msg = {'t': 'lingua', 'lingua': lang}
+        for s in self.sessions.values():
+            if s.clients:
+                s.notify(msg)
+        if self.panel:
+            self.panel.send_all(msg)
 
     def session(self, dev_id):
         s = self.sessions.get(dev_id)
@@ -518,6 +537,7 @@ class App:
         c.queue.appendleft(json.dumps({'t': 'quality', 'level': s.capture.level}))  # la qualità la ricorda il PC
         # per primo, prima del video; con gli indirizzi del PC: se cambia rete (es. hotspot) l'app li prova
         port = self.cfg.get('port', 8770)
+        c.queue.appendleft(json.dumps({'t': 'lingua', 'lingua': lingua.current}))
         if riposo.asleep():
             c.queue.appendleft(json.dumps({'t': 'riposo'}))  # subito dopo "hello"
         c.queue.appendleft(json.dumps({'t': 'hello', 'nome': s.name,
@@ -543,7 +563,9 @@ class App:
         return ws
 
     async def pair(self, ws, dev_id, remote):
-        """Abbinamento con PIN. Restituisce True se il dispositivo è stato accettato."""
+        """Abbinamento con PIN. Restituisce True se il dispositivo è stato accettato.
+        Un dispositivo non ancora abbinato riceve la lingua del PC ma non la può cambiare."""
+        await ws.send_str(json.dumps({'t': 'lingua', 'lingua': lingua.current}))
         await ws.send_str(json.dumps({'t': 'pair'}))
         async for msg in ws:
             if msg.type != WSMsgType.TEXT:
@@ -935,7 +957,7 @@ class App:
             log(f'Spostamento non riuscito (codice {r})')
             return
         await self.pointer_into(dev, side, pt)
-        s.notify({'t': 'avviso', 'testo': f'Schermo spostato {where} del PC'})
+        s.notify({'t': 'avviso', 'testo': lingua.t(f'Schermo spostato {where} del PC')})
         self.kick.set()  # la nuova posizione viene ricordata per le prossime accensioni
 
     async def pointer_into(self, dev, side, pt):
@@ -1081,6 +1103,7 @@ async def main():
     except OSError:
         pass
     cfg = load_config()
+    lingua.use(cfg.get('lingua') or lingua.default())
     port = cfg['port']
     local_port = cfg['porta_locale']
     if '--port' in sys.argv:  # per provare una seconda copia senza fermare quella in uso
@@ -1107,6 +1130,7 @@ async def main():
     urls = [f'https://{ip}:{port}' for ip in ips]
     panel = Panel(app, log, LOG_LINES, LOG_LISTENERS, FOLDER, urls, ui_mode, exchange)
     panel.on_setting = save_setting
+    app.panel = panel
     panel.routes(web_app.router)
     web_app.router.add_static('/', os.path.join(HERE, 'web'))
     runner = web.AppRunner(web_app, access_log=None)

@@ -332,6 +332,8 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         case "file":
             let names = m["nomi"] as? [String] ?? []
             if !names.isEmpty { delegate?.connection(self, newFiles: names, from: m["da"] as? String ?? "PC") }
+        case "lingua":  // la lingua del PC vale per tutti: arriva appena collegati e quando la cambia qualcuno
+            if let lang = m["lingua"] as? String { Lingua.use(lang) }
         case "avviso":
             if let text = m["testo"] as? String { onNotice?(text) }
         case "dove":

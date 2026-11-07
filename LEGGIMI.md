@@ -21,6 +21,14 @@ via Wi-Fi (fino a 4 dispositivi insieme, ognuno con il suo schermo).
 Per spostare le finestre sull'iPad: trascinale oltre il bordo dello schermo del PC dalla parte
 dove si trova lo schermo dell'iPad (*Impostazioni → Sistema → Schermo*).
 
+## Lingua
+
+Italiano o inglese: si sceglie con i pulsanti con la bandiera (🇮🇹 IT / 🇬🇧 GB) in alto nella finestra del
+PC, nel menu della pagina web o nel menu dell'app (*Lingua*). La lingua è una sola per tutti: cambiandola
+da un punto cambia anche sul PC e sugli altri dispositivi collegati, e viene ricordata (`"lingua"` in
+`data\config.json`). La prima volta vale quella di Windows. Un dispositivo nuovo, prima del PIN, usa la
+lingua del PC e la può cambiare solo per sé.
+
 ## Sicurezza
 
 - Connessione cifrata (HTTPS, TLS 1.2 o superiore) con un certificato creato sul PC (`data\certs\`).
@@ -153,6 +161,7 @@ tutte le app. Passaggi nel pannello File → *Inviare dalle altre app dell'iPad*
 | `port` | 8770 | porta del server |
 | `quality` | 1 | livello video: 0 Massima (60 fps), 1 Fluida (30 fps), 2 Media (75%), 3 Leggera (50%). Si cambia dal menu dell'iPad, e scende da solo se Safari si chiude per mancanza di memoria |
 | `encoder` | auto | `qsv` (Intel Quick Sync, GPU) o `x264` (CPU) |
+| `lingua` | quella di Windows | `it` o `en`, per la finestra del PC e tutti i dispositivi. Si cambia con le bandiere |
 
 ## Cartelle
 

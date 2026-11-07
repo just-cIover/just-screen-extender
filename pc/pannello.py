@@ -13,6 +13,7 @@ import time
 from ctypes import wintypes
 
 import finestre
+import lingua
 import riposo
 import sicurezza
 from gpu import Gpu
@@ -164,7 +165,7 @@ class Panel:
 
         self.listeners.add(on_line)
         await ws.send_str(json.dumps({'t': 'inizio', 'righe': list(self.lines), 'indirizzi': self.urls,
-                                      'cartella': self.folder}))
+                                      'cartella': self.folder, 'lingua': lingua.current}))
 
         async def pump():
             while not ws.closed:
@@ -204,6 +205,8 @@ class Panel:
                         self.log(f'qualità automatica {"attiva" if on else "spenta"} per {dev.get("nome")}', 'PC')
                 elif t == 'dimentica':
                     await self.forget(d.get('id', ''))
+                elif t == 'lingua':
+                    self.app.set_language(d.get('lingua'), 'PC')
                 elif t == 'esci':
                     self.log('chiusura richiesta dalla finestra', 'PC')
                     self.app.stop.set()
@@ -221,6 +224,13 @@ class Panel:
                 if not self.last_clean:
                     self.log('la finestra non risponde (PC carico?): aspetto che si ricolleghi, fino a 3 minuti', 'PC')
         return ws
+
+    def send_all(self, msg):
+        """Messaggio a tutte le finestre aperte (es. la lingua è cambiata)."""
+        text = json.dumps(msg)
+        for ws in list(self.clients):
+            if not ws.closed:
+                asyncio.ensure_future(ws.send_str(text))
 
     def force_quality(self, dev_id, level):
         """Qualità decisa dal PC: vale subito se il dispositivo è collegato, altrimenti al prossimo collegamento."""

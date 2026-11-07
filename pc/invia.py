@@ -9,24 +9,28 @@ import os
 import sys
 import urllib.request
 
+import lingua
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def message(text, error=False):
-    ctypes.windll.user32.MessageBoxW(None, text, 'Schermo Esteso', 0x10 if error else 0x40)
+    ctypes.windll.user32.MessageBoxW(None, lingua.t(text), lingua.t('Schermo Esteso'), 0x10 if error else 0x40)
 
 
 def main():
+    cfg = {}
+    try:
+        with open(os.path.join(os.path.dirname(HERE), 'data', 'config.json'), encoding='utf-8') as f:
+            cfg = json.load(f)
+    except (OSError, ValueError):
+        pass
+    lingua.use(cfg.get('lingua') or lingua.default())
     paths = [os.path.abspath(p) for p in sys.argv[1:] if os.path.isfile(p)]
     if not paths:
         message('Seleziona uno o più file (le cartelle non si possono inviare).', True)
         return
-    port = 8769  # porta riservata a questo PC
-    try:
-        with open(os.path.join(os.path.dirname(HERE), 'data', 'config.json'), encoding='utf-8') as f:
-            port = json.load(f).get('porta_locale', port)
-    except (OSError, ValueError):
-        pass
+    port = cfg.get('porta_locale', 8769)  # porta riservata a questo PC
     req = urllib.request.Request(f'http://127.0.0.1:{port}/api/locale',
                                  data=json.dumps({'percorsi': paths}).encode(),
                                  headers={'Content-Type': 'application/json'})

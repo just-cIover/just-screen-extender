@@ -74,6 +74,12 @@ enum Settings {
         set { d.set(newValue, forKey: "pasteboardSeen") }
     }
 
+    /// Lingua dell'app: "it" o "en". Prima del primo collegamento quella del dispositivo, poi quella del PC.
+    static var language: String {
+        get { d.string(forKey: "lingua") ?? (Locale.preferredLanguages.first?.hasPrefix("it") == true ? "it" : "en") }
+        set { d.set(newValue, forKey: "lingua") }
+    }
+
     /// Inchiostro immediato: il tratto della Pencil compare subito, prima che arrivi quello vero dal PC.
     static var instantInk: Bool {
         get { d.object(forKey: "instantInk") as? Bool ?? true }

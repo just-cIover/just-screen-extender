@@ -254,6 +254,20 @@
   body.abisso .screen { border-color: #6b5848; }
   body.abisso .screen.on { border-color: var(--ok); background: rgba(63, 198, 184, .18); box-shadow: 0 0 14px rgba(63, 198, 184, .55); }
   body.abisso .dot.on { box-shadow: 0 0 0 3px rgba(63, 198, 184, .2), 0 0 10px rgba(63, 198, 184, .5); }
+  /* lingua: due pulsanti con bandiera e sigla del paese */
+  .lingue { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); }
+  .lingue button { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 0; border-radius: 6px;
+    background: transparent; font-size: 12px; letter-spacing: .04em; }
+  .lingue button[aria-pressed="true"] { background: var(--accent); color: #1a1405; }
+  .lingue .bandiera { width: 18px; height: 12px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .35); }
+  body.moderno .lingue { border-radius: 999px; border-color: transparent; background: rgba(255, 255, 255, .055); }
+  body.moderno .lingue button { border-radius: 999px; }
+  body.moderno .lingue button[aria-pressed="true"] { color: #fff; }
+  body.abisso .lingue button[aria-pressed="true"] { color: #2a1d10; }
+  body.cyber .lingue { border-radius: 2px; border-color: rgba(139, 233, 255, .35); }
+  body.cyber .lingue button { border-radius: 1px; }
+  body.cyber .lingue button[aria-pressed="true"] { background: var(--sel); color: #0b0a14; }
+  body.foto header .lingue { background: rgba(30, 21, 17, .62); }
   #theme { font: inherit; font-weight: 600; color: var(--text); background: var(--panel2); border: 1px solid var(--line);
     border-radius: 8px; padding: 6px 10px; cursor: pointer; }
   body.moderno #theme { border-radius: 999px; background: rgba(255, 255, 255, .055); border-color: transparent; }
@@ -373,6 +387,7 @@
   <span class="pill" id="state">Attivo</span>
   <div class="addr" id="addr" title="Indirizzo da aprire in Safari sul dispositivo (clic per copiarlo)"></div>
   <div class="spacer"></div>
+  <span id="langBox"></span>
   <select id="theme" aria-label="Aspetto della finestra" title="Aspetto della finestra (ricordato su questo PC)">
     <option value="classico">Aspetto: Classico</option>
     <option value="moderno">Aspetto: Moderno</option>
@@ -412,10 +427,12 @@
 </main>
 <div id="dropcover"><div>Rilascia per condividere con i dispositivi</div></div>
 
-<div id="down"><div><h2>Il server non risponde</h2><p>Riaprilo dal menu Start: <b>Schermo Esteso</b>.</p></div></div>
+<div id="down"><div><h2>Il server non risponde</h2><p>Riaprilo dal menu Start: <b translate="no">Schermo Esteso</b>.</p></div></div>
 
+<script src="/lingua.js"></script>
 <script>
 'use strict';
+const T = Lingua.t;
 const $ = (id) => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
 const history = {}; // dispositivo -> ultimi 60 valori di fotogrammi al secondo
@@ -447,7 +464,7 @@ function addLines(lines) {
     let text = m ? m[2] : line;
     const tag = text.match(/^\[([^\]]{1,40})\] (.*)$/s);  // [iPad] azione
     const row = el('div', {}, el('span', { className: 't', textContent: m ? m[1] : '' }));
-    if (tag) { row.append(el('span', { className: 'who', textContent: tag[1], style: `--c:${tagColor(tag[1])}` })); text = tag[2]; }
+    if (tag) { row.append(el('span', { className: 'who', translate: false, textContent: tag[1], style: `--c:${tagColor(tag[1])}` })); text = tag[2]; }
     row.className = kind(text);
     row.append(text);
     frag.append(row);
@@ -572,7 +589,7 @@ function deviceCard(d, fresh) {
   const rttCls = d.rtt > 120 ? 'bad' : d.rtt > 50 ? 'warn' : '';
   const forget = el('button', { className: 'danger', textContent: 'Dimentica' });
   forget.addEventListener('click', () => {
-    if (confirm(`Dimenticare ${d.nome}? Per ricollegarlo servirà di nuovo il PIN.`)) send({ t: 'dimentica', id: d.id });
+    if (confirm(T(`Dimenticare ${d.nome}? Per ricollegarlo servirà di nuovo il PIN.`))) send({ t: 'dimentica', id: d.id });
   });
   const sub = d.online
     ? `Schermo ${d.numero} · ${d.schermo}${d.ris ? ' · ' + d.ris.replace('x', '×') : ''}`
@@ -626,8 +643,8 @@ function deviceCard(d, fresh) {
 function size(f) { return f.dim; }
 function when(t) {
   const d = new Date(t * 1000), now = new Date();
-  const hm = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-  return d.toDateString() === now.toDateString() ? 'oggi ' + hm : d.toLocaleDateString('it-IT') + ' ' + hm;
+  const hm = d.toLocaleTimeString(Lingua.locale(), { hour: '2-digit', minute: '2-digit' });
+  return d.toDateString() === now.toDateString() ? 'oggi ' + hm : d.toLocaleDateString(Lingua.locale()) + ' ' + hm;
 }
 let filesKey = '';
 function renderFiles(files) {
@@ -642,7 +659,7 @@ function renderFiles(files) {
     const open = el('button', { textContent: 'Apri' });
     open.addEventListener('click', () => send({ t: 'apri', nome: f.nome }));
     const li = el('li', { title: 'Doppio clic per aprirlo' },
-      el('div', { className: 'info' }, el('div', { className: 'n', textContent: f.nome }),
+      el('div', { className: 'info' }, el('div', { className: 'n', translate: false, textContent: f.nome }),
         el('div', { className: 'meta', textContent: `${size(f)} · da ${f.da} · ${when(f.ora)}` })), open);
     li.addEventListener('dblclick', () => send({ t: 'apri', nome: f.nome }));
     return li;
@@ -686,7 +703,7 @@ function render(st, fresh = true) {
   $('pins').replaceChildren(...st.pin.map((p) => el('div', { className: 'pinbar' },
     el('div', {}, el('b', { textContent: `${p.nome} vuole collegarsi` }),
       el('small', { textContent: `Inserisci questo PIN sul dispositivo · scade tra ${Math.floor(p.secondi / 60)}:${String(p.secondi % 60).padStart(2, '0')}` })),
-    el('span', { className: 'code', textContent: p.pin.slice(0, 3) + ' ' + p.pin.slice(3) }))));
+    el('span', { className: 'code', translate: false, textContent: p.pin.slice(0, 3) + ' ' + p.pin.slice(3) }))));
 }
 
 /* ---------- riquadro informativo (sostituisce il title, che spariva a ogni aggiornamento) ---------- */
@@ -734,13 +751,15 @@ function connect() {
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
     if (m.t === 'inizio') {
+      if (m.lingua) Lingua.use(m.lingua);
       $('log').replaceChildren(); addLines(m.righe);
       $('addr').replaceChildren(...m.indirizzi.map((u) => {
-        const b = el('button', { textContent: u.replace('http://', '') });
+        const b = el('button', { translate: false, textContent: u.replace('http://', '') });
         b.addEventListener('click', () => { navigator.clipboard?.writeText(u); b.textContent = 'Copiato'; setTimeout(() => (b.textContent = u.replace('http://', '')), 1200); });
         return b;
       }));
     } else if (m.t === 'righe') addLines(m.righe);
+    else if (m.t === 'lingua') Lingua.use(m.lingua);
     else if (m.t === 'stato') { render(m); clipOn = m.appunti; $('clipBtn').setAttribute('aria-pressed', clipOn); }
   };
   ws.onclose = () => {
@@ -750,12 +769,16 @@ function connect() {
     setTimeout(connect, 1500);
   };
 }
+// lingua: subito quella ricordata (niente lampo in italiano), poi quella del server, che vale per tutti
+try { Lingua.use(localStorage.getItem('lingua') || (navigator.language.startsWith('it') ? 'it' : 'en')); } catch { Lingua.use('it'); }
+$('langBox').replaceWith(Lingua.picker((l) => send({ t: 'lingua', lingua: l })));
+Lingua.onChange(() => { filesKey = ''; if (lastState) render(lastState, false); });
 $('folder').addEventListener('click', () => send({ t: 'cartella' }));
 $('folder2').addEventListener('click', () => send({ t: 'cartella' }));
 let clipOn = true;
 $('clipBtn').addEventListener('click', () => send({ t: 'appunti', on: !clipOn }));
 $('quit').addEventListener('click', () => {
-  if (!confirm('Chiudere Schermo Esteso? Gli schermi virtuali si spengono e le loro finestre tornano sul monitor principale.')) return;
+  if (!confirm(T('Chiudere Schermo Esteso? Gli schermi virtuali si spengono e le loro finestre tornano sul monitor principale.'))) return;
   closing = true; send({ t: 'esci' });
 });
 connect();

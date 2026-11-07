@@ -18,10 +18,18 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 APP = os.path.join(HERE, 'pc')
 DATA = os.path.join(HERE, 'data')
 NO_WINDOW, DETACHED = 0x08000000, 0x00000008
+sys.path.insert(0, APP)
+import lingua  # noqa: E402  (sta nella cartella pc)
 
 
 def message(text):
-    ctypes.windll.user32.MessageBoxW(None, text, 'Schermo Esteso', 0x10)
+    try:
+        with open(os.path.join(DATA, 'config.json'), encoding='utf-8') as f:
+            lang = json.load(f).get('lingua')
+    except (OSError, ValueError):
+        lang = None
+    lingua.use(lang or lingua.default())
+    ctypes.windll.user32.MessageBoxW(None, lingua.t(text), lingua.t('Schermo Esteso'), 0x10)
 
 
 def port():

@@ -148,6 +148,10 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         connection.onClipboard = { [weak self] m in self?.clipboardFromPC(m) }
         connection.onNotice = { [weak self] text in self?.showToast(text) }
         connection.onWordSelected = { [weak self] in self?.showEditMenu() }
+        NotificationCenter.default.addObserver(forName: Lingua.changed, object: nil, queue: .main) { [weak self] _ in
+            guard let self, let text = self.statusText, !self.statusLabel.isHidden else { return }
+            self.statusLabel.text = L(text)
+        }
         connection.onWhere = { [weak self] side, secs in self?.askWhere(side, seconds: secs) }
         connection.onWhereDone = { [weak self] in self?.whereAlert?.dismiss(animated: true) }
         connection.onRest = { [weak self] resting in
@@ -317,21 +321,21 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
 
     func connectionNeedsPin(_ c: Connection, message: String?) {
         hideStatus()
-        let text = (message.map { $0 + "\n\n" } ?? "") + "Questo \(UIDevice.current.model) è nuovo per il PC: inserisci il PIN di 6 cifre che compare ora nella finestra di Schermo Esteso."
+        let text = (message.map { L($0) + "\n\n" } ?? "") + L("Questo \(UIDevice.current.model) è nuovo per il PC: inserisci il PIN di 6 cifre che compare ora nella finestra di Schermo Esteso.")
         if let alert = pinAlert {
             alert.message = text
             alert.textFields?.first?.text = ""
             return
         }
-        let alert = UIAlertController(title: "Abbinamento", message: text, preferredStyle: .alert)
+        let alert = UIAlertController(title: L("Abbinamento"), message: text, preferredStyle: .alert)
         alert.addTextField { f in
             f.keyboardType = .numberPad
             f.textContentType = .oneTimeCode
             f.placeholder = "PIN"
             f.textAlignment = .center
         }
-        alert.addAction(UIAlertAction(title: "Cambia PC", style: .default) { [weak self] _ in self?.askHost() })
-        alert.addAction(UIAlertAction(title: "Collega", style: .default) { [weak self, weak alert] _ in
+        alert.addAction(UIAlertAction(title: L("Cambia PC"), style: .default) { [weak self] _ in self?.askHost() })
+        alert.addAction(UIAlertAction(title: L("Collega"), style: .default) { [weak self, weak alert] _ in
             let pin = (alert?.textFields?.first?.text ?? "").filter(\.isNumber)
             self?.connection.sendPin(pin)
             self?.showStatus("Verifica del PIN…")
@@ -417,7 +421,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
     }
 
     func connection(_ c: Connection, newFiles names: [String], from sender: String) {
-        showToast(names.count == 1 ? "Nuovo file da \(sender): \(names[0])" : "\(names.count) nuovi file da \(sender)")
+        showToast(names.count == 1 ? L("Nuovo file da \(sender): \(names[0])") : L("\(names.count) nuovi file da \(sender)"))
         filesPanel?.reload()
     }
 
@@ -706,7 +710,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
     func dropInteraction(_ interaction: UIDropInteraction, performDrop session: UIDropSession) {
         let point = session.location(in: view)
         let providers = session.items.map(\.itemProvider)
-        showToast(providers.count == 1 ? "Invio al PC…" : "Invio al PC di \(providers.count) elementi…")
+        showToast(providers.count == 1 ? L("Invio al PC…") : L("Invio al PC di \(providers.count) elementi…"))
         Task { @MainActor in
             var urls: [URL] = []
             for provider in providers {
@@ -717,17 +721,17 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
                 return
             }
             self.uploadBanner.attach(to: self.view)
-            self.uploadBanner.start(urls.count == 1 ? "Invio al PC: \(urls[0].lastPathComponent)" : "Invio al PC di \(urls.count) file", files: urls)
+            self.uploadBanner.start(urls.count == 1 ? L("Invio al PC: \(urls[0].lastPathComponent)") : L("Invio al PC di \(urls.count) file"), files: urls)
             Uploader.send(urls, progress: { [weak self] p in self?.uploadBanner.update(p) }, done: { [weak self] result in
                 guard let self else { return }
                 switch result {
                 case .success(let names):
-                    self.uploadBanner.finish(names.count == 1 ? "Inviato al PC" : "Inviati \(names.count) file", ok: true)
+                    self.uploadBanner.finish(names.count == 1 ? L("Inviato al PC") : L("Inviati \(names.count) file"), ok: true)
                     guard let first = names.first else { return }
                     // si apre sul PC nel programma su cui l'hai lasciato (gli altri restano nella cartella)
                     let n = self.norm(point)
                     self.connection.send(["t": "deposita", "nome": first, "x": n.x, "y": n.y])
-                    self.showToast(names.count == 1 ? "Inviato: apro \(first) sul PC" : "Inviati \(names.count) file: apro \(first)")
+                    self.showToast(names.count == 1 ? L("Inviato: apro \(first) sul PC") : L("Inviati \(names.count) file: apro \(first)"))
                 case .failure(let error):
                     self.uploadBanner.finish("Invio non riuscito: \(error.localizedDescription)", ok: false)
                 }
@@ -869,74 +873,81 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
 
     private func menuItems() -> [UIMenuElement] {
         let rtt = connection.rtt.map { "\(Int($0)) ms" } ?? "–"
-        let state = UIAction(title: connection.ready ? "Collegato a \(Settings.host) · ritardo \(rtt)" : "Non collegato",
+        let state = UIAction(title: connection.ready ? L("Collegato a \(Settings.host) · ritardo \(rtt)") : L("Non collegato"),
                              image: UIImage(systemName: connection.ready ? "wifi" : "wifi.slash"), attributes: .disabled) { _ in }
 
-        let quality = UIMenu(title: "Qualità", image: UIImage(systemName: "dial.medium"),
+        let quality = UIMenu(title: L("Qualità"), image: UIImage(systemName: "dial.medium"),
                              children: Self.qualityNames.enumerated().map { i, name in
-            UIAction(title: name, state: i == Settings.quality ? .on : .off) { [weak self] _ in
+            UIAction(title: L(name), state: i == Settings.quality ? .on : .off) { [weak self] _ in
                 Settings.quality = i
                 self?.connection.send(["t": "quality", "level": i])
             }
         })
-        let fingersMenu = UIMenu(title: "Dita", image: UIImage(systemName: "hand.point.up"),
+        let fingersMenu = UIMenu(title: L("Dita"), image: UIImage(systemName: "hand.point.up"),
                              children: [("touch", "Tocco di Windows"), ("mouse", "Mouse")].map { key, name in
-            UIAction(title: name, state: Settings.touchMode == key ? .on : .off) { [weak self] _ in
+            UIAction(title: L(name), state: Settings.touchMode == key ? .on : .off) { [weak self] _ in
                 self?.releaseInput()
                 Settings.touchMode = key
             }
         })
-        let pencil = UIMenu(title: "Apple Pencil", image: UIImage(systemName: "pencil.tip"),
+        let pencil = UIMenu(title: L("Apple Pencil"), image: UIImage(systemName: "pencil.tip"),
                             children: [("auto", "Automatica (scrive o scorre)"), ("penna", "Penna con pressione"),
                                        ("gomma", "Gomma"), ("mouse", "Mouse")].map { key, name in
-            UIAction(title: name, state: Settings.penMode == key ? .on : .off) { _ in Settings.penMode = key }
+            UIAction(title: L(name), state: Settings.penMode == key ? .on : .off) { _ in Settings.penMode = key }
         })
-        let rotate = UIAction(title: "Ruota con il dispositivo", image: UIImage(systemName: "rectangle.portrait.rotate"),
+        let rotate = UIAction(title: L("Ruota con il dispositivo"), image: UIImage(systemName: "rectangle.portrait.rotate"),
                               state: Settings.rotate ? .on : .off) { [weak self] _ in
             Settings.rotate.toggle()
             self?.setNeedsUpdateOfSupportedInterfaceOrientations()
         }
-        let ink = UIAction(title: "Inchiostro immediato", image: UIImage(systemName: "scribble"),
+        let ink = UIAction(title: L("Inchiostro immediato"), image: UIImage(systemName: "scribble"),
                            state: Settings.instantInk ? .on : .off) { _ in Settings.instantInk.toggle() }
-        let files = UIAction(title: "File condivisi", image: UIImage(systemName: "folder")) { [weak self] _ in
+        let files = UIAction(title: L("File condivisi"), image: UIImage(systemName: "folder")) { [weak self] _ in
             self?.showFiles()
         }
-        let clipSync = UIAction(title: "Appunti condivisi con il PC", image: UIImage(systemName: "doc.on.clipboard"),
+        let clipSync = UIAction(title: L("Appunti condivisi con il PC"), image: UIImage(systemName: "doc.on.clipboard"),
                                 state: Settings.clipboardSync ? .on : .off) { _ in
             Settings.clipboardSync.toggle()
             if Settings.clipboardSync { Settings.pasteboardSeen = UIPasteboard.general.changeCount }
         }
-        let clipSend = UIAction(title: "Invia appunti al PC", image: UIImage(systemName: "arrow.up.doc.on.clipboard")) { [weak self] _ in
+        let clipSend = UIAction(title: L("Invia appunti al PC"), image: UIImage(systemName: "arrow.up.doc.on.clipboard")) { [weak self] _ in
             self?.clipboardToPC(force: true)
         }
-        let password = UIAction(title: "Inserisci password…", image: UIImage(systemName: "key.fill")) { [weak self] _ in
+        let password = UIAction(title: L("Inserisci password…"), image: UIImage(systemName: "key.fill")) { [weak self] _ in
             self?.askPassword()
         }
-        let typeText = UIAction(title: "Scrivi sul PC…", image: UIImage(systemName: "keyboard")) { [weak self] _ in
+        let typeText = UIAction(title: L("Scrivi sul PC…"), image: UIImage(systemName: "keyboard")) { [weak self] _ in
             self?.askText()
         }
-        let reconnect = UIAction(title: "Ricollega", image: UIImage(systemName: "arrow.clockwise")) { [weak self] _ in
+        let reconnect = UIAction(title: L("Ricollega"), image: UIImage(systemName: "arrow.clockwise")) { [weak self] _ in
             self?.connection.connect()
         }
-        let repair = UIAction(title: "Abbina di nuovo", image: UIImage(systemName: "key")) { [weak self] _ in
+        let repair = UIAction(title: L("Abbina di nuovo"), image: UIImage(systemName: "key")) { [weak self] _ in
             self?.connection.forgetPairing()
         }
-        let host = UIAction(title: "Cambia PC…", image: UIImage(systemName: "desktopcomputer")) { [weak self] _ in
+        let host = UIAction(title: L("Cambia PC…"), image: UIImage(systemName: "desktopcomputer")) { [weak self] _ in
             self?.askHost()
         }
-        let unzoom = UIAction(title: "Torna al 100%", image: UIImage(systemName: "arrow.down.right.and.arrow.up.left")) { [weak self] _ in
+        let unzoom = UIAction(title: L("Torna al 100%"), image: UIImage(systemName: "arrow.down.right.and.arrow.up.left")) { [weak self] _ in
             self?.setZoom(1, .zero, animated: true)
         }
+        let language = UIMenu(title: L("Lingua"), image: UIImage(systemName: "globe"),
+                              children: [("it", "🇮🇹 IT · Italiano"), ("en", "🇬🇧 GB · English")].map { code, name in
+            UIAction(title: name, state: Lingua.current == code ? .on : .off) { [weak self] _ in
+                Lingua.use(code)
+                self?.connection.send(["t": "lingua", "lingua": code])
+            }
+        })
         let extra: [UIMenuElement] = zoom > 1.01 ? [unzoom] : []
-        return extra + [state, files, UIMenu(title: "Appunti", image: UIImage(systemName: "doc.on.clipboard"), children: [clipSync, clipSend]),
+        return extra + [state, files, UIMenu(title: L("Appunti"), image: UIImage(systemName: "doc.on.clipboard"), children: [clipSync, clipSend]),
                 UIMenu(options: .displayInline, children: [password, typeText]),
-                quality, fingersMenu, pencil, ink, rotate,
+                quality, fingersMenu, pencil, ink, rotate, language,
                 UIMenu(options: .displayInline, children: [reconnect, repair, host])]
     }
 
     private func askHost() {
-        let alert = UIAlertController(title: "Collega al PC",
-                                      message: "Scrivi l'indirizzo che compare in alto nella finestra di Schermo Esteso sul PC, senza https://. Esempio: 192.168.1.20:8770",
+        let alert = UIAlertController(title: L("Collega al PC"),
+                                      message: L("Scrivi l'indirizzo che compare in alto nella finestra di Schermo Esteso sul PC, senza https://. Esempio: 192.168.1.20:8770"),
                                       preferredStyle: .alert)
         alert.addTextField { f in
             f.text = Settings.host
@@ -945,7 +956,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             f.autocorrectionType = .no
             f.autocapitalizationType = .none
         }
-        alert.addAction(UIAlertAction(title: "Collega", style: .default) { [weak self, weak alert] _ in
+        alert.addAction(UIAlertAction(title: L("Collega"), style: .default) { [weak self, weak alert] _ in
             var text = alert?.textFields?.first?.text ?? ""
             for prefix in ["https://", "http://", "wss://"] where text.lowercased().hasPrefix(prefix) {
                 text = String(text.dropFirst(prefix.count))
@@ -990,12 +1001,12 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             return
         }
         uploadBanner.attach(to: view)
-        uploadBanner.start(urls.count == 1 ? "Invio al PC: \(urls[0].lastPathComponent)" : "Invio al PC di \(urls.count) file", files: urls)
+        uploadBanner.start(urls.count == 1 ? L("Invio al PC: \(urls[0].lastPathComponent)") : L("Invio al PC di \(urls.count) file"), files: urls)
         Uploader.send(urls, progress: { [weak self] p in self?.uploadBanner.update(p) }, done: { [weak self] result in
             for u in urls where u.path.contains("/Inbox/") { try? FileManager.default.removeItem(at: u) }  // copie fatte da iOS
             switch result {
             case .success(let names):
-                self?.uploadBanner.finish(names.count == 1 ? "Inviato al PC: \(names[0])" : "Inviati al PC \(names.count) file", ok: true)
+                self?.uploadBanner.finish(names.count == 1 ? L("Inviato al PC: \(names[0])") : L("Inviati al PC \(names.count) file"), ok: true)
                 self?.filesPanel?.reload()
             case .failure(let error):
                 self?.uploadBanner.finish("Invio non riuscito: \(error.localizedDescription)", ok: false)
@@ -1050,14 +1061,14 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
                              suggestedActions: [UIMenuElement]) -> UIMenu? {
         let key = { [weak self] (k: String) in self?.connection.send(["t": "tasto", "k": k]) }
         return UIMenu(children: [
-            UIAction(title: "Copia") { _ in key("copia") },
-            UIAction(title: "Taglia") { _ in key("taglia") },
-            UIAction(title: "Incolla") { [weak self] _ in
+            UIAction(title: L("Copia")) { _ in key("copia") },
+            UIAction(title: L("Taglia")) { _ in key("taglia") },
+            UIAction(title: L("Incolla")) { [weak self] _ in
                 self?.clipboardToPC(force: false)  // prima porto sul PC quello che c'è negli appunti dell'iPad
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { key("incolla") }
             },
-            UIAction(title: "Seleziona tutto") { _ in key("tutto") },
-            UIAction(title: "Altro (clic destro)") { [weak self] _ in
+            UIAction(title: L("Seleziona tutto")) { _ in key("tutto") },
+            UIAction(title: L("Altro (clic destro)")) { [weak self] _ in
                 guard let self else { return }
                 let n = self.norm(self.menuPoint)
                 self.connection.send(["t": "m", "e": "click", "b": 2, "x": n.x, "y": n.y])
@@ -1070,17 +1081,17 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
     /// Campo nativo dell'iPad: sopra la tastiera compare la chiave delle password salvate (Face ID).
     /// La password va solo nel campo selezionato sul PC: niente appunti, niente console.
     private func askPassword() {
-        let alert = UIAlertController(title: "Inserisci password",
-                                      message: "Tocca prima sul PC il campo della password (o del nome utente). Poi scegli qui la password salvata: la tastiera mostra la chiave delle Password.",
+        let alert = UIAlertController(title: L("Inserisci password"),
+                                      message: L("Tocca prima sul PC il campo della password (o del nome utente). Poi scegli qui la password salvata: la tastiera mostra la chiave delle Password."),
                                       preferredStyle: .alert)
         alert.addTextField { f in
-            f.placeholder = "Nome utente (facoltativo)"
+            f.placeholder = L("Nome utente (facoltativo)")
             f.textContentType = .username
             f.autocapitalizationType = .none
             f.autocorrectionType = .no
         }
         alert.addTextField { f in
-            f.placeholder = "Password"
+            f.placeholder = L("Password")
             f.textContentType = .password
             f.isSecureTextEntry = true
         }
@@ -1096,26 +1107,26 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             if enter { self.connection.send(["t": "tasto", "k": "invio"]) }
             alert?.textFields?.forEach { $0.text = "" }
         }
-        alert.addAction(UIAlertAction(title: "Annulla", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Inserisci", style: .default) { _ in type(false) })
-        alert.addAction(UIAlertAction(title: "Inserisci e premi Invio", style: .default) { _ in type(true) })
+        alert.addAction(UIAlertAction(title: L("Annulla"), style: .cancel))
+        alert.addAction(UIAlertAction(title: L("Inserisci"), style: .default) { _ in type(false) })
+        alert.addAction(UIAlertAction(title: L("Inserisci e premi Invio"), style: .default) { _ in type(true) })
         presentReplacing(alert)
     }
 
     private func askText() {
-        let alert = UIAlertController(title: "Scrivi sul PC",
-                                      message: "Il testo viene scritto nel punto selezionato sul PC, come con una tastiera.",
+        let alert = UIAlertController(title: L("Scrivi sul PC"),
+                                      message: L("Il testo viene scritto nel punto selezionato sul PC, come con una tastiera."),
                                       preferredStyle: .alert)
-        alert.addTextField { f in f.placeholder = "Testo" }
+        alert.addTextField { f in f.placeholder = L("Testo") }
         let type = { [weak self, weak alert] (enter: Bool) in
             let text = alert?.textFields?.first?.text ?? ""
             guard let self else { return }
             if !text.isEmpty { self.connection.send(["t": "scrivi", "testo": text]) }
             if enter { self.connection.send(["t": "tasto", "k": "invio"]) }
         }
-        alert.addAction(UIAlertAction(title: "Annulla", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Scrivi", style: .default) { _ in type(false) })
-        alert.addAction(UIAlertAction(title: "Scrivi e premi Invio", style: .default) { _ in type(true) })
+        alert.addAction(UIAlertAction(title: L("Annulla"), style: .cancel))
+        alert.addAction(UIAlertAction(title: L("Scrivi"), style: .default) { _ in type(false) })
+        alert.addAction(UIAlertAction(title: L("Scrivi e premi Invio"), style: .default) { _ in type(true) })
         presentReplacing(alert)
     }
 
@@ -1173,8 +1184,11 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
 
     // MARK: messaggi a schermo
 
+    private var statusText: String?   // stato in italiano, per ritradurlo se cambia la lingua
+
     private func showStatus(_ text: String) {
-        statusLabel.text = text
+        statusText = text
+        statusLabel.text = L(text)
         statusLabel.isHidden = false
         spinner.startAnimating()
     }
@@ -1190,11 +1204,11 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
 
     private func askWhere(_ side: String, seconds: Int) {
         whereAlert?.dismiss(animated: false)
-        let alert = UIAlertController(title: "Schermo \(side) del PC?",
-                                      message: "Hai spinto il mouse \(side). Se questo \(UIDevice.current.model) si trova lì, tocca Qui e il suo schermo si sposta da quella parte.",
+        let alert = UIAlertController(title: L("Schermo \(side) del PC?"),
+                                      message: L("Hai spinto il mouse \(side). Se questo \(UIDevice.current.model) si trova lì, tocca Qui e il suo schermo si sposta da quella parte."),
                                       preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "No", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Qui", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: L("Qui"), style: .default) { [weak self] _ in
             self?.connection.send(["t": "qui"])
         })
         whereAlert = alert
@@ -1205,7 +1219,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
     }
 
     private func showToast(_ text: String) {
-        toast.text = "   \(text)   "
+        toast.text = "   \(L(text))   "
         UIView.animate(withDuration: 0.2) { self.toast.alpha = 1 }
         UIView.animate(withDuration: 0.4, delay: 6, options: []) { self.toast.alpha = 0 }
     }

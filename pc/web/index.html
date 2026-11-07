@@ -195,6 +195,13 @@
   #toastText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #toast button { min-height: 40px; }
 
+  /* lingua: bandiera e sigla del paese */
+  .lingue { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 14px; }
+  .lingue button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px;
+    background: #0c0d11; color: var(--text); border: 1px solid var(--line); letter-spacing: .04em; }
+  .lingue button[aria-pressed="true"] { background: var(--accent); color: #1a1405; border-color: var(--accent); }
+  .lingue .bandiera { width: 24px; height: 16px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .35); }
+  .card .lingue { margin: 14px 0 0; }
   @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
 </style>
 </head>
@@ -212,6 +219,8 @@
 
 <div id="menu" role="dialog" aria-label="Impostazioni">
   <button id="filesBtn">File</button>
+  <h2>Lingua</h2>
+  <div id="langMenu"></div>
   <h2>Comandi</h2>
   <div class="seg" role="group" aria-label="Modalità di input">
     <button id="modeTouch" aria-pressed="true">Tocco</button>
@@ -235,7 +244,7 @@
   <div class="seg" role="group" aria-label="Appunti">
     <button id="clipSend">Invia appunti al PC<small>testo o immagine copiati qui</small></button>
   </div>
-  <p class="hint">Quello che copi sul PC compare qui con il pulsante <b>Copia</b>.</p>
+  <p class="hint" data-i18n-html>Quello che copi sul PC compare qui con il pulsante <b>Copia</b>.</p>
   <h2>Scrivi sul PC</h2>
   <div class="typeBox">
     <input id="typeUser" autocomplete="username" autocapitalize="off" autocorrect="off" placeholder="Nome utente (facoltativo)">
@@ -292,15 +301,15 @@
       <summary>Inviare dalle altre app dell'iPad</summary>
       <p>Le app web non possono comparire nel menu Condividi: si usa un Comando rapido, una volta sola.</p>
       <ol>
-        <li>Tocca <b>Copia indirizzo</b> qui sotto.</li>
-        <li>Apri l'app <b>Comandi</b> → <b>+</b> → nome: <i>Invia a Schermo Esteso</i>.</li>
-        <li>Tocca <b>ⓘ</b> e attiva <b>Mostra nel foglio di condivisione</b>.</li>
-        <li>Aggiungi l'azione <b>Ottieni contenuti dell'URL</b>: incolla l'indirizzo, Metodo <b>POST</b>,
+        <li data-i18n-html>Tocca <b>Copia indirizzo</b> qui sotto.</li>
+        <li data-i18n-html>Apri l'app <b>Comandi</b> → <b>+</b> → nome: <i>Invia a Schermo Esteso</i>.</li>
+        <li data-i18n-html>Tocca <b>ⓘ</b> e attiva <b>Mostra nel foglio di condivisione</b>.</li>
+        <li data-i18n-html>Aggiungi l'azione <b>Ottieni contenuti dell'URL</b>: incolla l'indirizzo, Metodo <b>POST</b>,
           Corpo richiesta <b>Modulo</b>, aggiungi un campo <b>File</b> con chiave <code>file</code> e valore
           <b>Input comando</b>.</li>
-        <li>(Facoltativo) aggiungi <b>Mostra notifica</b>: «Inviato al PC».</li>
+        <li data-i18n-html>(Facoltativo) aggiungi <b>Mostra notifica</b>: «Inviato al PC».</li>
       </ol>
-      <p>Da qualsiasi app: Condividi → <b>Invia a Schermo Esteso</b>. L'indirizzo contiene la chiave di questo
+      <p data-i18n-html>Da qualsiasi app: Condividi → <b>Invia a Schermo Esteso</b>. L'indirizzo contiene la chiave di questo
         dispositivo: non condividerlo.</p>
       <button class="ghost" id="copyShortcut">Copia indirizzo</button>
     </details>
@@ -308,9 +317,9 @@
       <summary>Connessione sicura (certificato del PC)</summary>
       <p>Serve una volta sola per dispositivo: toglie l'avviso di Safari, cifra la connessione e attiva la condivisione.</p>
       <ol>
-        <li><a href="/certificato.crt">Scarica il certificato</a> e tocca <b>Consenti</b>.</li>
-        <li><b>Impostazioni</b> → <b>Profilo scaricato</b> (o Generali → VPN e gestione dispositivi) → <b>Installa</b>.</li>
-        <li><b>Impostazioni → Generali → Info → Impostazioni attendibilità certificati</b>: attiva
+        <li data-i18n-html><a href="/certificato.crt">Scarica il certificato</a> e tocca <b>Consenti</b>.</li>
+        <li data-i18n-html><b>Impostazioni</b> → <b>Profilo scaricato</b> (o Generali → VPN e gestione dispositivi) → <b>Installa</b>.</li>
+        <li data-i18n-html><b>Impostazioni → Generali → Info → Impostazioni attendibilità certificati</b>: attiva
           <i>Schermo Esteso - certificato del PC</i>.</li>
       </ol>
       <p>Il certificato vale solo per la rete di casa o dell'hotspot: non può essere usato per altri siti.</p>
@@ -320,7 +329,7 @@
 
 <div id="preview" role="dialog" aria-label="Anteprima">
   <header>
-    <span id="pvName"></span>
+    <span id="pvName" translate="no"></span>
     <button class="ghost icon" id="pvShare" aria-label="Condividi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M6 11v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8"/></svg></button>
     <button class="ghost" id="pvClose">Chiudi</button>
   </header>
@@ -337,14 +346,16 @@
   <form class="card" id="pinForm">
     <h1>Schermo Esteso</h1>
     <p>Questo dispositivo è nuovo: inserisci il PIN di 6 cifre che compare ora sul PC. Serve solo la prima volta.</p>
-    <p class="small">Safari ha mostrato un avviso di sicurezza? <a href="/certificato.crt">Installa il certificato del PC</a>
+    <p class="small" data-i18n-html>Safari ha mostrato un avviso di sicurezza? <a href="/certificato.crt">Installa il certificato del PC</a>
       (istruzioni nel menu → File).</p>
     <input id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" aria-label="PIN">
     <div class="err" id="pinErr" role="alert"></div>
     <button type="submit">Collega</button>
+    <div id="langPin"></div>
   </form>
 </div>
 
+<script src="lingua.js"></script>
 <script src="render.js"></script>
 <script src="mse.js"></script>
 <script src="app.js"></script>

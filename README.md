@@ -4,8 +4,9 @@ Use an **iPad or iPhone as an extra Windows monitor** over Wi-Fi, a USB cable or
 Each device gets its own virtual screen (up to 4 at once), with touch, Apple Pencil pressure,
 shared clipboard and file exchange.
 
-The app itself is called **Schermo Esteso** and its interface is in Italian.
-The full user guide is in Italian: [LEGGIMI.md](LEGGIMI.md).
+The app itself is called **Schermo Esteso**. Its interface is in **English or Italian**: pick it with
+the flag buttons (🇬🇧 GB / 🇮🇹 IT) in the PC window or in the app menu, and it applies to the PC and every
+device. The full user guide is in Italian: [LEGGIMI.md](LEGGIMI.md).
 
 ## Features
 
@@ -17,7 +18,7 @@ The full user guide is in Italian: [LEGGIMI.md](LEGGIMI.md).
   device or the network can't keep up.
 - **Push to place:** like Universal Control on a Mac, push the mouse against the edge of the
   monitor on the side where the iPad is, and its screen moves there and the pointer goes in.
-  With several devices connected, you tap *Qui* (here) on the right one.
+  With several devices connected, you tap *Here* on the right one.
 - **Input:** touch works like a Windows touchscreen (or as a mouse). Apple Pencil is a real
   Windows Ink pen with pressure and tilt, and acts as a finger outside drawing apps. Two-finger
   zoom on the device only, and portrait mode.
