@@ -25,6 +25,8 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
     var onPenUse: ((String) -> Void)?
     var onClipboard: (([String: Any]) -> Void)?  // appunti copiati sul PC
     var onNotice: ((String) -> Void)?
+    var onWhere: ((String, Int) -> Void)?   // il PC chiede se lo schermo va da questa parte (spinta del mouse)
+    var onWhereDone: (() -> Void)?           // ha risposto un altro dispositivo
     var onWordSelected: (() -> Void)?            // il PC ha selezionato la parola (doppio tocco)            // avvisi brevi (es. qualità cambiata in automatico)   // "penna" o "dito": come il PC usa la Pencil nel tratto in corso
     private(set) var ready = false
     private(set) var rtt: Double?          // ritardo di andata e ritorno in ms
@@ -278,6 +280,12 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         case "file":
             let names = m["nomi"] as? [String] ?? []
             if !names.isEmpty { delegate?.connection(self, newFiles: names, from: m["da"] as? String ?? "PC") }
+        case "avviso":
+            if let text = m["testo"] as? String { onNotice?(text) }
+        case "dove":
+            onWhere?(m["lato"] as? String ?? "", m["secondi"] as? Int ?? 15)
+        case "dove_fine":
+            onWhereDone?()
         case "full":
             delegate?.connection(self, status: "Il PC ha già il numero massimo di dispositivi abbinati: rimuovine uno dal PC.")
         default:

@@ -52,6 +52,22 @@ dove si trova lo schermo dell'iPad (*Impostazioni → Sistema → Schermo*).
 Per cambiare posizione o risoluzione: *Impostazioni Windows → Sistema → Schermo*
 (l'iPad è lo schermo "2", risoluzione consigliata 2048×1536 con ridimensionamento 200%).
 
+## Spostare lo schermo dove si trova il dispositivo
+
+Come con il Controllo Universale del Mac: **spingi il mouse contro il bordo del monitor dalla parte
+dove si trova l'iPad** (o l'iPhone), con decisione, per circa mezzo secondo. Se da quella parte non
+c'è nessuno schermo, quello del dispositivo si sposta lì, all'altezza in cui hai spinto, e il
+puntatore ci entra. Funziona a destra, a sinistra, sopra e sotto.
+
+- Con **un solo** dispositivo collegato lo schermo si sposta subito; sul dispositivo compare
+  *Schermo spostato a destra del PC*.
+- Con **più** dispositivi collegati compare su ognuno *Schermo a destra del PC?*: tocca **Qui** su
+  quello che si trova davvero da quella parte (entro 15 secondi).
+- Arrivare al bordo per una barra di scorrimento o per la barra delle applicazioni non basta: serve
+  una spinta continua. Contano solo mouse e touchpad del PC, non i tocchi dei dispositivi.
+- La posizione nuova viene ricordata. Per spegnere la funzione: `"spinta_bordo": false` in
+  `data\config.json`.
+
 ## Scambio di file
 
 Tutti i file stanno nella cartella **`downloads`** dell'app (`data\downloads`).

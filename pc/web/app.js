@@ -179,6 +179,13 @@ function onMessage(ev) {
       showPin(m.bloccato ? `Troppi tentativi sbagliati: riprova tra ${Math.ceil(m.bloccato / 60)} minuti.`
         : m.occupato ? 'Ci sono troppe richieste di abbinamento in corso: riprova tra qualche minuto.'
         : m.nuovo ? 'Il PIN è cambiato: inserisci quello nuovo che vedi sul PC.' : 'PIN errato, riprova.');
+    } else if (m.t === 'avviso') {
+      notice(m.testo, null, null, 5000);
+    } else if (m.t === 'dove') {
+      // spinta del mouse con più dispositivi collegati: "Qui" su quello che si trova da quella parte
+      notice(`Hai spinto il mouse ${m.lato}: lo schermo va ${m.lato} del PC?`, 'Qui', () => send({ t: 'qui' }), (m.secondi || 15) * 1000);
+    } else if (m.t === 'dove_fine') {
+      $('toast').classList.remove('show');
     } else if (m.t === 'file') {
       showToast(m);
     } else if (m.t === 'appunti') {
