@@ -1,8 +1,8 @@
-"""Spostare le finestre di uno schermo che si spegne sul monitor principale, in secondo piano.
+"""Moves the windows of a screen that is turning off to the main monitor, in the background.
 
-Le finestre vengono messe sotto tutte le altre e non prendono il focus, così non coprono
-quello che c'è già sul monitor principale. Posizione e dimensioni vengono riportate in
-proporzione dentro l'area di lavoro del monitor principale.
+The windows are put below all the others and don't take focus, so they don't cover
+what's already on the main monitor. Position and size are scaled
+proportionally into the work area of the main monitor.
 """
 import ctypes
 import os
@@ -10,7 +10,7 @@ import subprocess
 import time
 from ctypes import wintypes
 
-import monitors  # imposta anche la DPI awareness
+import monitors  # also sets DPI awareness
 
 user32 = ctypes.windll.user32
 dwmapi = ctypes.windll.dwmapi
@@ -23,7 +23,7 @@ GWL_EXSTYLE = -20
 DWMWA_CLOAKED = 14
 MONITOR_DEFAULTTONEAREST = 2
 
-# finestre di sistema da non toccare (sfondo, barre delle applicazioni)
+# system windows not to touch (desktop, taskbars)
 SKIP_CLASSES = {'Progman', 'WorkerW', 'Shell_TrayWnd', 'Shell_SecondaryTrayWnd', 'Windows.UI.Core.CoreWindow'}
 
 user32.GetWindowLongPtrW.restype = ctypes.c_ssize_t
@@ -47,7 +47,7 @@ def _monitor_device(rect):
 
 def _primary_work():
     mi = monitors.MONITORINFOEXW(); mi.cbSize = ctypes.sizeof(mi)
-    hmon = user32.MonitorFromPoint(wintypes.POINT(0, 0), 1)  # 1 = monitor principale
+    hmon = user32.MonitorFromPoint(wintypes.POINT(0, 0), 1)  # 1 = main monitor
     user32.GetMonitorInfoW(hmon, ctypes.byref(mi))
     r, w = mi.rcMonitor, mi.rcWork
     return (w.left, w.top, w.right - w.left, w.bottom - w.top), (w.left - r.left, w.top - r.top)
@@ -66,8 +66,8 @@ def _title(hwnd):
 
 
 def windows_on(device):
-    """Finestre normali (visibili, anche ridotte a icona) che stanno sullo schermo indicato,
-    dall'alto verso il basso."""
+    """Normal windows (visible, minimized too) that are on the given screen,
+    from top to bottom."""
     found = []
     proc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 
@@ -79,12 +79,12 @@ def windows_on(device):
         cloaked = wintypes.DWORD()
         dwmapi.DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, ctypes.byref(cloaked), ctypes.sizeof(cloaked))
         if cloaked.value:
-            return True  # finestre nascoste dalle app moderne
+            return True  # windows hidden by modern apps
         wp = WINDOWPLACEMENT(); wp.length = ctypes.sizeof(wp)
         if not user32.GetWindowPlacement(hwnd, ctypes.byref(wp)):
             return True
         if wp.showCmd == SW_SHOWMINIMIZED:
-            rc = wp.rcNormalPosition  # ridotta a icona: conta dove tornerebbe
+            rc = wp.rcNormalPosition  # minimized: what counts is where it would come back
         else:
             rc = wintypes.RECT()
             user32.GetWindowRect(hwnd, ctypes.byref(rc))
@@ -97,7 +97,7 @@ def windows_on(device):
 
 
 def move_to_primary(device, log=print):
-    """Porta sul monitor principale, sotto tutte le altre, le finestre dello schermo indicato."""
+    """Brings the windows of the given screen to the main monitor, below all the others."""
     src = monitors.by_device(device)
     if not src or src['primary']:
         return 0
@@ -109,7 +109,7 @@ def move_to_primary(device, log=print):
         if not user32.GetWindowPlacement(hwnd, ctypes.byref(wp)):
             continue
         rc = wp.rcNormalPosition
-        # rcNormalPosition è in coordinate dell'area di lavoro: la riporto a coordinate dello schermo
+        # rcNormalPosition is in work-area coordinates: convert it to screen coordinates
         w = min(rc.right - rc.left, ww)
         h = min(rc.bottom - rc.top, wh)
         fx = (rc.left + offx - src['x']) / max(src['w'] - w, 1)
@@ -123,7 +123,7 @@ def move_to_primary(device, log=print):
             wp.showCmd = SW_SHOWNOACTIVATE
         wp.flags = 0
         if user32.SetWindowPlacement(hwnd, ctypes.byref(wp)):
-            # in fondo alla pila: dall'alto verso il basso, così l'ordine tra loro resta lo stesso
+            # at the bottom of the stack: top to bottom, so their order among themselves stays the same
             user32.SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
             moved += 1
         else:
@@ -134,14 +134,14 @@ def move_to_primary(device, log=print):
 
 
 
-# --- aprire un file direttamente sullo schermo di un dispositivo -----------------------
+# --- opening a file directly on a device screen -----------------------
 BROWSERS = {'msedge.exe': '--new-window', 'chrome.exe': '--new-window', 'brave.exe': '--new-window',
             'firefox.exe': '-new-window'}
 SW_MAXIMIZE = 3
 
 
 def _all_windows():
-    """Finestre normali visibili, in qualsiasi schermo."""
+    """Normal visible windows, on any screen."""
     found = set()
     proc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 
@@ -159,7 +159,7 @@ def _all_windows():
 
 
 def _every_window():
-    """Tutte le finestre principali che esistono, anche nascoste o su altri desktop."""
+    """All the main windows that exist, hidden or on other desktops too."""
     found = set()
     proc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
     user32.EnumWindows(proc(lambda h, _: found.add(h) or True), 0)
@@ -167,7 +167,7 @@ def _every_window():
 
 
 def _associated_exe(path):
-    """Programma che Windows usa per aprire questo tipo di file (es. msedge.exe per i PDF)."""
+    """Program Windows uses to open this type of file (e.g. msedge.exe for PDFs)."""
     ext = os.path.splitext(path)[1]
     if not ext:
         return None
@@ -180,18 +180,18 @@ def _associated_exe(path):
 
 
 def open_on(path, monitor, log=print, wait=12, edge_profile=None):
-    """Apre il file con il suo programma e porta la nuova finestra, ingrandita, sullo schermo indicato.
-    monitor = {'x', 'y', 'w', 'h'}. Restituisce True se la finestra è stata spostata.
-    Si sposta solo una finestra che prima non esisteva: mai una finestra già aperta dall'utente."""
+    """Opens the file with its program and brings the new window, maximized, to the given screen.
+    monitor = {'x', 'y', 'w', 'h'}. Returns True if the window was moved.
+    Only a window that didn't exist before is moved: never a window the user already had open."""
     before = _every_window()
     exe = _associated_exe(path)
     name = os.path.basename(exe or '').lower()
     if name == 'msedge.exe' and edge_profile:
-        # profilo separato dell'app (senza account): il file non finisce tra le schede del tuo Edge
+        # separate app profile (no account): the file doesn't end up among your Edge tabs
         subprocess.Popen([exe, '--user-data-dir=' + edge_profile, '--new-window', '--no-first-run',
                           '--no-default-browser-check', '--disable-sync',
                           '--disable-features=msImplicitSignin,msEdgeImplicitSignin,msAutoSignIn', path])
-    elif name in BROWSERS:  # altri browser: almeno una finestra nuova invece di una scheda
+    elif name in BROWSERS:  # other browsers: at least a new window instead of a tab
         subprocess.Popen([exe, BROWSERS[name], path])
     else:
         os.startfile(path)
@@ -205,12 +205,12 @@ def open_on(path, monitor, log=print, wait=12, edge_profile=None):
         log(f'{os.path.basename(path)} aperto sul PC, ma non ho trovato una finestra nuova da spostare '
             '(il programma l\'ha aperto in una finestra già aperta)')
         return False
-    time.sleep(0.4)  # lascio finire al programma il suo posizionamento iniziale
+    time.sleep(0.4)  # let the program finish its initial positioning
     (_, _, _, _), (offx, offy) = _primary_work()
     x, y, w, h = monitor['x'], monitor['y'], monitor['w'], monitor['h']
     wp = WINDOWPLACEMENT(); wp.length = ctypes.sizeof(wp)
     user32.GetWindowPlacement(hwnd, ctypes.byref(wp))
-    m = 40  # posizione "normale" (quando la finestra non è ingrandita): quasi tutto lo schermo
+    m = 40  # "normal" position (when the window isn't maximized): almost the whole screen
     wp.rcNormalPosition = wintypes.RECT(x + m - offx, y + m - offy, x + w - m - offx, y + h - m - offy)
     wp.showCmd = SW_SHOWNOACTIVATE
     wp.flags = 0
@@ -220,7 +220,7 @@ def open_on(path, monitor, log=print, wait=12, edge_profile=None):
     return True
 
 
-# --- programma sotto un punto --------------------------------------------------------
+# --- program under a point --------------------------------------------------------
 kernel32 = ctypes.windll.kernel32
 user32.WindowFromPoint.restype = wintypes.HWND
 user32.WindowFromPoint.argtypes = [wintypes.POINT]
@@ -229,19 +229,19 @@ user32.GetForegroundWindow.restype = wintypes.HWND
 user32.MonitorFromWindow.restype = wintypes.HMONITOR
 kernel32.OpenProcess.restype = wintypes.HANDLE
 
-# programmi in cui la Pencil deve scrivere (in tutti gli altri fa da dito: scorre e tocca)
+# programs where the Pencil must write (in all the others it acts as a finger: scrolls and taps)
 INK_APPS = {'mspaint.exe', 'onenote.exe', 'onenoteim.exe', 'whiteboard.exe', 'winword.exe', 'powerpnt.exe',
             'acrobat.exe', 'acrord32.exe', 'krita.exe', 'photoshop.exe', 'inkscape.exe', 'clipstudiopaint.exe',
             'xournalpp.exe', 'journal.exe', 'sketchbook.exe', 'drawboardpdf.exe', 'snippingtool.exe',
             'screensketch.exe', 'freshpaint.exe', 'paintdotnet.exe', 'gimp.exe', 'mypaint.exe', 'blender.exe',
             'zoomit.exe', 'zoomit64.exe', 'goodnotes.exe', 'notability.exe'}
 BROWSER_EXES = {'msedge.exe', 'chrome.exe', 'brave.exe', 'firefox.exe', 'opera.exe', 'vivaldi.exe'}
-# altri programmi da disegno: uno per riga in programmi-penna.txt (es. "notepad3.exe"), senza toccare il codice
+# other drawing programs: one per line in programmi-penna.txt (e.g. "notepad3.exe"), without touching the code
 INK_APPS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'programmi-penna.txt')
 
 
 def panel_window_open(title='Schermo Esteso'):
-    """La finestra di controllo (Edge in modalità app, titolo "Schermo Esteso") esiste ancora, anche ridotta a icona?"""
+    """Does the control window (Edge in app mode, title "Schermo Esteso") still exist, even minimized?"""
     return any(_title(h) == title and process_name(h) == 'msedge.exe' for h in _every_window())
 
 
@@ -278,12 +278,12 @@ def _ink_apps():
 
 
 def ink_app_at(x, y):
-    """(sì/no, programma): se nel punto c'è un programma da disegno/scrittura (o un PDF nel browser)."""
+    """(yes/no, program): whether there's a drawing/writing program at the point (or a PDF in the browser)."""
     hwnd = user32.WindowFromPoint(wintypes.POINT(x, y))
     if not hwnd:
         return False, ''
     root = user32.GetAncestor(hwnd, 2) or hwnd  # GA_ROOT
-    child, top = process_name(hwnd), process_name(root)  # app moderne: la finestra figlia è del programma vero
+    child, top = process_name(hwnd), process_name(root)  # modern apps: the child window belongs to the real program
     name = child or top
     if {child, top} & _ink_apps():
         return True, name
@@ -291,8 +291,8 @@ def ink_app_at(x, y):
 
 
 def browser_at(x, y):
-    """True se nel punto c'è una pagina di Chromium/Edge/Electron o Firefox: lì il doppio tocco non
-    seleziona la parola, serve un doppio clic del mouse."""
+    """True if there's a Chromium/Edge/Electron or Firefox page at the point: there a double tap doesn't
+    select the word, it takes a mouse double click."""
     hwnd = user32.WindowFromPoint(wintypes.POINT(x, y))
     if not hwnd:
         return False
@@ -301,9 +301,9 @@ def browser_at(x, y):
     return any(c.startswith(('Chrome_', 'Mozilla')) for c in classes)
 
 
-# --- app aperte dallo Start sullo schermo dove le hai cercate ----------------------------
+# --- apps opened from Start on the screen where you searched for them ----------------------------
 START_HOSTS = {'startmenuexperiencehost.exe', 'searchhost.exe', 'searchapp.exe'}
-START_WINDOW = 20  # secondi dopo lo Start in cui una finestra nuova la considero "aperta da lì"
+START_WINDOW = 20  # seconds after Start during which a new window counts as "opened from there"
 
 
 def _monitor_rects(hmon):
@@ -313,7 +313,7 @@ def _monitor_rects(hmon):
 
 
 def move_to_monitor(hwnd, hmon):
-    """Sposta una finestra sullo schermo indicato mantenendo dimensioni e posizione in proporzione."""
+    """Moves a window to the given screen keeping its size and position proportional."""
     wp = WINDOWPLACEMENT(); wp.length = ctypes.sizeof(wp)
     if not user32.GetWindowPlacement(hwnd, ctypes.byref(wp)):
         return False
@@ -330,7 +330,7 @@ def move_to_monitor(hwnd, hmon):
     nx = dst.left + round(min(max(fx, 0), 1) * (ww - w))
     ny = dst.top + round(min(max(fy, 0), 1) * (wh - h))
     maximized = wp.showCmd == SW_SHOWMAXIMIZED
-    if maximized:  # un passaggio da "normale" sposta davvero anche le finestre ingrandite
+    if maximized:  # going through "normal" really moves maximized windows too
         user32.ShowWindow(hwnd, 9)  # SW_RESTORE
     wp.rcNormalPosition = wintypes.RECT(nx - offx, ny - offy, nx - offx + w, ny - offy + h)
     wp.showCmd = 1  # SW_SHOWNORMAL
@@ -348,7 +348,7 @@ WS_CAPTION = 0x00C00000
 
 
 def _app_window(hwnd):
-    """Finestra principale di un programma (non menu, suggerimenti, finestre interne)."""
+    """Main window of a program (not menus, tooltips, inner windows)."""
     if user32.GetAncestor(hwnd, 2) != hwnd or not user32.IsWindowVisible(hwnd):
         return False
     if _class(hwnd) in SKIP_CLASSES or user32.GetWindowLongPtrW(hwnd, GWL_EXSTYLE) & WS_EX_TOOLWINDOW:
@@ -357,19 +357,19 @@ def _app_window(hwnd):
 
 
 class StartFollower:
-    """Ricorda su quale schermo hai aperto lo Start; le finestre nuove che compaiono subito dopo su
-    un altro schermo le porta lì. Windows avvisa appena una finestra compare (niente attese);
-    per 2 s la ricontrollo, perché alcuni programmi si rimettono dove erano l'ultima volta."""
+    """Remembers which screen you opened Start on; new windows that appear right after on
+    another screen are brought there. Windows notifies as soon as a window appears (no waiting);
+    for 2 s I check it again, because some programs move back to where they were last time."""
 
     def __init__(self, log=print):
         self.log = log
         self.start_mon = None
         self.start_at = 0.0
-        self.watch = {}  # finestra spostata -> fino a quando ricontrollarla
+        self.watch = {}  # moved window -> until when to check it again
 
     def _on_event(self, hook, event, hwnd, obj, child, thread, ms):
         try:
-            if obj != 0 or child != 0 or not hwnd:  # solo eventi della finestra intera
+            if obj != 0 or child != 0 or not hwnd:  # only events of the whole window
                 return
             now = time.monotonic()
             if event == EVENT_SYSTEM_FOREGROUND:
@@ -379,18 +379,18 @@ class StartFollower:
                     and hwnd not in self.watch and _app_window(hwnd) and process_name(hwnd) not in START_HOSTS):
                 self.watch[hwnd] = now + 2.0
                 self._place(hwnd, first=True)
-        except Exception as e:  # mai far cadere il controllo per una finestra strana
+        except Exception as e:  # never drop the check because of an odd window
             self.log(f'Controllo dello Start: {e!r}')
 
     def _check_start(self, hwnd):
-        """Se in primo piano c'è lo Start (o la ricerca), ricordo su quale schermo è aperto."""
+        """If Start (or search) is in the foreground, remember which screen it's open on."""
         if not hwnd or hwnd == getattr(self, '_last_fg', None) and not getattr(self, '_last_was_start', False):
             return
         self._last_fg = hwnd
         self._last_was_start = process_name(hwnd) in START_HOSTS
         if not self._last_was_start:
             return
-        # conta il rettangolo della finestra: lo Start si apre sullo schermo da cui l'hai chiamato
+        # the window rectangle counts: Start opens on the screen you called it from
         rc = wintypes.RECT()
         user32.GetWindowRect(hwnd, ctypes.byref(rc))
         mon = user32.MonitorFromRect(ctypes.byref(rc), MONITOR_DEFAULTTONEAREST)
@@ -410,8 +410,8 @@ class StartFollower:
                      "messa sullo schermo dove l'hai cercata")
 
     def run(self, stop=None):
-        """Ciclo del thread: riceve gli avvisi di Windows e ricontrolla le finestre appena spostate."""
-        cb = WINEVENTPROC(self._on_event)  # riferimento tenuto vivo finché il ciclo gira
+        """Thread loop: receives the Windows notifications and rechecks the windows just moved."""
+        cb = WINEVENTPROC(self._on_event)  # reference kept alive while the loop runs
         hooks = [user32.SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, None, cb, 0, 0, 0),
                  user32.SetWinEventHook(EVENT_OBJECT_SHOW, EVENT_OBJECT_SHOW, None, cb, 0, 0, 0)]
         if not all(hooks):
@@ -423,7 +423,7 @@ class StartFollower:
                 while user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, 1):  # PM_REMOVE
                     user32.TranslateMessage(ctypes.byref(msg))
                     user32.DispatchMessageW(ctypes.byref(msg))
-                self._check_start(user32.GetForegroundWindow())  # di riserva, se un avviso si perde
+                self._check_start(user32.GetForegroundWindow())  # fallback, in case a notification is lost
                 now = time.monotonic()
                 for hwnd, until in list(self.watch.items()):
                     if now > until or not user32.IsWindow(hwnd):

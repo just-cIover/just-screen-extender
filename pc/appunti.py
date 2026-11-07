@@ -1,10 +1,10 @@
-"""Appunti condivisi tra il PC e i dispositivi (testo e immagini).
+"""Clipboard shared between the PC and the devices (text and images).
 
-- PC -> dispositivi: controllo il numero di sequenza degli appunti di Windows; quando cambia mando il
-  testo (o avviso che c'è un'immagine, che i dispositivi scaricano da /api/appunti/immagine).
-- Dispositivo -> PC: testo dal WebSocket ({t: "appunti"}), immagini con POST /api/appunti/immagine.
-- Riservatezza: niente contenuto nella console; salto gli appunti che i gestori di password segnano
-  come da non condividere (gli stessi formati che rispetta la cronologia degli appunti di Windows).
+- PC -> devices: I watch the Windows clipboard sequence number; when it changes I send the
+  text (or announce an image, which the devices download from /api/appunti/immagine).
+- Device -> PC: text over the WebSocket ({t: "appunti"}), images with POST /api/appunti/immagine.
+- Privacy: no content in the console; I skip clipboard data that password managers mark
+  as not to be shared (the same formats the Windows clipboard history respects).
 """
 import asyncio
 import ctypes
@@ -21,9 +21,9 @@ kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
 
 CF_UNICODETEXT, CF_DIB = 13, 8
 GMEM_MOVEABLE = 0x2
-MAX_TEXT = 1_000_000        # caratteri
-MAX_IMAGE = 25 * 1024 * 1024  # byte
-MAX_PIXELS = 50_000_000        # es. 8000 x 6000: oltre, rifiuto (difesa dalle "bombe di decompressione")
+MAX_TEXT = 1_000_000        # characters
+MAX_IMAGE = 25 * 1024 * 1024  # bytes
+MAX_PIXELS = 50_000_000        # e.g. 8000 x 6000: larger is refused (defense against "decompression bombs")
 
 user32.GetClipboardData.restype = wintypes.HANDLE
 user32.SetClipboardData.restype = wintypes.HANDLE
@@ -40,14 +40,14 @@ kernel32.GlobalSize.restype = ctypes.c_size_t
 kernel32.GlobalSize.argtypes = [wintypes.HGLOBAL]
 kernel32.GlobalFree.argtypes = [wintypes.HGLOBAL]
 
-# formati usati da KeePass, Bitwarden, 1Password… per dire "non copiare altrove"
+# formats used by KeePass, Bitwarden, 1Password… to say "don't copy elsewhere"
 EXCLUDE = user32.RegisterClipboardFormatW('ExcludeClipboardContentFromMonitorProcessing')
 NO_HISTORY = user32.RegisterClipboardFormatW('CanIncludeInClipboardHistory')
 NO_CLOUD = user32.RegisterClipboardFormatW('CanUploadToCloudClipboard')
 
 
 class _Open:
-    """Apre gli appunti (riprovando: un altro programma può tenerli aperti per un attimo)."""
+    """Opens the clipboard (retrying: another program may keep it open for a moment)."""
 
     def __enter__(self):
         import time
@@ -126,25 +126,25 @@ def write_image(data):
     img.load()
     if img.mode not in ('RGB', 'RGBA'):
         img = img.convert('RGBA')
-    if img.mode == 'RGBA':  # nel formato DIB classico la trasparenza si perde: sfondo bianco
+    if img.mode == 'RGBA':  # in the classic DIB format transparency is lost: white background
         bg = Image.new('RGB', img.size, 'white')
         bg.paste(img, mask=img.split()[3])
         img = bg
     buf = io.BytesIO()
     img.save(buf, 'BMP')
-    _set(CF_DIB, buf.getvalue()[14:])  # DIB = BMP senza l'intestazione del file
+    _set(CF_DIB, buf.getvalue()[14:])  # DIB = BMP without the file header
 
 
 class Clipboard:
-    """Sincronizza gli appunti. app = l'App del server (dispositivi, sessioni), log = console."""
+    """Syncs the clipboard. app = the server App (devices, sessions), log = console."""
 
     def __init__(self, app, log, enabled=True):
         self.app = app
         self.log = log
         self.enabled = enabled
         self.seq = sequence()
-        self.ours = set()      # numeri di sequenza scritti da noi (da non rimandare indietro)
-        self.image = None      # ultima immagine copiata sul PC (png), per i dispositivi
+        self.ours = set()      # sequence numbers written by us (not to be sent back)
+        self.image = None      # last image copied on the PC (png), for the devices
         self.image_id = 0
 
     def _broadcast(self, msg, skip=None):
@@ -191,7 +191,7 @@ class Clipboard:
         self.ours.add(sequence())
         self.seq = sequence()
         self.log(f'appunti copiati sul PC ({what})', session.name)
-        # anche gli altri dispositivi ricevono quello che ha copiato questo
+        # the other devices also get what this one copied
         if isinstance(data, str):
             self._broadcast({'t': 'appunti', 'tipo': 'testo', 'testo': data}, skip=session.id)
         else:
@@ -203,7 +203,7 @@ class Clipboard:
             return
         asyncio.create_task(self._apply(write_text, text, session, f'testo, {len(text)} caratteri'))
 
-    # ---- immagini via HTTPS (troppo grandi per il canale dei comandi) ----
+    # ---- images over HTTPS (too large for the command channel) ----
     def _session(self, request):
         q = request.query
         dev = q.get('dev', '')
@@ -229,7 +229,7 @@ class Clipboard:
             img = Image.open(io.BytesIO(data))
             if img.width * img.height > MAX_PIXELS:
                 raise ValueError('immagine troppo grande')
-            img.verify()  # solo immagini vere
+            img.verify()  # real images only
         except Exception:
             raise web.HTTPBadRequest(text='non è un\'immagine')
         await self._apply(write_image, data, session, f'immagine, {len(data) // 1024} KB')

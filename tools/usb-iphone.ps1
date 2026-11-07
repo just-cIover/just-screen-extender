@@ -1,7 +1,7 @@
-# iPhone collegato con il cavo e Hotspot personale attivo: il PC lo vede come scheda di rete in più.
-# Qui la metto come ultima scelta per Internet (che resta sul Wi-Fi di casa): il cavo serve solo per
-# Schermo Esteso, senza consumare i giga dell'iPhone. Da eseguire come amministratore (una volta:
-# Windows ricorda l'impostazione per quella scheda).
+# iPhone connected with the cable and Personal Hotspot on: the PC sees it as an extra network adapter.
+# Here I make it the last choice for Internet (which stays on the home Wi-Fi): the cable is only for
+# Schermo Esteso, without using the iPhone's data. Run as administrator (once:
+# Windows remembers the setting for that adapter).
 param([string]$Report = "$env:TEMP\schermo-esteso-usb.txt")
 $out = @()
 $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object {

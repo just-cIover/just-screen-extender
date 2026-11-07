@@ -1,8 +1,8 @@
 'use strict';
-// Modalità "Compatibile": invece di decodificare con WebCodecs, impacchetto i fotogrammi H.264
-// in MP4 frammentato e li do al lettore video di Safari (Media Source Extensions).
-// È il percorso che Safari usa per i video normali: decodifica hardware e memoria stabile.
-// Il ritardo è un po' più alto, quindi tengo il video sempre "inseguito" verso la fine del buffer.
+// "Compatible" mode: instead of decoding with WebCodecs, I pack the H.264 frames
+// into fragmented MP4 and give them to Safari's video player (Media Source Extensions).
+// It's the path Safari uses for normal videos: hardware decoding and stable memory.
+// The delay is a bit higher, so I keep the video always "chasing" toward the end of the buffer.
 
 const MP4 = (() => {
   const u32 = (n) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
@@ -60,7 +60,7 @@ const MP4 = (() => {
       full('tfhd', 0, 0x020000, u32(1)),
       full('tfdt', 1, 0, u32(Math.floor(time / 0x100000000)), u32(time >>> 0)),
       full('trun', 0, 0x000701, u32(1), u32(offset), u32(duration), u32(data.length), u32(flags)));
-    // la dimensione del moof serve dentro il trun stesso: lo costruisco due volte
+    // the moof size is needed inside the trun itself: I build it twice
     const size = box('moof', full('mfhd', 0, 0, u32(seq)), traf(0)).length;
     const moof = box('moof', full('mfhd', 0, 0, u32(seq)), traf(size + 8));
     return cat([moof, box('mdat', data)]);
@@ -123,7 +123,7 @@ class MseRenderer {
 
   push(data, key) {
     if (this.waitingKey && !key) return false;
-    // il lettore non sta al passo: butto la coda e riparto dal prossimo fotogramma completo
+    // the player can't keep up: drop the queue and restart from the next full frame
     if (!key && this.queue.length > 20) { this.waitingKey = true; this.queue = this.queue.filter((q) => q.init); return false; }
     this.waitingKey = false;
     this.queue.push(MP4.fragment(this.seq++, this.time, this.dur, data, key));
@@ -136,7 +136,7 @@ class MseRenderer {
   pump() {
     const sb = this.sb;
     if (!sb || sb.updating || !this.queue.length) return;
-    // accodo più fotogrammi in un'unica append: meno lavoro per Safari
+    // queue several frames in a single append: less work for Safari
     const parts = this.queue.splice(0, 8);
     let len = 0;
     for (const p of parts) len += p.length;
@@ -144,7 +144,7 @@ class MseRenderer {
     let o = 0;
     for (const p of parts) { buf.set(p, o); o += p.length; }
     try { sb.appendBuffer(buf); } catch (e) {
-      // QuotaExceeded o stato sbagliato: libero il vecchio e riparto dal prossimo fotogramma completo
+      // QuotaExceeded or wrong state: free the old data and restart from the next full frame
       this.onReport({ mse: 'append: ' + e.name });
       this.waitingKey = true;
       this.trim(true);
@@ -164,7 +164,7 @@ class MseRenderer {
   }
 
   trim(force) {
-    // tengo solo gli ultimi secondi nel buffer, così la memoria resta costante
+    // keep only the last seconds in the buffer, so memory stays constant
     const sb = this.sb, v = this.video;
     if (!sb || sb.updating || !v.buffered.length) return;
     const start = v.buffered.start(0);

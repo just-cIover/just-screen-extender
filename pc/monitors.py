@@ -1,11 +1,11 @@
-"""Monitor di Windows: elenco, schermi virtuali, risoluzione, ridimensionamento (DPI)
-e indice di cattura per FFmpeg (ddagrab)."""
+"""Windows monitors: list, virtual screens, resolution, scaling (DPI)
+and capture index for FFmpeg (ddagrab)."""
 import ctypes
 from ctypes import wintypes
 
 user32 = ctypes.windll.user32
 
-# Coordinate in pixel fisici anche con lo zoom di Windows al 150-200%
+# Coordinates in physical pixels even with Windows zoom at 150-200%
 try:
     user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))  # PER_MONITOR_AWARE_V2
 except Exception:
@@ -23,7 +23,7 @@ class DISPLAY_DEVICEW(ctypes.Structure):
 
 
 def _device_info(name):
-    """Nome della scheda video e del monitor collegati a \\\\.\\DISPLAYn."""
+    """Name of the video card and monitor connected to \\\\.\\DISPLAYn."""
     a = DISPLAY_DEVICEW(); a.cb = ctypes.sizeof(a)
     m = DISPLAY_DEVICEW(); m.cb = ctypes.sizeof(m)
     adapter = monitor = mid = ''
@@ -61,7 +61,7 @@ def is_virtual(m):
 
 
 def list_virtual():
-    """Gli schermi virtuali (uno per dispositivo), in ordine di nome."""
+    """The virtual screens (one per device), in name order."""
     return sorted((m for m in list_monitors() if is_virtual(m)), key=lambda m: _num(m['device']))
 
 
@@ -78,14 +78,14 @@ def by_device(device):
 
 
 def virtual_screen():
-    """Rettangolo che contiene tutti i monitor (serve per il mouse in coordinate assolute)."""
+    """Rectangle containing all the monitors (needed for the mouse in absolute coordinates)."""
     return (user32.GetSystemMetrics(76), user32.GetSystemMetrics(77),
             user32.GetSystemMetrics(78), user32.GetSystemMetrics(79))
 
 
-# --- indice di cattura (DXGI) ----------------------------------------------
-# ddagrab di FFmpeg cattura l'uscita "output_idx" della scheda video predefinita (DXGI, scheda 0).
-# Qui trovo quale uscita corrisponde a \\.\DISPLAYn.
+# --- capture index (DXGI) ----------------------------------------------
+# FFmpeg's ddagrab captures output "output_idx" of the default video card (DXGI, adapter 0).
+# Here I find which output matches \\.\DISPLAYn.
 
 class _GUID(ctypes.Structure):
     _fields_ = [('a', ctypes.c_uint32), ('b', ctypes.c_uint16), ('c', ctypes.c_uint16), ('d', ctypes.c_ubyte * 8)]
@@ -105,7 +105,7 @@ def _vcall(obj, index, restype, *argtypes):
 
 
 def dxgi_outputs():
-    """{'\\\\.\\DISPLAYn': indice dell'uscita sulla scheda 0}."""
+    """{'\\\\.\\DISPLAYn': index of the output on adapter 0}."""
     out = {}
     factory = ctypes.c_void_p()
     if ctypes.windll.dxgi.CreateDXGIFactory1(ctypes.byref(_IID_FACTORY1), ctypes.byref(factory)) != 0:
@@ -132,7 +132,7 @@ def dxgi_outputs():
     return out
 
 
-# --- risoluzione -------------------------------------------------------------
+# --- resolution -------------------------------------------------------------
 
 class DEVMODEW(ctypes.Structure):
     _fields_ = [('dmDeviceName', wintypes.WCHAR * 32), ('dmSpecVersion', wintypes.WORD),
@@ -154,7 +154,7 @@ CDS_UPDATEREGISTRY = 0x1
 
 
 def list_modes(device):
-    """Risoluzioni disponibili per lo schermo: {(larghezza, altezza)}."""
+    """Resolutions available for the screen: {(width, height)}."""
     modes = set()
     i = 0
     while True:
@@ -167,18 +167,18 @@ def list_modes(device):
 
 
 def set_mode(device, w, h):
-    """Cambia la risoluzione di uno schermo. Restituisce True se riuscito."""
+    """Changes a screen's resolution. Returns True if it worked."""
     dm = DEVMODEW(); dm.dmSize = ctypes.sizeof(dm)
-    if not user32.EnumDisplaySettingsW(device, -1, ctypes.byref(dm)):  # -1 = impostazione attuale
+    if not user32.EnumDisplaySettingsW(device, -1, ctypes.byref(dm)):  # -1 = current setting
         return False
     dm.dmPelsWidth, dm.dmPelsHeight = w, h
     dm.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT
     return user32.ChangeDisplaySettingsExW(device, ctypes.byref(dm), None, CDS_UPDATEREGISTRY, None) == 0
 
 
-# --- ridimensionamento (100%, 150%, 200%...) ---------------------------------
-# Windows non ha una funzione documentata: si usa DisplayConfigGet/SetDeviceInfo con i tipi -3/-4,
-# come fa la pagina Impostazioni. I valori sono relativi a quello "consigliato" per lo schermo.
+# --- scaling (100%, 150%, 200%...) ---------------------------------
+# Windows has no documented function: DisplayConfigGet/SetDeviceInfo is used with types -3/-4,
+# as the Settings page does. Values are relative to the "recommended" one for the screen.
 
 DPI_VALUES = [100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500]
 
@@ -214,14 +214,14 @@ class _MODE(ctypes.Structure):
 
 def _source_of(device):
     np_, nm = ctypes.c_uint32(), ctypes.c_uint32()
-    if user32.GetDisplayConfigBufferSizes(2, ctypes.byref(np_), ctypes.byref(nm)) != 0:  # 2 = solo percorsi attivi
+    if user32.GetDisplayConfigBufferSizes(2, ctypes.byref(np_), ctypes.byref(nm)) != 0:  # 2 = active paths only
         return None
     paths, modes = (_PATH * np_.value)(), (_MODE * nm.value)()
     if user32.QueryDisplayConfig(2, ctypes.byref(np_), paths, ctypes.byref(nm), modes, None) != 0:
         return None
     for p in paths[:np_.value]:
         sn = _SOURCE_NAME()
-        sn.header.type, sn.header.size = 1, ctypes.sizeof(sn)  # 1 = nome GDI della sorgente
+        sn.header.type, sn.header.size = 1, ctypes.sizeof(sn)  # 1 = GDI name of the source
         sn.header.adapterId, sn.header.id = p.srcAdapter, p.srcId
         if user32.DisplayConfigGetDeviceInfo(ctypes.byref(sn)) == 0 and sn.viewGdiDeviceName == device:
             return p.srcAdapter, p.srcId
@@ -241,7 +241,7 @@ def _dpi_info(device):
 
 
 def get_scale(device):
-    """Ridimensionamento attuale in percento (es. 200), oppure None."""
+    """Current scaling in percent (e.g. 200), or None."""
     info = _dpi_info(device)
     if not info:
         return None
@@ -266,10 +266,10 @@ def set_scale(device, percent):
 
 
 
-# --- accendere / spegnere un singolo schermo virtuale -------------------------
-# Uso QueryDisplayConfig/SetDisplayConfig (come Impostazioni > Schermo): si tocca solo il percorso
-# dello schermo interessato, gli altri restano come sono. Windows ricorda per ogni schermo
-# posizione, risoluzione e ridimensionamento, e li riapplica quando lo riaccendo.
+# --- turning a single virtual screen on / off -------------------------
+# I use QueryDisplayConfig/SetDisplayConfig (like Settings > Display): only the path
+# of the screen concerned is touched, the others stay as they are. Windows remembers for each screen
+# position, resolution and scaling, and applies them again when I turn it back on.
 
 QDC_ALL_PATHS, QDC_ONLY_ACTIVE = 1, 2
 PATH_ACTIVE = 1
@@ -308,21 +308,21 @@ class _TARGET_NAME(ctypes.Structure):
 
 def _query(flags):
     np_, nm = ctypes.c_uint32(), ctypes.c_uint32()
-    for _ in range(5):  # la configurazione può cambiare tra le due chiamate: riprovo
+    for _ in range(5):  # the configuration can change between the two calls: retry
         if user32.GetDisplayConfigBufferSizes(flags, ctypes.byref(np_), ctypes.byref(nm)) != 0:
             return [], []
         paths, modes = (_FULLPATH * np_.value)(), (_MODE * nm.value)()
         r = user32.QueryDisplayConfig(flags, ctypes.byref(np_), paths, ctypes.byref(nm), modes, None)
         if r == 0:
             return list(paths[:np_.value]), list(modes[:nm.value])
-        if r != 122:  # 122 = buffer troppo piccolo
+        if r != 122:  # 122 = buffer too small
             break
     return [], []
 
 
 def _target_name(p):
     t = _TARGET_NAME()
-    t.header.type, t.header.size = 2, ctypes.sizeof(t)  # 2 = nome del monitor
+    t.header.type, t.header.size = 2, ctypes.sizeof(t)  # 2 = monitor name
     t.header.adapterId, t.header.id = p.tgt.adapterId, p.tgt.id
     if user32.DisplayConfigGetDeviceInfo(ctypes.byref(t)) != 0:
         return None
@@ -342,8 +342,8 @@ def _is_virtual_target(t):
 
 
 def virtual_slots():
-    """Gli schermi virtuali creati dal driver, accesi o spenti:
-    {numero connettore: {'active': bool, 'device': '\\.\DISPLAYn' oppure None, 'uid': percorso del monitor}}."""
+    """The virtual screens created by the driver, on or off:
+    {connector number: {'active': bool, 'device': '\\.\DISPLAYn' or None, 'uid': monitor path}}."""
     slots = {}
     paths, _ = _query(QDC_ALL_PATHS)
     for p in paths:
@@ -367,7 +367,7 @@ def _apply(paths, modes):
 
 
 def detach_slot(slot):
-    """Spegne uno schermo virtuale (come scollegarlo). Restituisce il codice di Windows (0 = ok)."""
+    """Turns a virtual screen off (like unplugging it). Returns the Windows code (0 = ok)."""
     paths, modes = _query(QDC_ONLY_ACTIVE)
     keep = []
     found = False
@@ -380,25 +380,25 @@ def detach_slot(slot):
     if not found:
         return 0
     if not keep:
-        return -1  # non spengo mai l'ultimo schermo acceso
+        return -1  # never turn off the last screen that's on
     return _apply(keep, modes)
 
 
 def slot_geometry(slot):
-    """(x, y, larghezza, altezza) di uno schermo virtuale acceso, oppure None."""
+    """(x, y, width, height) of a virtual screen that's on, or None."""
     dev = virtual_slots().get(slot, {}).get('device')
     m = dev and by_device(dev)
     return (m['x'], m['y'], m['w'], m['h']) if m else None
 
 
 def attach_slot(slot, geometry=None):
-    """Riaccende uno schermo virtuale. geometry = (x, y, larghezza, altezza) da ripristinare;
-    senza, Windows sceglie da solo (risoluzione ricordata, posizione a destra)."""
+    """Turns a virtual screen back on. geometry = (x, y, width, height) to restore;
+    without it, Windows decides by itself (remembered resolution, position on the right)."""
     active, modes = _query(QDC_ONLY_ACTIVE)
     for p in active:
         t = _target_name(p)
         if t and _is_virtual_target(t) and t.connectorInstance == slot:
-            return 0  # già acceso
+            return 0  # already on
     used = {(p.src.adapterId.low, p.src.adapterId.high, p.src.id) for p in active}
     allp, _ = _query(QDC_ALL_PATHS)
     for p in allp:
@@ -419,15 +419,15 @@ def attach_slot(slot, geometry=None):
             p.src.modeInfoIdx = len(modes)
             modes = modes + [ctypes.cast(ctypes.pointer(sm), ctypes.POINTER(_MODE)).contents]
         r = _apply(active + [p], modes)
-        if r != 0 and geometry:  # posizione non accettata: lascio scegliere a Windows
+        if r != 0 and geometry:  # position not accepted: let Windows choose
             p.src.modeInfoIdx = MODE_IDX_INVALID
             r = _apply(active + [p], modes[:-1])
         return r
-    return -2  # schermo non trovato (il driver ne ha meno di quanti servono)
+    return -2  # screen not found (the driver has fewer than needed)
 
 
 def set_slot_position(slot, x, y):
-    """Sposta uno schermo virtuale acceso nella posizione indicata (rispetto al monitor principale)."""
+    """Moves a virtual screen that's on to the given position (relative to the main monitor)."""
     paths, modes = _query(QDC_ONLY_ACTIVE)
     for p in paths:
         t = _target_name(p)

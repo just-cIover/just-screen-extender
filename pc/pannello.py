@@ -1,8 +1,8 @@
-"""Finestra di controllo sul PC: console a sinistra (2/3), prestazioni a destra (1/3).
+"""Control window on the PC: console on the left (2/3), performance on the right (1/3).
 
-La pagina (panel/index.html) è servita solo al PC stesso (127.0.0.1), in una finestra di
-Edge senza barre aperta da avvio.pyw. Riceve le righe della console e, ogni secondo, lo stato
-di PC e dispositivi.
+The page (panel/index.html) is served only to the PC itself (127.0.0.1), in an
+Edge window without toolbars opened by avvio.pyw. It receives the console lines and, every second, the
+state of the PC and the devices.
 """
 import asyncio
 import ctypes
@@ -26,7 +26,7 @@ PAGE = os.path.join(HERE, 'panel', 'index.html')
 QUALITY_NAMES = ['Massima', 'Fluida', 'Media', 'Leggera']
 
 
-# --- uso di CPU e memoria del PC ----------------------------------------------
+# --- PC CPU and memory usage ----------------------------------------------
 class _MEM(ctypes.Structure):
     _fields_ = [('len', wintypes.DWORD), ('load', wintypes.DWORD), ('total', ctypes.c_uint64),
                 ('avail', ctypes.c_uint64), ('_r', ctypes.c_uint64 * 5)]
@@ -45,7 +45,7 @@ class PcStats:
     def read(self):
         idle, kern, user = wintypes.FILETIME(), wintypes.FILETIME(), wintypes.FILETIME()
         ctypes.windll.kernel32.GetSystemTimes(ctypes.byref(idle), ctypes.byref(kern), ctypes.byref(user))
-        cur = (_ft(idle), _ft(kern) + _ft(user))  # il tempo "kernel" comprende anche quello inattivo
+        cur = (_ft(idle), _ft(kern) + _ft(user))  # "kernel" time includes idle time too
         cpu = None
         if self.prev:
             di, dt = cur[0] - self.prev[0], cur[1] - self.prev[1]
@@ -62,16 +62,16 @@ class Panel:
     def __init__(self, app, log, lines, listeners, folder, urls, ui_mode, exchange):
         self.app = app
         self.exchange = exchange
-        self.on_setting = lambda key, value: None  # salvataggio delle impostazioni (lo collega server.py)
+        self.on_setting = lambda key, value: None  # saving settings (server.py hooks it up)
         self.log = log
-        self.lines = lines          # ultime righe della console
-        self.listeners = listeners  # funzioni chiamate a ogni riga nuova
+        self.lines = lines          # latest console lines
+        self.listeners = listeners  # functions called on every new line
         self.folder = folder
         self.urls = urls
-        self.ui_mode = ui_mode      # avviato dalla finestra: chiudendola si chiude tutto
+        self.ui_mode = ui_mode      # started from the window: closing it closes everything
         self.clients = set()
         self.pc = PcStats()
-        self.prev = {}              # dispositivo -> (ora, fotogrammi, byte) per calcolare i valori al secondo
+        self.prev = {}              # device -> (time, frames, bytes) to compute per-second values
         self.started = time.monotonic()
         self.last_client = None
         self.last_clean = True
@@ -87,7 +87,7 @@ class Panel:
         return resp
 
     async def background(self, request):
-        """Immagini di sfondo dei temi (cartella panel/sfondi), solo per la finestra di questo PC."""
+        """Theme background images (panel/sfondi folder), only for the window on this PC."""
         self._local(request)
         name = request.match_info['nome']
         if not re.fullmatch(r'[a-z0-9-]+\.jpg', name):
@@ -101,7 +101,7 @@ class Panel:
         self._local(request)
         return web.json_response({'ok': True})
 
-    # ---- stato ----
+    # ---- state ----
     def devices(self):
         app = self.app
         now = time.monotonic()
@@ -149,10 +149,10 @@ class Panel:
                 'appunti': self.app.clipboard.enabled,
                 'file': self.exchange.files()}
 
-    # ---- websocket della finestra ----
+    # ---- window websocket ----
     async def ws(self, request):
         self._local(request)
-        # heartbeat largo: con il PC carico (RAM piena) la finestra può rispondere in ritardo senza essere chiusa
+        # generous heartbeat: with the PC busy (RAM full) the window may answer late without being closed
         ws = web.WebSocketResponse(heartbeat=20)
         await ws.prepare(request)
         self.clients.add(ws)
@@ -219,21 +219,21 @@ class Panel:
                 t.cancel()
             if not self.clients:
                 self.last_client = time.monotonic()
-                # chiusa davvero (la finestra manda 1000/1001) o solo collegamento perso (PC carico, finestra rallentata)
+                # really closed (the window sends 1000/1001) or just the connection lost (PC busy, window slowed down)
                 self.last_clean = ws.close_code in (1000, 1001)
                 if not self.last_clean:
                     self.log('la finestra non risponde (PC carico?): aspetto che si ricolleghi, fino a 3 minuti', 'PC')
         return ws
 
     def send_all(self, msg):
-        """Messaggio a tutte le finestre aperte (es. la lingua è cambiata)."""
+        """Message to every open window (e.g. the language changed)."""
         text = json.dumps(msg)
         for ws in list(self.clients):
             if not ws.closed:
                 asyncio.ensure_future(ws.send_str(text))
 
     def force_quality(self, dev_id, level):
-        """Qualità decisa dal PC: vale subito se il dispositivo è collegato, altrimenti al prossimo collegamento."""
+        """Quality set by the PC: applies right away if the device is connected, otherwise on the next connection."""
         s = self.app.sessions.get(dev_id)
         if s:
             s.set_quality(level, 'dal PC')
@@ -255,24 +255,24 @@ class Panel:
         self.app.kick.set()
 
     async def watch_window(self):
-        """Avviato dalla finestra: quando la finestra resta chiusa per 8 s, chiudo tutto."""
+        """Started from the window: when the window stays closed for 8 s, close everything."""
         if not self.ui_mode:
-            await asyncio.Future()  # avviato da terminale: resta acceso finché non lo chiudi tu
+            await asyncio.Future()  # started from a terminal: stays on until you close it
         while True:
             await riposo.nap(1)
             now = time.monotonic()
             if self.clients:
                 continue
             if riposo.woke_since(30):
-                # appena svegliato: Edge ci mette un po' a ricollegare la finestra, non è stata chiusa
+                # just woke up: Edge takes a while to reconnect the window, it wasn't closed
                 self.last_client = now
                 continue
             never = self.last_client is None and now - self.started > 60
             attesa = 8 if self.last_clean else 180
             closed = self.last_client is not None and now - self.last_client > attesa
             if (never or closed) and await asyncio.to_thread(finestre.panel_window_open):
-                # la finestra c'è ancora: Edge l'ha solo messa in pausa (coperta, PC carico). Non spengo niente,
-                # e dopo un clic su di lei si ricollega da sola
+                # the window is still there: Edge just paused it (covered, PC busy). Nothing gets turned off,
+                # and after a click on it it reconnects by itself
                 if not self.paused_logged:
                     self.log('la finestra è aperta ma in pausa (Edge): resto acceso', 'PC')
                     self.paused_logged = True

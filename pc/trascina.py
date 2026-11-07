@@ -1,12 +1,12 @@
-"""Trascinamento vero di Windows (OLE drag and drop) di un file in un punto dello schermo.
+"""Real Windows drag and drop (OLE drag and drop) of a file onto a point of the screen.
 
-Così è il programma sotto il punto a decidere cosa farne, come quando trascini con il mouse:
-Esplora file e il desktop lo copiano lì, Obsidian lo mette nella cartella del vault, Word e le chat
-lo inseriscono, i browser lo caricano nella pagina.
+This way the program under the point decides what to do with it, as when you drag with the mouse:
+File Explorer and the desktop copy it there, Obsidian puts it in the vault folder, Word and chat apps
+insert it, browsers upload it into the page.
 
-Come funziona: il tasto del mouse si preme su una piccola finestra invisibile nostra (così non si
-clicca niente per sbaglio), parte il trascinamento con il file, il cursore si sposta sul punto e il
-tasto si rilascia: Windows consegna il file al programma che sta lì.
+How it works: the mouse button is pressed on a small invisible window of ours (so nothing gets
+clicked by mistake), the drag starts with the file, the cursor moves to the point and the
+button is released: Windows hands the file to the program that's there.
 """
 import ctypes
 import os
@@ -20,7 +20,7 @@ import win32gui
 from win32com.server.util import wrap
 from win32com.shell import shell
 
-import monitors  # imposta anche la DPI awareness
+import monitors  # also sets DPI awareness
 
 user32 = ctypes.windll.user32
 
@@ -45,7 +45,7 @@ class _Input(ctypes.Structure):
 def _mouse(flags, x=0, y=0):
     i = _Input(type=0)
     if flags & MOVE:
-        # coordinate assolute su tutto il desktop (0..65535), anche con schermi a sinistra o sopra
+        # absolute coordinates over the whole desktop (0..65535), even with screens to the left or above
         vx, vy, vw, vh = monitors.virtual_screen()
         x = round((x - vx) * 65535 / max(vw - 1, 1))
         y = round((y - vy) * 65535 / max(vh - 1, 1))
@@ -70,7 +70,7 @@ class _DropSource:
 
 
 def _data_object(path):
-    """L'oggetto "file" che Esplora file usa quando trascini quel file."""
+    """The "file" object File Explorer uses when you drag that file."""
     folder, name = os.path.split(os.path.abspath(path))
     desktop = shell.SHGetDesktopFolder()
     _, pidl_folder, _ = desktop.ParseDisplayName(0, None, folder)
@@ -80,7 +80,7 @@ def _data_object(path):
 
 
 def _grip_window(x, y):
-    """Finestrella quasi trasparente sotto il cursore: riceve la pressione del tasto al posto del programma."""
+    """Tiny almost transparent window under the cursor: it receives the button press instead of the program."""
     cls = 'SchermoEstesoTrascina'
     wc = win32gui.WNDCLASS()
     wc.lpszClassName = cls
@@ -89,18 +89,18 @@ def _grip_window(x, y):
     try:
         win32gui.RegisterClass(wc)
     except win32gui.error:
-        pass  # già registrata
+        pass  # already registered
     ex = win32con.WS_EX_LAYERED | win32con.WS_EX_TOPMOST | win32con.WS_EX_TOOLWINDOW | win32con.WS_EX_NOACTIVATE
     hwnd = win32gui.CreateWindowEx(ex, cls, '', win32con.WS_POPUP, x - 20, y - 20, 40, 40, 0, 0, wc.hInstance, None)
-    win32gui.SetLayeredWindowAttributes(hwnd, 0, 1, win32con.LWA_ALPHA)  # invisibile ma "toccabile"
+    win32gui.SetLayeredWindowAttributes(hwnd, 0, 1, win32con.LWA_ALPHA)  # invisible but "touchable"
     win32gui.ShowWindow(hwnd, win32con.SW_SHOWNOACTIVATE)
     win32gui.UpdateWindow(hwnd)
     return hwnd
 
 
 def drop_at(path, x, y):
-    """Trascina il file e lo lascia nel punto (x, y) in pixel dello schermo.
-    Restituisce l'effetto scelto dal programma: 'copiato', 'spostato', 'collegato' o None (nessuno l'ha preso)."""
+    """Drags the file and drops it at point (x, y) in screen pixels.
+    Returns the effect chosen by the program: 'copiato', 'spostato', 'collegato' or None (nobody took it)."""
     result = {}
 
     def run():
@@ -119,23 +119,23 @@ def drop_at(path, x, y):
             win32gui.PumpWaitingMessages()
 
             def guide():
-                # mentre Windows trascina: tolgo la finestrella e muovo il cursore sul punto, poi rilascio
+                # while Windows drags: remove the tiny window and move the cursor to the point, then release
                 time.sleep(0.15)
-                # la finestrella si sposta fuori dallo schermo (chiuderla ora interromperebbe il trascinamento)
+                # the tiny window moves off screen (closing it now would interrupt the drag)
                 win32gui.SetWindowPos(hwnd, 0, -32000, -32000, 0, 0, win32con.SWP_NOSIZE | win32con.SWP_NOZORDER
                                       | win32con.SWP_NOACTIVATE)
                 for k in range(6):
                     _mouse(MOVE, x + (6 - k), y + (6 - k))
                     time.sleep(0.04)
                 _mouse(MOVE, x, y)
-                time.sleep(0.35)  # il programma decide se accettare (DragOver)
+                time.sleep(0.35)  # the program decides whether to accept (DragOver)
                 _mouse(LEFTUP)
 
             threading.Thread(target=guide, daemon=True).start()
             effect = pythoncom.DoDragDrop(data, source, DROPEFFECT_COPY | DROPEFFECT_LINK)
             result['effect'] = {DROPEFFECT_COPY: 'copiato', DROPEFFECT_MOVE: 'spostato',
                                 DROPEFFECT_LINK: 'collegato'}.get(effect & 7)
-        except Exception as e:  # mai lasciare il tasto premuto
+        except Exception as e:  # never leave the button pressed
             result['error'] = e
             _mouse(LEFTUP)
         finally:

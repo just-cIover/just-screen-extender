@@ -1,5 +1,5 @@
-# Installa il Virtual Display Driver (schermo virtuale per l'iPad).
-# Va eseguito come amministratore: "Installa driver.bat" lo avvia già così.
+# Installs the Virtual Display Driver (virtual screen for the iPad).
+# Must run as administrator: "Installa driver.bat" already starts it that way.
 $ErrorActionPreference = 'Stop'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $pkg = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Directory -Filter 'VirtualDrivers.Virtual-Display-Driver*' |
@@ -12,7 +12,7 @@ if (-not $pkg) { throw 'Pacchetto VirtualDrivers.Virtual-Display-Driver non trov
 $drv = Join-Path $pkg.FullName 'SignedDrivers\x86\VDD'
 $devcon = Join-Path $pkg.FullName 'Dependencies\devcon.exe'
 
-# Il driver legge la configurazione da C:\VirtualDisplayDriver
+# The driver reads its configuration from C:\VirtualDisplayDriver
 New-Item -ItemType Directory -Force 'C:\VirtualDisplayDriver' | Out-Null
 Copy-Item (Join-Path $here 'vdd_settings.xml') 'C:\VirtualDisplayDriver\vdd_settings.xml' -Force
 
@@ -24,7 +24,7 @@ if (Get-PnpDevice -FriendlyName '*Virtual Display*' -ErrorAction SilentlyContinu
 }
 Write-Host "Driver: fatto (codice $LASTEXITCODE)."
 
-# Il firewall deve lasciar passare l'iPad sulla porta dell'app (anche con la rete impostata come "Pubblica")
+# The firewall must let the iPad through on the app port (even with the network set to "Public")
 if (-not (Get-NetFirewallRule -DisplayName 'iPad Schermo (TCP 8770)' -ErrorAction SilentlyContinue)) {
     New-NetFirewallRule -DisplayName 'iPad Schermo (TCP 8770)' -Direction Inbound -Protocol TCP -LocalPort 8770 `
         -Action Allow -Profile Any -RemoteAddress LocalSubnet | Out-Null

@@ -1,15 +1,15 @@
-# Firewall per Schermo Esteso (da eseguire come amministratore).
-# 1. la rete Wi-Fi attuale, se è quella di casa ed è Pubblica, diventa Privata
-# 2. porta 8770: reti Private solo dalla rete locale; reti Pubbliche solo dall'hotspot di un iPhone
-#    (172.20.10.0/28: l'iPhone è sempre 172.20.10.1, chi si collega al suo hotspot 172.20.10.2-14)
-# 3. regole anche per i programmi Python, così Windows non chiede "Consentire l'accesso?"
-#    (annullando, creerebbe una regola di blocco che fermerebbe anche i dispositivi)
-# 4. via le regole "Python" troppo larghe (tutte le porte) e quelle di blocco create dalle richieste
+# Firewall for Schermo Esteso (run as administrator).
+# 1. the current Wi-Fi network, if it's the home one and set to Public, becomes Private
+# 2. port 8770: Private networks only from the local network; Public networks only from an iPhone hotspot
+#    (172.20.10.0/28: the iPhone is always 172.20.10.1, whoever joins its hotspot 172.20.10.2-14)
+# 3. rules for the Python programs too, so Windows doesn't ask "Allow access?"
+#    (cancelling would create a block rule that would stop the devices too)
+# 4. remove the "Python" rules that are too broad (all ports) and the block rules created by those prompts
 param([string]$Report = "$env:TEMP\schermo-esteso-firewall.txt", [switch]$HomePrivate)
 $ErrorActionPreference = 'Continue'
 $out = @()
 $Hotspot = '172.20.10.0/28'
-$Tailscale = '100.64.0.0/10'  # solo i propri dispositivi collegati allo stesso account Tailscale
+$Tailscale = '100.64.0.0/10'  # only your own devices connected to the same Tailscale account
 
 if ($HomePrivate) {
     foreach ($p in Get-NetConnectionProfile) {
@@ -20,7 +20,7 @@ if ($HomePrivate) {
     }
 }
 
-# regole nostre: le tolgo e le rifaccio
+# our rules: remove them and create them again
 Get-NetFirewallRule | Where-Object { $_.DisplayName -like 'Schermo Esteso*' -or $_.DisplayName -eq 'iPad Schermo (TCP 8770)' } |
     Remove-NetFirewallRule
 New-NetFirewallRule -DisplayName 'Schermo Esteso (TCP 8770)' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8770 `
@@ -31,7 +31,7 @@ New-NetFirewallRule -DisplayName 'Schermo Esteso (TCP 8770, Tailscale)' -Directi
     -LocalPort 8770 -Profile Any -RemoteAddress $Tailscale -Description 'I propri dispositivi via Tailscale, da qualsiasi rete' | Out-Null
 $out += 'Porta 8770: reti private (rete locale), hotspot iPhone, dispositivi Tailscale'
 
-# programmi Python che fanno girare il server (app dello Store: il percorso cambia con gli aggiornamenti)
+# Python programs running the server (Store app: the path changes with updates)
 $pys = Get-ChildItem 'C:\Program Files\WindowsApps' -Directory -Filter 'PythonSoftwareFoundation.Python.3.*' -ErrorAction SilentlyContinue |
     ForEach-Object { Get-ChildItem $_.FullName -File | Where-Object { $_.Name -match '^pythonw?3\.\d+\.exe$' } } |
     Select-Object -ExpandProperty FullName

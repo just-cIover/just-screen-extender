@@ -1,25 +1,25 @@
 import Foundation
 import Security
 
-/// Impostazioni dell'app. La chiave ricevuta dal PC dopo il PIN sta nel Portachiavi (cifrata),
-/// il resto nelle impostazioni normali.
+/// App settings. The key received from the PC after the PIN is in the Keychain (encrypted),
+/// the rest in the normal settings.
 enum Settings {
     private static let d = UserDefaults.standard
 
-    /// Indirizzo del PC, es. "192.168.1.20:8770".
+    /// PC address, e.g. "192.168.1.20:8770".
     static var host: String {
         get { d.string(forKey: "host") ?? "" }
         set { d.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "host") }
     }
 
-    /// Tutti gli indirizzi del PC visti finora (rete di casa, hotspot…): se quello attuale non risponde
-    /// l'app li prova uno per uno.
+    /// All the PC addresses seen so far (home network, hotspot…): if the current one doesn't answer
+    /// the app tries them one by one.
     static var knownHosts: [String] {
         get { d.stringArray(forKey: "knownHosts") ?? [] }
         set { d.set(Array(newValue.prefix(12)), forKey: "knownHosts") }
     }
 
-    /// Codice casuale di questo dispositivo, creato la prima volta.
+    /// Random code of this device, created the first time.
     static var deviceId: String {
         if let id = d.string(forKey: "devId") { return id }
         let id = UUID().uuidString.lowercased()
@@ -32,55 +32,55 @@ enum Settings {
         set { Keychain.write("token", newValue) }
     }
 
-    /// 0 Massima (60 fps) … 3 Leggera. Di base Fluida: su iPad meno recenti 60 fps a piena risoluzione sono troppi.
+    /// 0 Best (60 fps) … 3 Light. Smooth by default: on older iPads 60 fps at full resolution is too much.
     static var quality: Int {
         get { d.object(forKey: "quality") as? Int ?? 1 }
         set { d.set(newValue, forKey: "quality") }
     }
 
-    /// "touch" (tocco di Windows) oppure "mouse".
+    /// "touch" (Windows touch) or "mouse".
     static var touchMode: String {
         get { d.string(forKey: "touchMode") ?? "touch" }
         set { d.set(newValue, forKey: "touchMode") }
     }
 
-    /// "auto" (scrive nei programmi da disegno, altrove fa da dito), "penna", "gomma" oppure "mouse".
+    /// "auto" (writes in drawing programs, acts as a finger elsewhere), "penna", "gomma" or "mouse".
     static var penMode: String {
         get { d.string(forKey: "penMode2") ?? "auto" }
         set { d.set(newValue, forKey: "penMode2") }
     }
 
-    /// Lo schermo del PC gira con il dispositivo (verticale/orizzontale). Spento = sempre orizzontale.
+    /// The PC screen rotates with the device (portrait/landscape). Off = always landscape.
     static var rotate: Bool {
         get { d.object(forKey: "rotate") as? Bool ?? true }
         set { d.set(newValue, forKey: "rotate") }
     }
 
-    /// Dove sta il pulsante del menu (si sposta trascinandolo): 0…7 = angoli e metà dei bordi, vedi ScreenViewController.
+    /// Where the menu button is (moved by dragging it): 0…7 = corners and middles of the edges, see ScreenViewController.
     static var menuSpot: Int {
-        get { d.object(forKey: "menuSpot") as? Int ?? 2 }  // 2 = in alto a destra
+        get { d.object(forKey: "menuSpot") as? Int ?? 2 }  // 2 = top right
         set { d.set(newValue, forKey: "menuSpot") }
     }
 
-    /// Appunti condivisi con il PC.
+    /// Clipboard shared with the PC.
     static var clipboardSync: Bool {
         get { d.object(forKey: "clipboardSync") as? Bool ?? true }
         set { d.set(newValue, forKey: "clipboardSync") }
     }
 
-    /// Ultimo stato degli appunti dell'iPad già visto (per mandare al PC solo le copie nuove).
+    /// Last iPad clipboard state already seen (to send only new copies to the PC).
     static var pasteboardSeen: Int {
         get { d.object(forKey: "pasteboardSeen") as? Int ?? -1 }
         set { d.set(newValue, forKey: "pasteboardSeen") }
     }
 
-    /// Lingua dell'app: "it" o "en". Prima del primo collegamento quella del dispositivo, poi quella del PC.
+    /// App language: "it" or "en". Before the first connection the device's own, then the PC's.
     static var language: String {
         get { d.string(forKey: "lingua") ?? (Locale.preferredLanguages.first?.hasPrefix("it") == true ? "it" : "en") }
         set { d.set(newValue, forKey: "lingua") }
     }
 
-    /// Inchiostro immediato: il tratto della Pencil compare subito, prima che arrivi quello vero dal PC.
+    /// Instant ink: the Pencil stroke appears right away, before the real one arrives from the PC.
     static var instantInk: Bool {
         get { d.object(forKey: "instantInk") as? Bool ?? true }
         set { d.set(newValue, forKey: "instantInk") }

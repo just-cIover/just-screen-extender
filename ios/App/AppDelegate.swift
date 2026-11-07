@@ -9,8 +9,8 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 }
 
-/// Una sola finestra: lo schermo del PC. Si collega quando l'app è in primo piano e si scollega
-/// quando va in background (il PC spegne il suo schermo virtuale dopo 15 secondi).
+/// A single window: the PC screen. It connects when the app is in the foreground and disconnects
+/// when it goes to the background (the PC turns its virtual screen off after 15 seconds).
 final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
     private let screen = ScreenViewController()
@@ -21,7 +21,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.rootViewController = screen
         window.makeKeyAndVisible()
         self.window = window
-        // aperta con un file da un'altra app (Condividi → Schermo Esteso)
+        // opened with a file from another app (Share → Schermo Esteso)
         screen.receiveShared(connectionOptions.urlContexts.map(\.url))
     }
 
@@ -33,7 +33,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         screen.resume()
         screen.becameActive()
     }
-    // Centro di controllo, app switcher, notifiche: iPadOS ferma l'app per un attimo
+    // Control Center, app switcher, notifications: iPadOS pauses the app for a moment
     func sceneWillResignActive(_ scene: UIScene) { screen.resignedActive() }
     func sceneDidEnterBackground(_ scene: UIScene) { screen.pause() }
 }

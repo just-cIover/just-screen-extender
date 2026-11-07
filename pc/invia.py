@@ -1,7 +1,7 @@
-"""Clic destro su uno o più file > Invia a > Schermo Esteso.
+"""Right-click on one or more files > Send to > Schermo Esteso.
 
-Copia i file nella cartella di scambio e avvisa i dispositivi collegati, che li possono
-aprire o salvare. Gira con pythonw (senza finestra): i messaggi compaiono in un riquadro.
+Copies the files into the exchange folder and notifies the connected devices, which can
+open or save them. Runs with pythonw (no window): messages appear in a dialog box.
 """
 import ctypes
 import json
@@ -30,7 +30,7 @@ def main():
     if not paths:
         message('Seleziona uno o più file (le cartelle non si possono inviare).', True)
         return
-    port = cfg.get('porta_locale', 8769)  # porta riservata a questo PC
+    port = cfg.get('porta_locale', 8769)  # port reserved for this PC
     req = urllib.request.Request(f'http://127.0.0.1:{port}/api/locale',
                                  data=json.dumps({'percorsi': paths}).encode(),
                                  headers={'Content-Type': 'application/json'})

@@ -2,20 +2,20 @@ import AVFoundation
 import UIKit
 import UniformTypeIdentifiers
 
-/// Il video del PC: decodificato e disegnato dall'hardware dell'iPad.
+/// The PC video: decoded and drawn by the iPad hardware.
 final class VideoView: UIView {
     override class var layerClass: AnyClass { AVSampleBufferDisplayLayer.self }
     var display: AVSampleBufferDisplayLayer { layer as! AVSampleBufferDisplayLayer }
 }
 
-/// Inchiostro immediato: il tratto della Pencil compare subito e sfuma quando arriva quello vero
-/// dal PC. In più disegna i punti "previsti" da iPadOS, che anticipano il movimento della punta.
+/// Instant ink: the Pencil stroke appears right away and fades when the real one arrives
+/// from the PC. It also draws the points "predicted" by iPadOS, which anticipate the tip movement.
 final class InkView: UIView {
     private struct Segment { let a: CGPoint; let b: CGPoint; let width: CGFloat; let time: CFTimeInterval }
     private var segments: [Segment] = []
     private var predicted: [CGPoint] = []
     private var link: CADisplayLink?
-    var lifetime: () -> Double = { 0.25 }  // secondi di visibilità (circa il ritardo del collegamento)
+    var lifetime: () -> Double = { 0.25 }  // seconds it stays visible (about the connection delay)
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -36,7 +36,7 @@ final class InkView: UIView {
 
     func endStroke() { predicted = []; setNeedsDisplay() }
 
-    /// Toglie subito tutto l'inchiostro (la Pencil sta scorrendo, non scrivendo).
+    /// Removes all the ink right away (the Pencil is scrolling, not writing).
     func clear() { segments = []; predicted = []; setNeedsDisplay() }
 
     private func run() {
@@ -98,34 +98,34 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
     private var active = false
     private weak var pinAlert: UIAlertController?
     private weak var filesPanel: FilesViewController?
-    private var pendingShared: [URL] = []  // file arrivati da altre app prima che il PC fosse configurato
+    private var pendingShared: [URL] = []  // files that arrived from other apps before the PC was configured
     private static let qualityNames = ["Massima (60 fps)", "Fluida (30 fps)", "Media (75%)", "Leggera (50%)"]
 
-    // tocco
+    // touch
     private var fingers: [ObjectIdentifier: (id: Int, x: Double, y: Double)] = [:]
     private var nextTouchId = 1
     // Pencil
     private var penTouch: UITouch?
     private var penUpAt: CFTimeInterval = 0
     private var lastPenPoint: CGPoint?
-    private var penFinger = false  // in automatica: in questo tratto la Pencil fa da dito (niente inchiostro)
-    // doppio tocco = seleziona la parola (come sull'iPad)
+    private var penFinger = false  // automatic mode: in this stroke the Pencil acts as a finger (no ink)
+    // double tap = select the word (as on the iPad)
     private var tapStarts: [ObjectIdentifier: (time: CFTimeInterval, point: CGPoint)] = [:]
     private var lastTap: (time: CFTimeInterval, point: CGPoint)?
     private var editMenu: UIEditMenuInteraction?
-    // un dito solo appena appoggiato: non va a Windows finché non si capisce se è un tocco,
-    // un trascinamento o una pressione lunga (così tenere premuto non tocca niente sul PC)
+    // a single finger just put down: it doesn't go to Windows until we know whether it's a tap,
+    // a drag or a long press (so holding it down doesn't touch anything on the PC)
     private var pending: (key: ObjectIdentifier, point: CGPoint, time: CFTimeInterval)?
     private var longPress: Timer?
-    private var longPressed: ObjectIdentifier?  // dito tenuto premuto: il fumetto è aperto, il resto lo ignoro
-    private var menuPoint = CGPoint.zero        // dove mostrare il fumetto (e dove fare il clic destro)
-    // zoom con due dita: solo l'immagine sul dispositivo, Windows non cambia
+    private var longPressed: ObjectIdentifier?  // finger held down: the callout is open, I ignore the rest
+    private var menuPoint = CGPoint.zero        // where to show the callout (and where to right-click)
+    // two-finger zoom: only the picture on the device, Windows doesn't change
     private var zoom: CGFloat = 1
     private var pan = CGPoint.zero
-    private var two: (a: ObjectIdentifier, b: ObjectIdentifier, a0: CGPoint, b0: CGPoint)?  // pizzico o scorrimento?
+    private var two: (a: ObjectIdentifier, b: ObjectIdentifier, a0: CGPoint, b0: CGPoint)?  // pinch or scroll?
     private var pinching: (a: ObjectIdentifier, b: ObjectIdentifier, zoom0: CGFloat, d0: CGFloat, q0: CGPoint)?
-    private var ignored = Set<ObjectIdentifier>()  // dita di un gesto già finito (o terze dita)
-    // modalità mouse con le dita
+    private var ignored = Set<ObjectIdentifier>()  // fingers of a gesture that has already ended (or third fingers)
+    // mouse mode with the fingers
     private var mouseFingers: [UITouch] = []
     private var dragging = false
     private var twoStart: CFTimeInterval = 0
@@ -137,7 +137,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
-        // il video sta in un contenitore: così lo posso ingrandire senza ingrandire inchiostro, menu e avvisi
+        // the video sits in a container: so I can zoom it without zooming ink, menu and notices
         video.backgroundColor = .black
         video.isUserInteractionEnabled = false
         view.addSubview(video)
@@ -155,12 +155,12 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         connection.onWhere = { [weak self] side, secs in self?.askWhere(side, seconds: secs) }
         connection.onWhereDone = { [weak self] in self?.whereAlert?.dismiss(animated: true) }
         connection.onRest = { [weak self] resting in
-            // PC addormentato o assente: il dispositivo può bloccarsi da solo come al solito; al ritorno torna acceso.
-            // I messaggi li decide la connessione
+            // PC asleep or gone: the device can lock by itself as usual; when it's back it stays on again.
+            // The connection decides the messages
             UIApplication.shared.isIdleTimerDisabled = !resting && self?.connection.ready == true
         }
         connection.onPenUse = { [weak self] use in
-            // il PC ha deciso: sotto la punta non c'è un programma da disegno, quindi scorre e tocca
+            // the PC decided: there's no drawing program under the tip, so it scrolls and taps
             guard let self else { return }
             self.penFinger = use == "dito"
             if self.penFinger { self.ink.clear() }
@@ -199,7 +199,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             done(self?.menuItems() ?? [])
         }])
         menuButton.accessibilityLabel = "Menu"
-        // si sposta trascinandolo, come la barra della Pencil in Note: lasciato, si aggancia al punto più vicino
+        // moves when dragged, like the Pencil toolbar in Notes: when released it snaps to the nearest spot
         let drag = UIPanGestureRecognizer(target: self, action: #selector(dragMenu(_:)))
         drag.delegate = self
         menuButton.addGestureRecognizer(drag)
@@ -208,7 +208,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             v.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(v)
         }
-        view.addSubview(menuButton)  // posizione a mano (placeMenu), non con i vincoli
+        view.addSubview(menuButton)  // positioned by hand (placeMenu), not with constraints
         NSLayoutConstraint.activate([
             spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),
@@ -231,13 +231,13 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         if !menuDragging { placeMenu(animated: false) }
     }
 
-    // MARK: pulsante del menu spostabile
+    // MARK: movable menu button
 
     private var menuDragging = false
-    private var menuGrab = CGPoint.zero  // dove il dito ha preso il pulsante, rispetto al suo centro
+    private var menuGrab = CGPoint.zero  // where the finger grabbed the button, relative to its center
 
-    /// I punti dove il pulsante si può agganciare: 0 alto-sx, 1 alto-centro, 2 alto-dx, 3 metà-dx,
-    /// 4 basso-dx, 5 basso-centro, 6 basso-sx, 7 metà-sx (dentro l'area sicura, a 6 pt dal bordo).
+    /// The spots where the button can snap: 0 top-left, 1 top-center, 2 top-right, 3 middle-right,
+    /// 4 bottom-right, 5 bottom-center, 6 bottom-left, 7 middle-left (inside the safe area, 6 pt from the edge).
     private func menuSpots() -> [CGPoint] {
         let r = view.bounds.inset(by: view.safeAreaInsets).insetBy(dx: 6 + 22, dy: 6 + 22)
         return [CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.midX, y: r.minY), CGPoint(x: r.maxX, y: r.minY),
@@ -261,7 +261,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         let p = g.location(in: view)
         switch g.state {
         case .began:
-            // il menu si apre al tocco: se invece il dito trascina, lo richiudo e sposto il pulsante
+            // the menu opens on tap: if the finger drags instead, I close it and move the button
             menuButton.contextMenuInteraction?.dismissMenu()
             menuDragging = true
             menuGrab = CGPoint(x: p.x - menuButton.center.x, y: p.y - menuButton.center.y)
@@ -272,7 +272,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
                                         y: min(max(p.y - menuGrab.y, b.minY), b.maxY))
         default:
             menuDragging = false
-            // agganciato al punto più vicino (tenendo conto della spinta del lancio, come in Note)
+            // snapped to the nearest spot (taking the throw momentum into account, as in Notes)
             let v = g.velocity(in: view)
             let aim = CGPoint(x: menuButton.center.x + v.x * 0.15, y: menuButton.center.y + v.y * 0.15)
             let spots = menuSpots()
@@ -283,12 +283,12 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         }
     }
 
-    // schermo intero vero: niente barra di iPadOS, indicatore Home nascosto, bordi meno sensibili
+    // real full screen: no iPadOS bar, Home indicator hidden, less sensitive edges
     override var prefersStatusBarHidden: Bool { true }
     override var prefersHomeIndicatorAutoHidden: Bool { true }
     override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge { .all }
 
-    // MARK: ciclo di vita (chiamato dalla scena)
+    // MARK: lifecycle (called by the scene)
 
     func resume() {
         guard !active else { return }
@@ -297,7 +297,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         if Settings.host.isEmpty {
             askHost()
         } else {
-            connection.resetOffline()  // riaperta dall'utente: si riprova subito, non ogni 10 s
+            connection.resetOffline()  // reopened by the user: retry right away, not every 10 s
             connection.connect()
         }
         statsTimer?.invalidate()
@@ -352,25 +352,25 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             pendingShared = []
             receiveShared(waiting)
         }
-        UIApplication.shared.isIdleTimerDisabled = true  // il dispositivo non va in standby mentre fa da schermo
+        UIApplication.shared.isIdleTimerDisabled = true  // the device doesn't go to sleep while it's acting as a screen
         let info = Bundle.main.infoDictionary
-        let version = "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"  // es. 1.1.0 (23): versione e compilazione
+        let version = "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"  // e.g. 1.1.0 (23): version and build
         let device = UIDevice.current
         c.send(["t": "diag", "motore": "nativo", "avvio": true,
                 "ua": "Schermo Esteso iOS \(version), \(device.model) \(device.systemName) \(device.systemVersion)"])
-        lastArea = []  // nuovo collegamento: le misure le rimando comunque
+        lastArea = []  // new connection: send the sizes again anyway
         sendArea()
     }
 
-    /// Pixel utili: tutto lo schermo, tranne la tacca o la Dynamic Island dell'iPhone (ai lati in orizzontale,
-    /// in alto in verticale). Lo schermo virtuale prende esattamente queste misure, anche girato in verticale.
+    /// Usable pixels: the whole screen, except the iPhone notch or Dynamic Island (on the sides in landscape,
+    /// at the top in portrait). The virtual screen takes exactly these sizes, also when rotated to portrait.
     private var lastArea: [Int] = []
 
     private func sendArea() {
         guard connection.ready else { return }
         let b = view.bounds, i = view.safeAreaInsets, scale = UIScreen.main.nativeScale
         let w = (b.width - i.left - i.right) * scale, h = (b.height - i.top) * scale
-        let even = { (v: CGFloat) in Int(v.rounded()) & ~1 }  // la codifica video vuole misure pari
+        let even = { (v: CGFloat) in Int(v.rounded()) & ~1 }  // video encoding wants even sizes
         let area = [even(w), even(h)]
         guard area != lastArea else { return }
         lastArea = area
@@ -385,7 +385,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
         coordinator.animate(alongsideTransition: nil) { [weak self] _ in
-            self?.sendArea()  // girato: il PC rifà lo schermo virtuale con le nuove misure
+            self?.sendArea()  // rotated: the PC rebuilds the virtual screen with the new sizes
         }
     }
 
@@ -407,7 +407,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         guard let format else { return }
         if waitingKey && !key { return }
         let display = video.display
-        if display.status == .failed {  // il decodificatore si è fermato: riparto dal prossimo fotogramma completo
+        if display.status == .failed {  // the decoder stopped: restart from the next full frame
             display.flush()
             waitingKey = true
             c.send(["t": "key"])
@@ -425,10 +425,10 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         filesPanel?.reload()
     }
 
-    // MARK: statistiche per la finestra del PC
+    // MARK: statistics for the PC window
 
-    /// L'app non è in primo piano (Centro di controllo, app switcher, notifica): fotogrammi e ritardo di
-    /// questi secondi non dicono niente sulla rete, quindi il PC non li deve usare per la qualità automatica.
+    /// The app isn't in the foreground (Control Center, app switcher, notification): frames and delay from
+    /// these seconds say nothing about the network, so the PC must not use them for automatic quality.
     private var quietUntil: CFTimeInterval = 0
     private var inactive = false
 
@@ -453,36 +453,36 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         let q = Settings.quality
         let device = UIDevice.current
         device.isBatteryMonitoringEnabled = true
-        let level = device.batteryLevel  // -1 se sconosciuto (es. simulatore)
+        let level = device.batteryLevel  // -1 if unknown (e.g. simulator)
         let charging = device.batteryState == .charging || device.batteryState == .full
         connection.send(["t": "stats", "fps": framesShown / 2, "dec": framesShown / 2,
                          "batt": level >= 0 ? Int((level * 100).rounded()) as Any : NSNull(), "carica": charging,
-                         "rtt": connection.rtt.map { Int($0) as Any } ?? NSNull(),  // JSON: null se non misurato
+                         "rtt": connection.rtt.map { Int($0) as Any } ?? NSNull(),  // JSON: null if not measured
                          "mbit": Double(bytesReceived * 8) / 2e6, "render": "nativo/hardware",
                          "q": ["Massima", "Fluida", "Media", "Leggera"][max(0, min(q, 3))]])
         framesShown = 0
         bytesReceived = 0
     }
 
-    // MARK: coordinate
+    // MARK: coordinates
 
     private var contentRect: CGRect { AVMakeRect(aspectRatio: videoSize, insideRect: video.bounds) }
 
     private func norm(_ p: CGPoint) -> (x: Double, y: Double) {
-        let q = video.convert(p, from: view)  // tiene conto dello zoom
+        let q = video.convert(p, from: view)  // takes the zoom into account
         let r = contentRect
         guard r.width > 0, r.height > 0 else { return (0, 0) }
         return (Double((q.x - r.minX) / r.width), Double((q.y - r.minY) / r.height))
     }
 
-    // MARK: tocchi
+    // MARK: touches
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         editMenu?.dismissMenu()
         let fingersOnly = touches.allSatisfy { $0.type != .pencil }
         if fingersOnly && Settings.touchMode != "mouse" && !penBusy && touches.count == 2 && fingers.isEmpty
             && pending == nil && two == nil && pinching == nil {
-            // due dita appoggiate insieme: aspetto di capire se è un pizzico (zoom) o uno scorrimento
+            // two fingers put down together: wait to see whether it's a pinch (zoom) or a scroll
             let t = Array(touches)
             two = (ObjectIdentifier(t[0]), ObjectIdentifier(t[1]), t[0].location(in: view), t[1].location(in: view))
             return
@@ -492,13 +492,13 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             if t.type == .pencil {
                 penBegan(t)
             } else if penBusy {
-                continue  // palmo appoggiato mentre si scrive con la Pencil
+                continue  // palm resting while writing with the Pencil
             } else if Settings.touchMode == "mouse" {
                 mouseBegan(t)
             } else if two != nil || pinching != nil {
-                ignored.insert(key)  // terzo dito durante un pizzico
+                ignored.insert(key)  // third finger during a pinch
             } else if let p = pending, fingers.isEmpty {
-                // secondo dito mentre il primo aspetta: pizzico (zoom qui) o scorrimento a due dita (Windows)?
+                // second finger while the first is waiting: pinch (zoom here) or two-finger scroll (Windows)?
                 longPress?.invalidate()
                 pending = nil
                 two = (p.key, key, p.point, t.location(in: view))
@@ -506,7 +506,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
                 pending = (key, t.location(in: view), CACurrentMediaTime())
                 startLongPress(key)
             } else {
-                flushPending()  // secondo dito (zoom, scorrimento a due dita): il primo parte subito
+                flushPending()  // second finger (zoom, two-finger scroll): the first one starts right away
                 fingerDown(key, at: t.location(in: view))
             }
         }
@@ -520,7 +520,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         connection.send(["t": "p", "e": "d", "id": id, "x": n.x, "y": n.y])
     }
 
-    /// Il dito in attesa diventa un tocco su Windows, dal punto in cui è stato appoggiato.
+    /// The waiting finger becomes a touch on Windows, from the point where it was put down.
     private func flushPending() {
         guard let p = pending else { return }
         pending = nil
@@ -550,7 +550,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             if let p = pending, p.key == key {
                 let now = t.location(in: view)
                 guard hypot(now.x - p.point.x, now.y - p.point.y) > 12 else { continue }
-                flushPending()  // si muove: scorrimento o trascinamento
+                flushPending()  // it moves: scroll or drag
             }
             if var f = fingers[key] {
                 let n = norm(t.location(in: view))
@@ -575,7 +575,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             } else if ignored.remove(key) != nil {
                 continue
             } else if let g = two, key == g.a || key == g.b {
-                // due dita sollevate senza muoverle: clic destro, come il tocco a due dita del trackpad
+                // two fingers lifted without moving: right click, like the two-finger tap on a trackpad
                 two = nil
                 ignored.insert(key == g.a ? g.b : g.a)
                 if !cancelled {
@@ -585,7 +585,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             } else if let g = pinching, key == g.a || key == g.b {
                 pinching = nil
                 ignored.insert(key == g.a ? g.b : g.a)
-                if zoom < 1.08 { setZoom(1, CGPoint.zero, animated: true) }  // quasi al 100%: lo rimetto preciso
+                if zoom < 1.08 { setZoom(1, CGPoint.zero, animated: true) }  // almost at 100%: set it back exactly
             } else if let p = pending, p.key == key {
                 pending = nil
                 longPress?.invalidate()
@@ -594,7 +594,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
                 let quick = now - p.time < 0.35
                 if quick, let last = lastTap, now - last.time < 0.5,
                    hypot(end.x - last.point.x, end.y - last.point.y) < 30 {
-                    // secondo tocco di un doppio tocco: non lo mando, decide il PC come selezionare
+                    // second tap of a double tap: not sent, the PC decides how to select
                     lastTap = nil
                     selectWord(at: end, delivered: false)
                 } else {
@@ -631,7 +631,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         ink.endStroke()
     }
 
-    // MARK: zoom con due dita (solo sul dispositivo)
+    // MARK: two-finger zoom (on the device only)
 
     private func positions(_ a: ObjectIdentifier, _ b: ObjectIdentifier, _ event: UIEvent?) -> (CGPoint, CGPoint)? {
         let all = event?.allTouches ?? []
@@ -647,13 +647,13 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         let m0 = CGPoint(x: (g.a0.x + g.b0.x) / 2, y: (g.a0.y + g.b0.y) / 2)
         let m = CGPoint(x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2)
         if abs(d - d0) > 20 || (zoom > 1.01 && hypot(m.x - m0.x, m.y - m0.y) > 8) {
-            // le dita si allargano o si stringono (o l'immagine è già ingrandita): zoom qui
+            // the fingers spread or pinch (or the picture is already zoomed): zoom here
             two = nil
             let c = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
             let q0 = CGPoint(x: c.x + (m.x - c.x - pan.x) / zoom, y: c.y + (m.y - c.y - pan.y) / zoom)
             pinching = (g.a, g.b, zoom, max(d, 1), q0)
         } else if hypot(m.x - m0.x, m.y - m0.y) > 12 {
-            // si muovono insieme: scorrimento a due dita di Windows, dai punti in cui sono state appoggiate
+            // they move together: Windows two-finger scroll, from the points where they were put down
             two = nil
             fingerDown(g.a, at: g.a0)
             fingerDown(g.b, at: g.b0)
@@ -677,13 +677,13 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         let m = CGPoint(x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2)
         let c = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
         let z = min(5, max(1, g.zoom0 * d / g.d0))
-        // il punto dell'immagine che era tra le dita resta tra le dita
+        // the point of the picture that was between the fingers stays between the fingers
         setZoom(z, CGPoint(x: m.x - c.x - z * (g.q0.x - c.x), y: m.y - c.y - z * (g.q0.y - c.y)), animated: false)
     }
 
     private func setZoom(_ z: CGFloat, _ p: CGPoint, animated: Bool) {
         zoom = z
-        // l'immagine ingrandita copre sempre tutto lo schermo: niente bordi vuoti
+        // the zoomed picture always covers the whole screen: no empty borders
         let maxX = (z - 1) * view.bounds.width / 2, maxY = (z - 1) * view.bounds.height / 2
         pan = CGPoint(x: min(maxX, max(-maxX, p.x)), y: min(maxY, max(-maxY, p.y)))
         if animated {
@@ -697,7 +697,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         video.transform = CGAffineTransform(translationX: pan.x, y: pan.y).scaledBy(x: zoom, y: zoom)
     }
 
-    // MARK: file trascinati sullo schermo (da File, Foto, Safari…)
+    // MARK: files dragged onto the screen (from Files, Photos, Safari…)
 
     func dropInteraction(_ interaction: UIDropInteraction, canHandle session: UIDropSession) -> Bool {
         session.hasItemsConforming(toTypeIdentifiers: [UTType.item.identifier])
@@ -728,7 +728,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
                 case .success(let names):
                     self.uploadBanner.finish(names.count == 1 ? L("Inviato al PC") : L("Inviati \(names.count) file"), ok: true)
                     guard let first = names.first else { return }
-                    // si apre sul PC nel programma su cui l'hai lasciato (gli altri restano nella cartella)
+                    // it opens on the PC in the program you dropped it on (the others stay in the folder)
                     let n = self.norm(point)
                     self.connection.send(["t": "deposita", "nome": first, "x": n.x, "y": n.y])
                     self.showToast(names.count == 1 ? L("Inviato: apro \(first) sul PC") : L("Inviati \(names.count) file: apro \(first)"))
@@ -750,7 +750,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             penTouch = t
             return
         }
-        // il palmo era già appoggiato: annullo quei tocchi prima che la penna scriva
+        // the palm was already resting: cancel those touches before the pen writes
         for f in fingers.values { connection.send(["t": "p", "e": "c", "id": f.id, "x": f.x, "y": f.y]) }
         fingers.removeAll()
         penTouch = t
@@ -767,7 +767,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             connection.send(["t": "m", "e": "m", "b": 0, "x": n.x, "y": n.y])
             return
         }
-        // la Pencil misura fino a 240 punti al secondo: li mando tutti, la linea viene più fluida
+        // the Pencil measures up to 240 points per second: send them all, the line comes out smoother
         let points = event?.coalescedTouches(for: t) ?? [t]
         let drawInk = Settings.instantInk && !penFinger && (Settings.penMode == "penna" || Settings.penMode == "auto")
         for c in points {
@@ -789,7 +789,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             connection.send(["t": "m", "e": "u", "b": 0, "x": n.x, "y": n.y])
         } else {
             sendPen(cancelled ? "c" : "u", t)
-            tapEnded(t, valid: !cancelled && penFinger)  // solo dove la Pencil fa da dito, non mentre disegna
+            tapEnded(t, valid: !cancelled && penFinger)  // only where the Pencil acts as a finger, not while drawing
         }
         penTouch = nil
         penUpAt = CACurrentMediaTime()
@@ -803,7 +803,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
 
     private func sendPen(_ kind: String, _ t: UITouch) {
         let n = norm(t.preciseLocation(in: view))
-        // inclinazione: da altezza e direzione della Pencil agli angoli X/Y usati da Windows
+        // tilt: from the Pencil altitude and azimuth to the X/Y angles used by Windows
         let altitude = Double(t.altitudeAngle)
         let azimuth = Double(t.azimuthAngle(in: view))
         let cot = altitude > 0.01 ? 1 / tan(altitude) : 100
@@ -815,7 +815,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
                          "auto": Settings.penMode == "auto"])
     }
 
-    // MARK: dita in modalità mouse
+    // MARK: fingers in mouse mode
 
     private func mouseBegan(_ t: UITouch) {
         mouseFingers.append(t)
@@ -824,7 +824,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             let n = norm(t.location(in: view))
             connection.send(["t": "m", "e": "d", "b": 0, "x": n.x, "y": n.y])
         } else if mouseFingers.count == 2 {
-            // secondo dito: niente trascinamento, si passa a scorrimento o clic destro
+            // second finger: no drag, switch to scroll or right click
             if dragging, let first = mouseFingers.first {
                 let n = norm(first.location(in: view))
                 connection.send(["t": "m", "e": "u", "b": 0, "x": n.x, "y": n.y])
@@ -857,7 +857,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             connection.send(["t": "m", "e": "u", "b": 0, "x": n.x, "y": n.y])
             dragging = false
         } else if mouseFingers.count == 2 && !twoMoved && CACurrentMediaTime() - twoStart < 0.35 {
-            connection.send(["t": "m", "e": "click", "b": 2, "x": n.x, "y": n.y])  // tocco con due dita = clic destro
+            connection.send(["t": "m", "e": "click", "b": 2, "x": n.x, "y": n.y])  // two-finger tap = right click
             twoMoved = true
         }
         mouseFingers.removeAll { $0 === t }
@@ -964,7 +964,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             Settings.host = text.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
             self?.connection.connect()
         })
-        // un alert già aperto (es. il PIN) va chiuso prima
+        // an alert that is already open (e.g. the PIN) must be closed first
         if let shown = presentedViewController {
             shown.dismiss(animated: false) { [weak self] in self?.present(alert, animated: true) }
         } else {
@@ -972,7 +972,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         }
     }
 
-    // MARK: file
+    // MARK: files
 
     func showFiles() {
         if let panel = filesPanel { panel.reload(); return }
@@ -991,10 +991,10 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         }
     }
 
-    /// File condivisi da un'altra app con "Condividi → Schermo Esteso": vanno subito al PC.
+    /// Files shared from another app with "Share → Schermo Esteso": they go straight to the PC.
     func receiveShared(_ urls: [URL]) {
         guard !urls.isEmpty else { return }
-        loadViewIfNeeded()  // può arrivare all'avvio, prima che lo schermo sia pronto
+        loadViewIfNeeded()  // may arrive at startup, before the screen is ready
         if Settings.host.isEmpty || Settings.token.isEmpty {
             pendingShared += urls
             showToast("Prima collega l'app al PC: invierò il file subito dopo")
@@ -1003,7 +1003,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         uploadBanner.attach(to: view)
         uploadBanner.start(urls.count == 1 ? L("Invio al PC: \(urls[0].lastPathComponent)") : L("Invio al PC di \(urls.count) file"), files: urls)
         Uploader.send(urls, progress: { [weak self] p in self?.uploadBanner.update(p) }, done: { [weak self] result in
-            for u in urls where u.path.contains("/Inbox/") { try? FileManager.default.removeItem(at: u) }  // copie fatte da iOS
+            for u in urls where u.path.contains("/Inbox/") { try? FileManager.default.removeItem(at: u) }  // copies made by iOS
             switch result {
             case .success(let names):
                 self?.uploadBanner.finish(names.count == 1 ? L("Inviato al PC: \(names[0])") : L("Inviati al PC \(names.count) file"), ok: true)
@@ -1014,7 +1014,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         })
     }
 
-    // MARK: doppio tocco: seleziona la parola e mostra Copia / Incolla
+    // MARK: double tap: select the word and show Copy / Paste
 
     private func tapEnded(_ t: UITouch, valid: Bool) {
         guard let start = tapStarts.removeValue(forKey: ObjectIdentifier(t)) else { return }
@@ -1025,14 +1025,14 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         }
         if let last = lastTap, now - last.time < 0.45, hypot(p.x - last.point.x, p.y - last.point.y) < 30 {
             lastTap = nil
-            selectWord(at: p, delivered: true)  // la Pencil ha già mandato tutti e due i tocchi
+            selectWord(at: p, delivered: true)  // the Pencil has already sent both taps
         } else {
             lastTap = (now, p)
         }
     }
 
-    /// Il PC seleziona la parola (doppio tocco o doppio clic, secondo il programma) e risponde
-    /// "parola_ok": allora compare il fumetto. delivered = i due tocchi sono già arrivati a Windows.
+    /// The PC selects the word (double tap or double click, depending on the program) and answers
+    /// "parola_ok": then the callout appears. delivered = both taps have already reached Windows.
     private func selectWord(at p: CGPoint, delivered: Bool) {
         menuPoint = p
         let n = norm(p)
@@ -1043,8 +1043,8 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         editMenu?.presentEditMenu(with: UIEditMenuConfiguration(identifier: nil, sourcePoint: menuPoint))
     }
 
-    /// Dito tenuto fermo mezzo secondo: come sull'iPad compare il fumetto. A Windows non arriva niente,
-    /// così la selezione resta com'è.
+    /// Finger held still for half a second: the callout appears, as on the iPad. Nothing reaches Windows,
+    /// so the selection stays as it is.
     private func startLongPress(_ key: ObjectIdentifier) {
         longPress?.invalidate()
         longPress = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
@@ -1064,7 +1064,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
             UIAction(title: L("Copia")) { _ in key("copia") },
             UIAction(title: L("Taglia")) { _ in key("taglia") },
             UIAction(title: L("Incolla")) { [weak self] _ in
-                self?.clipboardToPC(force: false)  // prima porto sul PC quello che c'è negli appunti dell'iPad
+                self?.clipboardToPC(force: false)  // first bring the iPad clipboard over to the PC
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { key("incolla") }
             },
             UIAction(title: L("Seleziona tutto")) { _ in key("tutto") },
@@ -1076,10 +1076,10 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         ])
     }
 
-    // MARK: scrivere sul PC (anche password dal Portachiavi dell'iPad)
+    // MARK: typing on the PC (passwords from the iPad Keychain too)
 
-    /// Campo nativo dell'iPad: sopra la tastiera compare la chiave delle password salvate (Face ID).
-    /// La password va solo nel campo selezionato sul PC: niente appunti, niente console.
+    /// Native iPad field: the saved-passwords key appears above the keyboard (Face ID).
+    /// The password goes only into the selected field on the PC: no clipboard, no console.
     private func askPassword() {
         let alert = UIAlertController(title: L("Inserisci password"),
                                       message: L("Tocca prima sul PC il campo della password (o del nome utente). Poi scegli qui la password salvata: la tastiera mostra la chiave delle Password."),
@@ -1138,14 +1138,14 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         }
     }
 
-    // MARK: appunti
+    // MARK: clipboard
 
-    /// Testo o immagine copiati sul PC: vanno direttamente negli appunti dell'iPad.
+    /// Text or image copied on the PC: it goes straight into the iPad clipboard.
     private func clipboardFromPC(_ m: [String: Any]) {
         guard Settings.clipboardSync else { return }
         if m["tipo"] as? String == "testo", let text = m["testo"] as? String {
             UIPasteboard.general.string = text
-            Settings.pasteboardSeen = UIPasteboard.general.changeCount  // non lo rimando indietro
+            Settings.pasteboardSeen = UIPasteboard.general.changeCount  // don't send it back
             showToast("Appunti dal PC copiati su \(UIDevice.current.model)")
         } else if m["tipo"] as? String == "immagine" {
             Task { @MainActor in
@@ -1157,11 +1157,11 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         }
     }
 
-    /// Appunti dell'iPad -> PC. In automatico solo se sono cambiati da quando li ho visti l'ultima volta
-    /// (iPadOS può chiedere "Consentire di incollare?": in Impostazioni → Schermo Esteso si può scegliere Consenti).
+    /// iPad clipboard -> PC. Automatically only if it changed since I last saw it
+    /// (iPadOS may ask "Allow Paste?": in Settings → Schermo Esteso you can choose Allow).
     private func clipboardToPC(force: Bool) {
         let pb = UIPasteboard.general
-        if Settings.pasteboardSeen < 0 { Settings.pasteboardSeen = pb.changeCount }  // prima volta: niente invii
+        if Settings.pasteboardSeen < 0 { Settings.pasteboardSeen = pb.changeCount }  // first time: nothing sent
         guard force || (Settings.clipboardSync && pb.changeCount != Settings.pasteboardSeen) else { return }
         Settings.pasteboardSeen = pb.changeCount
         guard connection.ready else { return }
@@ -1182,9 +1182,9 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         }
     }
 
-    // MARK: messaggi a schermo
+    // MARK: on-screen messages
 
-    private var statusText: String?   // stato in italiano, per ritradurlo se cambia la lingua
+    private var statusText: String?   // status in Italian, to translate it again if the language changes
 
     private func showStatus(_ text: String) {
         statusText = text
@@ -1198,9 +1198,9 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
         spinner.stopAnimating()
     }
 
-    /// Spinta del mouse con più dispositivi collegati: tocchi "Qui" su quello che si trova da quella parte del PC.
+    /// Mouse push with several devices connected: you tap "Here" on the one that sits on that side of the PC.
     private weak var whereAlert: UIAlertController?
-    private let uploadBanner = UploadBanner()  // avanzamento dei file inviati al PC
+    private let uploadBanner = UploadBanner()  // progress of the files sent to the PC
 
     private func askWhere(_ side: String, seconds: Int) {
         whereAlert?.dismiss(animated: false)
@@ -1226,7 +1226,7 @@ final class ScreenViewController: UIViewController, ConnectionDelegate, UIEditMe
 }
 
 extension ScreenViewController: UIGestureRecognizerDelegate {
-    // il trascinamento del pulsante convive con il tocco che apre il menu
+    // dragging the button coexists with the tap that opens the menu
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
         true
     }

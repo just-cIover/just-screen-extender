@@ -1,5 +1,5 @@
-# Compila l'app per iPad su un Mac nel cloud di GitHub e la pubblica come file .ipa.
-# L'app esce senza firma: la firma la fa AltStore/SideStore con l'Apple ID, sull'iPad.
+# Builds the iPad app on a Mac in the GitHub cloud and publishes it as an .ipa file.
+# The app comes out unsigned: AltStore/SideStore signs it with the Apple ID, on the iPad.
 name: App iPad
 
 on:
@@ -27,8 +27,8 @@ jobs:
       - name: Compila
         working-directory: ios
         run: |
-          # numero di compilazione: quello della run di GitHub, che sale sempre,
-          # così iOS riconosce ogni ipa come aggiornamento. La versione (1.1.0...) è in ios/project.yml
+          # build number: the GitHub run number, which always goes up,
+          # so iOS sees every ipa as an update. The version (1.1.0...) is in ios/project.yml
           N=${{ github.run_number }}
           xcodebuild -quiet -project SchermoEsteso.xcodeproj -scheme SchermoEsteso \
             -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \

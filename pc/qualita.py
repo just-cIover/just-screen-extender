@@ -1,14 +1,14 @@
-"""Qualità automatica: se il dispositivo non regge (ritardo alto, fotogrammi persi), il PC abbassa
-la qualità di un livello; quando torna fluido la rialza, mai oltre quella scelta a mano.
+"""Automatic quality: if the device can't keep up (high delay, lost frames), the PC lowers
+the quality by one level; when it's smooth again it raises it, never above the one chosen by hand.
 
-Livelli: 0 Massima, 1 Fluida, 2 Media, 3 Leggera (numero più alto = più leggera).
+Levels: 0 Best, 1 Smooth, 2 Medium, 3 Light (higher number = lighter).
 """
 LOWEST = 3
-BAD_RTT = 250       # ms: oltre, il dispositivo è in affanno
-GOOD_RTT = 100      # ms: sotto, è fluido
-BAD_TURNS = 3       # controlli consecutivi in affanno prima di abbassare (uno ogni ~2 s: 6 s di fila)
-SETTLE = 10         # s dopo un cambio o un ricollegamento in cui non giudico (la cattura sta ripartendo)
-RAISE_WAIT = 60     # s fluidi prima di provare a rialzare
+BAD_RTT = 250       # ms: above this, the device is struggling
+GOOD_RTT = 100      # ms: below this, it's smooth
+BAD_TURNS = 3       # consecutive struggling checks before lowering (one every ~2 s: 6 s in a row)
+SETTLE = 10         # s after a change or a reconnection during which I don't judge (capture is restarting)
+RAISE_WAIT = 60     # smooth seconds before trying to raise
 RAISE_WAIT_MAX = 600
 
 
@@ -21,15 +21,15 @@ class AutoQuality:
         self.raised_at = None
 
     def changed(self, now):
-        """Qualità appena cambiata (a mano o da qui): riparto da zero."""
+        """Quality just changed (by hand or from here): start from zero."""
         self.last_change = now
         self.bad = 0
         self.good_since = None
 
     def judge(self, now, level, best, rtt=None, shown=None, sent=None, drops=0, silent=False):
-        """Restituisce (nuovo livello, motivo) oppure (None, '').
-        rtt in ms, shown = fotogrammi al secondo mostrati dal dispositivo, sent = inviati dal PC,
-        drops = fotogrammi saltati perché la coda era piena, silent = nessuna statistica da troppo."""
+        """Returns (new level, reason) or (None, '').
+        rtt in ms, shown = frames per second shown by the device, sent = sent by the PC,
+        drops = frames skipped because the queue was full, silent = no statistics for too long."""
         if now - self.last_change < SETTLE:
             return None, ''
         reasons = []
@@ -46,7 +46,7 @@ class AutoQuality:
             self.bad += 1
             if self.bad >= BAD_TURNS and level < LOWEST:
                 if self.raised_at is not None and now - self.raised_at < 60:
-                    # avevo appena rialzato e non regge: la prossima volta aspetto di più
+                    # I had just raised it and it can't keep up: next time I wait longer
                     self.raise_wait = min(self.raise_wait * 2, RAISE_WAIT_MAX)
                 self.raised_at = None
                 return level + 1, ', '.join(reasons)

@@ -1,15 +1,15 @@
-"""Riposo: quando il PC dorme, anche Schermo Esteso si ferma.
+"""Sleep: when the PC sleeps, Schermo Esteso stops too.
 
-Con lo standby moderno di Windows (S0 a basso consumo) i programmi continuano a girare a tratti anche
-con il PC "spento". Il server, controllando schermi, appunti e file più volte al secondo, gli
-consumava batteria per niente, e i dispositivi restavano accesi ad aspettare il video.
+With Windows modern standby (low-power S0) programs keep running in bursts even
+with the PC "off". The server, checking screens, clipboard and files several times a second,
+drained its battery for nothing, and the devices stayed on waiting for video.
 
-- Windows avvisa questo modulo quando lo schermo del PC si spegne o si riaccende (coperchio chiuso,
-  tasto di accensione, standby) e quando il PC va in sospensione o si risveglia.
-- Finché il PC dorme, i controlli periodici del server usano nap(): restano fermi senza svegliare
-  il processore e ripartono appena il PC si sveglia.
-- Lo spegnimento dello schermo per inattività non conta: con un dispositivo collegato il server
-  tiene acceso lo schermo del PC (keep_pc_awake), quindi lo schermo si spegne solo se lo decidi tu.
+- Windows notifies this module when the PC screen turns off or on (lid closed,
+  power button, standby) and when the PC goes to sleep or wakes up.
+- While the PC sleeps, the server's periodic checks use nap(): they stay still without waking
+  the processor and resume as soon as the PC wakes up.
+- The screen turning off for inactivity doesn't count: with a device connected the server
+  keeps the PC screen on (keep_pc_awake), so the screen turns off only if you decide so.
 """
 import asyncio
 import ctypes
@@ -32,7 +32,7 @@ class GUID(ctypes.Structure):
         return bytes(self) == bytes(o)
 
 
-# GUID_CONSOLE_DISPLAY_STATE: schermo del PC spento (0), acceso (1), attenuato (2)
+# GUID_CONSOLE_DISPLAY_STATE: PC screen off (0), on (1), dimmed (2)
 DISPLAY_STATE = GUID(0x6FE69556, 0x704A, 0x47A0, (ctypes.c_ubyte * 8)(0x8F, 0x24, 0xC2, 0x8D, 0x93, 0x6F, 0xDA, 0x47))
 
 
@@ -56,8 +56,8 @@ user32.CreateWindowExW.argtypes = [wintypes.DWORD, wintypes.LPCWSTR, wintypes.LP
 user32.RegisterPowerSettingNotification.restype = wintypes.HANDLE
 user32.RegisterPowerSettingNotification.argtypes = [wintypes.HANDLE, ctypes.POINTER(GUID), wintypes.DWORD]
 
-_awake = None        # asyncio.Event: impostato quando il PC è sveglio
-_woke_at = 0.0       # time.monotonic() dell'ultimo risveglio
+_awake = None        # asyncio.Event: set when the PC is awake
+_woke_at = 0.0       # time.monotonic() of the last wake-up
 
 
 def asleep():
@@ -65,12 +65,12 @@ def asleep():
 
 
 def woke_since(seconds):
-    """Il PC si è svegliato negli ultimi `seconds` secondi (le connessioni si stanno ancora ricreando)."""
+    """The PC woke up in the last `seconds` seconds (connections are still being re-established)."""
     return time.monotonic() - _woke_at < seconds
 
 
 async def nap(seconds):
-    """Come asyncio.sleep, ma mentre il PC dorme resta fermo fino al risveglio."""
+    """Like asyncio.sleep, but while the PC sleeps it stays still until it wakes up."""
     await asyncio.sleep(seconds)
     if _awake is not None and not _awake.is_set():
         await _awake.wait()
@@ -82,8 +82,8 @@ async def wait_awake():
 
 
 class Watcher:
-    """Riceve gli avvisi di Windows in un thread suo (finestra invisibile) e chiama on_change(dorme)
-    nel ciclo asyncio del server, solo quando lo stato cambia davvero."""
+    """Receives the Windows notifications in its own thread (invisible window) and calls on_change(asleep)
+    in the server's asyncio loop, only when the state really changes."""
 
     def __init__(self, loop, on_change, log=print):
         global _awake
@@ -133,11 +133,11 @@ class Watcher:
                 return 1
             return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
-        self._proc = WNDPROC(proc)  # va tenuto in vita
+        self._proc = WNDPROC(proc)  # must be kept alive
         inst = kernel32.GetModuleHandleW(None)
         cls = WNDCLASSW(lpfnWndProc=self._proc, hInstance=inst, lpszClassName='SchermoEstesoRiposo')
         user32.RegisterClassW(ctypes.byref(cls))
-        # finestra normale ma mai mostrata: le finestre "solo messaggi" non ricevono gli avvisi di sospensione
+        # a normal window that is never shown: "message-only" windows don't receive sleep notifications
         hwnd = user32.CreateWindowExW(0, cls.lpszClassName, 'Schermo Esteso riposo', 0, 0, 0, 0, 0,
                                       None, None, inst, None)
         if not hwnd or not user32.RegisterPowerSettingNotification(hwnd, ctypes.byref(DISPLAY_STATE), 0):

@@ -1,8 +1,8 @@
-"""Uso della scheda grafica, con gli stessi contatori di Gestione attività (PDH "GPU Engine").
+"""Graphics card usage, with the same counters as Task Manager (PDH "GPU Engine").
 
-- 3D: disegno (desktop, finestre, browser);
-- Codifica video: il codificatore hardware usato da FFmpeg per mandare gli schermi ai dispositivi;
-- Memoria: memoria grafica usata (le schede integrate usano quella condivisa con il sistema).
+- 3D: drawing (desktop, windows, browsers);
+- Video encode: the hardware encoder FFmpeg uses to send the screens to the devices;
+- Memory: graphics memory in use (integrated cards use memory shared with the system).
 """
 import ctypes
 import re
@@ -10,7 +10,7 @@ from ctypes import wintypes
 
 pdh = ctypes.WinDLL('pdh')
 for _f in ('PdhOpenQueryW', 'PdhAddEnglishCounterW', 'PdhCollectQueryData', 'PdhGetFormattedCounterArrayW'):
-    getattr(pdh, _f).restype = ctypes.c_uint32  # PDH_STATUS: i codici come PDH_MORE_DATA sono "senza segno"
+    getattr(pdh, _f).restype = ctypes.c_uint32  # PDH_STATUS: codes like PDH_MORE_DATA are "unsigned"
 PDH_FMT_DOUBLE, PDH_FMT_LARGE = 0x200, 0x400
 PDH_MORE_DATA = 0x800007D2
 
@@ -36,7 +36,7 @@ def _adapter_name():
     d = DISPLAY_DEVICEW(); d.cb = ctypes.sizeof(d)
     i = 0
     while user32.EnumDisplayDevicesW(None, i, ctypes.byref(d), 0):
-        if d.StateFlags & 0x4:  # scheda del monitor principale
+        if d.StateFlags & 0x4:  # card of the main monitor
             return d.DeviceString
         i += 1
     return 'Scheda grafica'
@@ -53,7 +53,7 @@ class Gpu:
             self.ok = add(self.q, r'\GPU Engine(*)\Utilization Percentage', 0, ctypes.byref(self.engine)) == 0
             add(self.q, r'\GPU Adapter Memory(*)\Shared Usage', 0, ctypes.byref(self.shared))
             add(self.q, r'\GPU Adapter Memory(*)\Dedicated Usage', 0, ctypes.byref(self.dedicated))
-            pdh.PdhCollectQueryData(self.q)  # primo campione: i valori servono dal secondo in poi
+            pdh.PdhCollectQueryData(self.q)  # first sample: values are useful from the second one on
 
     def _array(self, counter, fmt, item):
         size, count = wintypes.DWORD(0), wintypes.DWORD(0)
@@ -69,8 +69,8 @@ class Gpu:
     def read(self):
         if not self.ok or pdh.PdhCollectQueryData(self.q) != 0:
             return None
-        # ogni istanza è "pid_X_luid_Y_phys_0_eng_N_engtype_TIPO": sommo i processi per motore,
-        # poi per ogni tipo prendo il motore più carico (come Gestione attività)
+        # each instance is "pid_X_luid_Y_phys_0_eng_N_engtype_TYPE": I add up the processes per engine,
+        # then for each type I take the busiest engine (like Task Manager)
         engines = {}
         for name, v in self._array(self.engine, PDH_FMT_DOUBLE, _ITEM):
             m = re.search(r'(luid_\w+?_phys_\d+_eng_\d+)_engtype_(\w+)', name)
@@ -85,8 +85,8 @@ class Gpu:
         return {'nome': self.name,
                 'uso': round(min(100, max(by_type.values(), default=0))),
                 '3d': round(min(100, by_type.get('3D', 0))),
-                # le schede Intel fanno compressione e decompressione video sullo stesso motore, che
-                # Windows chiama "VideoDecode"; altre schede hanno un "VideoEncode" separato
+                # Intel cards do video encoding and decoding on the same engine, which
+                # Windows calls "VideoDecode"; other cards have a separate "VideoEncode"
                 'codifica': round(min(100, max(by_type.get(k, 0) for k in ('VideoEncode', 'VideoDecode', 'VideoCodec')))),
                 'memGb': round(mem / 2**30, 1)}
 

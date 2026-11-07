@@ -1,9 +1,9 @@
-"""Avvio di Schermo Esteso dal menu Start: server senza terminale + finestra di controllo.
+"""Starts Schermo Esteso from the Start menu: server without a terminal + control window.
 
-- Se il server non è già acceso, lo avvia nascosto (pythonw server.py --ui).
-- Apre la finestra di controllo in Edge, come app senza barre (profilo separato nella
-  cartella data\\.edge-profile, senza account né sincronizzazione: non si mescola con il tuo Edge).
-- Chiudendo la finestra, dopo pochi secondi il server si chiude da solo.
+- If the server isn't running yet, starts it hidden (pythonw server.py --ui).
+- Opens the control window in Edge as an app without toolbars (separate profile in the
+  data\\.edge-profile folder, no account or sync: it doesn't mix with your own Edge).
+- When the window is closed, the server shuts itself down after a few seconds.
 """
 import ctypes
 import json
@@ -19,7 +19,7 @@ APP = os.path.join(HERE, 'pc')
 DATA = os.path.join(HERE, 'data')
 NO_WINDOW, DETACHED = 0x08000000, 0x00000008
 sys.path.insert(0, APP)
-import lingua  # noqa: E402  (sta nella cartella pc)
+import lingua  # noqa: E402  (lives in the pc folder)
 
 
 def message(text):
@@ -33,7 +33,7 @@ def message(text):
 
 
 def port():
-    """Porta riservata a questo PC (la finestra di controllo non passa dalla rete)."""
+    """Port reserved for this PC (the control window doesn't go through the network)."""
     try:
         with open(os.path.join(DATA, 'config.json'), encoding='utf-8') as f:
             return json.load(f).get('porta_locale', 8769)
@@ -78,11 +78,11 @@ def main():
     if exe:
         subprocess.Popen([exe, f'--app={url}', '--user-data-dir=' + os.path.join(DATA, '.edge-profile'),
                           '--window-size=1280,800', '--no-first-run', '--no-default-browser-check',
-                          # niente accesso automatico all'account Microsoft di Windows né sincronizzazione:
-                          # questo profilo serve solo per la finestra dell'app
+                          # no automatic sign-in to the Windows Microsoft account and no sync:
+                          # this profile is only for the app window
                           '--disable-sync',
-                          # la finestra non va mai messa in pausa (coperta, ridotta a icona, PC carico): se si ferma
-                          # perde il collegamento con il server
+                          # the window must never be paused (covered, minimized, PC busy): if it stops
+                          # it loses the connection to the server
                           '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
                           '--disable-backgrounding-occluded-windows',
                           '--disable-features=msImplicitSignin,msEdgeImplicitSignin,msAutoSignIn,'

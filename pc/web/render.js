@@ -1,11 +1,11 @@
 'use strict';
-// Disegno dei fotogrammi decodificati. Safari non disegna i VideoFrame allo stesso modo
-// su tutte le versioni: al primo fotogramma provo più metodi su una tela piccola e
-// tengo il primo che produce un'immagine vera (non nera).
-//   2d     -> drawImage(VideoFrame)                  (il più veloce, dove funziona)
+// Drawing the decoded frames. Safari doesn't draw VideoFrames the same way
+// on every version: on the first frame I try several methods on a small canvas and
+// keep the first one that produces a real (not black) picture.
+//   2d     -> drawImage(VideoFrame)                  (the fastest, where it works)
 //   bitmap -> createImageBitmap + drawImage
 //   webgl  -> texImage2D(VideoFrame)
-//   yuv    -> copyTo dei piani Y/UV + conversione in shader (funziona sempre, più pesante)
+//   yuv    -> copyTo of the Y/UV planes + conversion in a shader (always works, heavier)
 
 const METHODS = ['2d', 'bitmap', 'webgl', 'yuv'];
 
@@ -67,8 +67,8 @@ class GL {
     const plane = (i, pw, ph, fmt, bpp) => {
       gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, this.tex[i]);
       const { offset, stride } = layout[i];
-      // le righe possono avere padding: carico la larghezza intera della riga e ritaglio in shader non serve,
-      // perché lo stride in pixel coincide quasi sempre con la larghezza; altrimenti copio riga per riga
+      // rows may have padding: I upload the full row width, and cropping in the shader isn't needed
+      // because the stride in pixels almost always matches the width; otherwise I copy row by row
       let data;
       if (stride === pw * bpp) data = this.buf.subarray(offset, offset + stride * ph);
       else {
@@ -94,7 +94,7 @@ class GL {
   }
 }
 
-// luminosità media (0-255) dei pixel letti da una tela 2d o webgl
+// average brightness (0-255) of the pixels read from a 2d or webgl canvas
 function brightness(canvas, kind) {
   let px;
   if (kind === '2d') px = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
@@ -108,7 +108,7 @@ function brightness(canvas, kind) {
   return s / (px.length / 4) / 3;
 }
 
-// luminosità "vera" del fotogramma, letta dai dati grezzi (piano Y o RGB)
+// "real" brightness of the frame, read from the raw data (Y plane or RGB)
 async function frameBrightness(frame) {
   if (!frame.format) return null;
   const buf = new Uint8Array(frame.allocationSize());
@@ -146,7 +146,7 @@ class Renderer {
   constructor(stage, onReport, forced = null) {
     this.stage = stage;
     this.onReport = onReport;
-    this.forced = forced;  // metodo imposto (senza prova)
+    this.forced = forced;  // forced method (no test)
     this.method = null;
     this.out = null;
     this.busy = false;
@@ -164,7 +164,7 @@ class Renderer {
     let ref = null;
     try { ref = await frameBrightness(frame); } catch (e) { report.refErr = String(e); }
     report.ref = ref == null ? null : Math.round(ref);
-    // con un fotogramma davvero scuro il test non direbbe nulla: riprovo al prossimo
+    // with a really dark frame the test would tell nothing: retry on the next one
     if (ref != null && ref < 12) return null;
     const saved = (() => { try { return localStorage.getItem('renderer'); } catch { return null; } })();
     const order = saved ? [saved, ...METHODS.filter((m) => m !== saved)] : METHODS;
@@ -193,7 +193,7 @@ class Renderer {
     this.method = method;
   }
 
-  // ritorna true se il fotogramma è stato disegnato
+  // returns true if the frame was drawn
   async draw(frame) {
     if (this.busy || this.testing) { frame.close(); return false; }
     try {
@@ -212,7 +212,7 @@ class Renderer {
       await this.out.draw(frame);
       return true;
     } catch (e) {
-      // il metodo scelto ha smesso di funzionare: al prossimo fotogramma rifaccio la scelta
+      // the chosen method stopped working: choose again on the next frame
       this.onReport({ error: String(e && e.message ? e.message : e), method: this.method });
       try { localStorage.removeItem('renderer'); } catch {}
       this.method = null;

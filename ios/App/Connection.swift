@@ -11,7 +11,7 @@ struct VideoConfig {
 }
 
 protocol ConnectionDelegate: AnyObject {
-    func connection(_ c: Connection, status: String?)            // nil = tutto a posto
+    func connection(_ c: Connection, status: String?)            // nil = all good
     func connectionNeedsPin(_ c: Connection, message: String?)
     func connectionReady(_ c: Connection)
     func connection(_ c: Connection, config: VideoConfig)
@@ -19,18 +19,18 @@ protocol ConnectionDelegate: AnyObject {
     func connection(_ c: Connection, newFiles names: [String], from sender: String)
 }
 
-/// Collegamento cifrato (WebSocket su HTTPS) con il server sul PC: stesso protocollo dell'app web.
+/// Encrypted connection (WebSocket over HTTPS) to the server on the PC: same protocol as the web app.
 final class Connection: NSObject, URLSessionWebSocketDelegate {
     weak var delegate: ConnectionDelegate?
-    var onPenUse: ((String) -> Void)?
-    var onClipboard: (([String: Any]) -> Void)?  // appunti copiati sul PC
-    var onNotice: ((String) -> Void)?
-    var onWhere: ((String, Int) -> Void)?   // il PC chiede se lo schermo va da questa parte (spinta del mouse)
-    var onWhereDone: (() -> Void)?           // ha risposto un altro dispositivo
-    var onRest: ((Bool) -> Void)?            // true: il PC dorme (o non c'è da un minuto), lo schermo può spegnersi
-    var onWordSelected: (() -> Void)?            // il PC ha selezionato la parola (doppio tocco)            // avvisi brevi (es. qualità cambiata in automatico)   // "penna" o "dito": come il PC usa la Pencil nel tratto in corso
+    var onPenUse: ((String) -> Void)?             // "penna" or "dito": how the PC uses the Pencil in the current stroke
+    var onClipboard: (([String: Any]) -> Void)?  // clipboard copied on the PC
+    var onNotice: ((String) -> Void)?             // short notices (e.g. quality changed automatically)
+    var onWhere: ((String, Int) -> Void)?   // the PC asks whether the screen goes on this side (mouse push)
+    var onWhereDone: (() -> Void)?           // another device answered
+    var onRest: ((Bool) -> Void)?            // true: the PC is asleep (or gone for a minute), the screen may turn off
+    var onWordSelected: (() -> Void)?            // the PC selected the word (double tap)
     private(set) var ready = false
-    private(set) var rtt: Double?          // ritardo di andata e ritorno in ms
+    private(set) var rtt: Double?          // round-trip delay in ms
     private(set) var pairing = false
     private var session: URLSession!
     private var task: URLSessionWebSocketTask?
@@ -38,32 +38,32 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
     private var retry = 0
     private var lastMessage = Date()
     private var timer: Timer?
-    private var holdUntil = Date.distantPast  // abbinamenti bloccati dal PC: niente tentativi a raffica
-    private var offlineSince: Date?           // da quando il PC non risponde
-    private var resting = false               // il PC dorme: il dispositivo non tiene acceso lo schermo
-    private var pcAsleep = false              // l'ha detto il PC ("riposo"): non serve cercarlo su altre reti
+    private var holdUntil = Date.distantPast  // pairing blocked by the PC: no burst of attempts
+    private var offlineSince: Date?           // since when the PC hasn't been answering
+    private var resting = false               // the PC is asleep: the device doesn't keep its screen on
+    private var pcAsleep = false              // the PC said so ("riposo"): no need to look for it on other networks
 
-    /// Pausa prima di riprovare: subito all'inizio; dopo un minuto senza PC (o con il PC addormentato)
-    /// ogni 10 secondi, per non consumare batteria
+    /// Pause before retrying: none at first; after a minute without the PC (or with the PC asleep)
+    /// every 10 seconds, to save battery
     private var retryDelay: Double {
         calm ? 10 : min(0.3 * Double(retry), 2)
     }
 
     func resetOffline() {
         offlineSince = nil
-        resting = false  // lo saprà di nuovo dal PC, se dorme ancora
+        resting = false  // it will hear it again from the PC, if it's still asleep
         pcAsleep = false
         retry = 0
     }
 
-    /// Da quanti secondi il PC non risponde (0 se collegato).
+    /// How many seconds the PC hasn't been answering (0 if connected).
     private var offlineFor: Double { offlineSince.map { Date().timeIntervalSince($0) } ?? 0 }
 
-    /// Dopo 10 s senza PC (o se il PC ha detto che dorme) i tentativi continuano in silenzio con un solo messaggio fisso:
-    /// il PC che va in sospensione blocca la rete prima di poterlo dire, e i messaggi che cambiano di continuo confondono.
+    /// After 10 s without the PC (or if the PC said it's asleep) attempts go on quietly with a single fixed message:
+    /// a PC going to sleep cuts the network before it can say so, and messages that keep changing are confusing.
     private var calm: Bool { pcAsleep || offlineFor > 10 }
 
-    /// Messaggio di stato; nello stato tranquillo resta sempre lo stesso.
+    /// Status message; in the quiet state it always stays the same.
     private func say(_ text: String) {
         delegate?.connection(self, status: calm
             ? (pcAsleep ? "Il PC è in sospensione.\nRiprovo a collegarmi ogni 10 secondi."
@@ -84,7 +84,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         session = URLSession(configuration: cfg, delegate: self, delegateQueue: .main)
     }
 
-    // MARK: collegamento
+    // MARK: connection
 
     func connect() {
         close()
@@ -126,11 +126,11 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
 
     private func tick() {
         if ready { send(["t": "ping", "ts": CACurrentMediaTime() * 1000]) }
-        // nessun dato da 4 s (Wi-Fi addormentato, PC in pausa…): riparto
+        // no data for 4 s (Wi-Fi asleep, PC paused…): restart
         if !pairing && Date().timeIntervalSince(lastMessage) > 4 { lost() }
     }
 
-    /// Spiegazione leggibile dell'errore, con il codice tecnico per capire la causa.
+    /// Readable explanation of the error, with the technical code to understand the cause.
     private func describe(_ error: Error) -> String {
         let ns = error as NSError
         let hint: String
@@ -162,9 +162,9 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         }
         retry += 1
         if offlineSince == nil { offlineSince = Date() }
-        if offlineFor > 30 { setResting(true) }  // mezzo minuto senza PC: lo schermo del dispositivo può spegnersi
+        if offlineFor > 30 { setResting(true) }  // half a minute without the PC: the device screen may turn off
         if pcAsleep {
-            // il PC dorme: niente ricerca sulle altre reti (non risponderebbe), un tentativo ogni 10 s
+            // the PC is asleep: no search on other networks (it wouldn't answer), one attempt every 10 s
             say("")
             DispatchQueue.main.asyncAfter(deadline: .now() + retryDelay) { [weak self] in
                 guard let self, self.task == nil else { return }
@@ -172,9 +172,9 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
             }
             return
         }
-        // nessuna risposta (o errore di rete) per due volte: forse il PC ha cambiato rete (hotspot)
+        // no answer (or network error) twice: maybe the PC changed network (hotspot)
         if retry >= 2 && (error == nil || Self.unreachable(error!)) {
-            findPC()  // il PC non risponde a quell'indirizzo: forse ha cambiato rete (hotspot)
+            findPC()  // the PC doesn't answer at that address: maybe it changed network (hotspot)
             return
         }
         let reason = error.map { describe($0) } ?? "Nessun dato dal PC da 4 secondi."
@@ -208,7 +208,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         }
     }
 
-    // MARK: ricerca del PC su altre reti
+    // MARK: looking for the PC on other networks
 
     private var finding = false
 
@@ -219,8 +219,8 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
             || (error as NSError).domain == NSPOSIXErrorDomain
     }
 
-    /// Prova insieme gli indirizzi conosciuti del PC e quelli dell'hotspot dell'iPhone (172.20.10.2-14):
-    /// il primo che risponde sulla porta di Schermo Esteso diventa l'indirizzo da usare.
+    /// Tries the known PC addresses and the iPhone hotspot ones (172.20.10.2-14) together:
+    /// the first that answers on the Schermo Esteso port becomes the address to use.
     private func findPC() {
         guard !finding else { return }
         finding = true
@@ -269,7 +269,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         connect()
     }
 
-    // MARK: messaggi dal PC
+    // MARK: messages from the PC
 
     private func handle(_ text: String) {
         guard let data = text.data(using: .utf8),
@@ -278,7 +278,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         switch t {
         case "pair":
             pairing = true
-            send(["t": "hello", "nome": UIDevice.current.model])  // "iPad": lo stesso nome dell'app web
+            send(["t": "hello", "nome": UIDevice.current.model])  // "iPad": the same name as the web app
             delegate?.connectionNeedsPin(self, message: nil)
         case "paired":
             if let token = m["token"] as? String { Settings.token = token }
@@ -313,7 +313,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
                   let b64 = m["desc"] as? String, let avcC = Data(base64Encoded: b64) else { return }
             delegate?.connection(self, config: VideoConfig(width: w, height: h, fps: m["fps"] as? Int ?? 30, avcC: avcC))
         case "quality":
-            // la qualità la ricorda il PC (e la può imporre): la tengo allineata nel menu
+            // the PC remembers the quality (and can enforce it): I keep the menu in sync
             if let level = m["level"] as? Int {
                 Settings.quality = level
                 if m["auto"] as? Bool == true {
@@ -332,7 +332,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         case "file":
             let names = m["nomi"] as? [String] ?? []
             if !names.isEmpty { delegate?.connection(self, newFiles: names, from: m["da"] as? String ?? "PC") }
-        case "lingua":  // la lingua del PC vale per tutti: arriva appena collegati e quando la cambia qualcuno
+        case "lingua":  // the PC language applies to everyone: it arrives right after connecting and whenever someone changes it
             if let lang = m["lingua"] as? String { Lingua.use(lang) }
         case "avviso":
             if let text = m["testo"] as? String { onNotice?(text) }
@@ -343,7 +343,7 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         case "riposo":
             pcAsleep = true
             setResting(true)
-            say("")  // messaggio fisso di sospensione
+            say("")  // fixed sleep message
         case "sveglio":
             pcAsleep = false
             setResting(false)
@@ -355,9 +355,9 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
         }
     }
 
-    // MARK: messaggi verso il PC
+    // MARK: messages to the PC
 
-    /// Dopo una pausa dell'app: le risposte ai ping mandati prima darebbero ritardi enormi e falsi.
+    /// After the app was paused: answers to pings sent before would give huge, false delays.
     func forgetDelay() {
         rtt = nil
         pingsAfter = CACurrentMediaTime() * 1000
@@ -371,13 +371,13 @@ final class Connection: NSObject, URLSessionWebSocketDelegate {
     }
 
     func sendPin(_ pin: String) {
-        let screen = UIScreen.main.nativeBounds.size  // pixel reali
+        let screen = UIScreen.main.nativeBounds.size  // real pixels
         send(["t": "pin", "pin": pin, "nome": UIDevice.current.model,
               "w": Int(max(screen.width, screen.height)), "h": Int(min(screen.width, screen.height)),
               "dpr": Double(UIScreen.main.nativeScale)])
     }
 
-    /// Dimenticare la chiave: al prossimo collegamento il PC chiederà un PIN nuovo.
+    /// Forget the key: on the next connection the PC will ask for a new PIN.
     func forgetPairing() {
         Settings.token = ""
         connect()

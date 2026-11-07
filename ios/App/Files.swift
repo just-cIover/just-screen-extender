@@ -3,7 +3,7 @@ import QuickLook
 import UIKit
 import UniformTypeIdentifiers
 
-/// Un file della cartella condivisa sul PC (D:\claudio\ipad-schermo\download).
+/// A file in the shared folder on the PC (data\downloads in the app folder).
 struct SharedFile {
     let name: String
     let size: String
@@ -24,7 +24,7 @@ enum FileError: LocalizedError {
     }
 }
 
-/// Le stesse richieste dell'app web: elenco, download e caricamento, con la chiave del dispositivo.
+/// The same requests as the web app: list, download and upload, with the device key.
 enum FileAPI {
     static func url(_ path: String, _ extra: [URLQueryItem] = []) throws -> URL {
         let host = Settings.host
@@ -59,7 +59,7 @@ enum FileAPI {
         }
     }
 
-    /// Scarica il file in una cartella temporanea dell'app e restituisce dove si trova.
+    /// Downloads the file into a temporary folder of the app and returns where it is.
     static func download(_ name: String) async throws -> URL {
         let segment = name.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? name
         let (tmp, response) = try await URLSession.shared.download(from: url("/api/file/" + segment, [URLQueryItem(name: "scarica", value: "1")]))
@@ -72,14 +72,14 @@ enum FileAPI {
         return dest
     }
 
-    /// Immagine negli appunti del PC.
+    /// Image in the PC clipboard.
     static func clipboardImage() async throws -> Data {
         let (data, response) = try await URLSession.shared.data(from: url("/api/appunti/immagine"))
         try check(response)
         return data
     }
 
-    /// Immagine copiata sull'iPad -> appunti del PC.
+    /// Image copied on the iPad -> PC clipboard.
     static func sendClipboardImage(_ png: Data) async throws {
         var request = URLRequest(url: try url("/api/appunti/immagine"))
         request.httpMethod = "POST"
@@ -88,13 +88,13 @@ enum FileAPI {
         try check(response)
     }
 
-    /// Manda i file al PC in una sola richiesta. progress va da 0 a 1.
+    /// Sends the files to the PC in a single request. progress goes from 0 to 1.
     static func upload(_ files: [URL], progress: @escaping (Double) -> Void) async throws -> [String] {
         let boundary = "SchermoEsteso-\(UUID().uuidString)"
         let body = FileManager.default.temporaryDirectory.appendingPathComponent("invio-\(UUID().uuidString)")
         FileManager.default.createFile(atPath: body.path, contents: nil)
         defer { try? FileManager.default.removeItem(at: body) }
-        // il corpo va su disco, non in memoria: i video possono pesare parecchio
+        // the body goes to disk, not memory: videos can be quite large
         let out = try FileHandle(forWritingTo: body)
         for file in files {
             let name = file.lastPathComponent.replacingOccurrences(of: "\"", with: "")
@@ -130,7 +130,7 @@ private final class UploadProgress: NSObject, URLSessionTaskDelegate {
     }
 }
 
-/// Pannello "File condivisi": quello che c'è nella cartella download del PC, uguale per tutti i dispositivi.
+/// "Shared files" panel: what's in the PC downloads folder, the same for every device.
 final class FilesViewController: UITableViewController, PHPickerViewControllerDelegate,
                                  UIDocumentPickerDelegate, QLPreviewControllerDataSource {
     var openOnPC: ((String) -> Void)?
@@ -168,7 +168,7 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
         reload()
     }
 
-    // MARK: elenco
+    // MARK: list
 
     func reload() {
         Task { @MainActor in
@@ -249,9 +249,9 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
         return UISwipeActionsConfiguration(actions: [share])
     }
 
-    // MARK: azioni su un file
+    // MARK: actions on a file
 
-    /// Scarica il file (con un messaggio di attesa) e poi esegue l'azione.
+    /// Downloads the file (with a waiting message) and then runs the action.
     private func fetch(_ name: String, then action: @escaping (URL) -> Void) {
         navigationItem.prompt = L("Scarico \(name)…")
         Task { @MainActor in
@@ -299,12 +299,12 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
         previewURL! as NSURL
     }
 
-    // MARK: caricare
+    // MARK: upload
 
     private func pickPhotos() {
         var config = PHPickerConfiguration()
-        config.selectionLimit = 0  // quanti se ne vuole
-        config.preferredAssetRepresentationMode = .current  // l'originale, senza conversioni
+        config.selectionLimit = 0  // as many as you like
+        config.preferredAssetRepresentationMode = .current  // the original, without conversions
         let picker = PHPickerViewController(configuration: config)
         picker.delegate = self
         present(picker, animated: true)
@@ -318,7 +318,7 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
     }
 
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-        guard controller.documentPickerMode == .import else { return }  // "Salva in File" non carica niente
+        guard controller.documentPickerMode == .import else { return }  // "Save to Files" doesn't upload anything
         send(urls)
     }
 
@@ -339,7 +339,7 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
         }
     }
 
-    /// Copia l'originale di una foto o di un video in una cartella temporanea (il file del sistema sparisce subito).
+    /// Copies the original of a photo or video into a temporary folder (the system file disappears right away).
     static func copy(_ provider: NSItemProvider) async -> URL? {
         let types = provider.registeredTypeIdentifiers
         let type = types.first { UTType($0)?.conforms(to: .movie) == true }
@@ -387,12 +387,12 @@ final class FilesViewController: UITableViewController, PHPickerViewControllerDe
     }
 }
 
-/// Invio dei file al PC, usato dal pannello e dai file che arrivano da altre app (Condividi → Schermo Esteso).
+/// Sending files to the PC, used by the panel and by files coming from other apps (Share → Schermo Esteso).
 enum Uploader {
     static func send(_ urls: [URL], progress: @escaping (Double) -> Void,
                      done: @escaping (Result<[String], Error>) -> Void) {
         Task { @MainActor in
-            // i file arrivati da altre app sono "con accesso protetto": li apro prima di leggerli
+            // files coming from other apps are "security scoped": I open access before reading them
             let opened = urls.map { $0.startAccessingSecurityScopedResource() }
             defer { for (u, ok) in zip(urls, opened) where ok { u.stopAccessingSecurityScopedResource() } }
             do {
@@ -405,8 +405,8 @@ enum Uploader {
     }
 }
 
-/// Barra di avanzamento dell'invio dei file al PC: percentuale, MB inviati e un avviso se si ferma,
-/// così si vede che il caricamento va avanti e l'app non si è bloccata.
+/// Progress bar for files sent to the PC: percentage, MB sent and a warning if it stalls,
+/// so you can see the upload is moving and the app isn't stuck.
 final class UploadBanner: UIView {
     private let title = UILabel()
     private let detail = UILabel()
@@ -445,7 +445,7 @@ final class UploadBanner: UIView {
     }
     required init?(coder: NSCoder) { fatalError("non usato") }
 
-    /// Mette la barra in basso nella vista indicata (sopra l'eventuale indicatore Home).
+    /// Puts the bar at the bottom of the given view (above the Home indicator, if any).
     func attach(to host: UIView) {
         guard superview !== host else { return }
         removeFromSuperview()
@@ -467,7 +467,7 @@ final class UploadBanner: UIView {
         update(0)
         watchdog?.invalidate()
         watchdog = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.checkStalled() }
-        layer.removeAllAnimations()  // un invio precedente stava sparendo
+        layer.removeAllAnimations()  // a previous upload was fading out
         superview?.bringSubviewToFront(self)
         UIView.animate(withDuration: 0.2) { self.alpha = 1 }
     }

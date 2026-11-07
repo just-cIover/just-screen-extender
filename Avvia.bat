@@ -1,5 +1,5 @@
 @echo off
-rem Avvia Schermo Esteso: modalità con terminale, lascia aperta questa finestra.
+rem Start Schermo Esteso with a terminal: keep this window open.
 title Schermo Esteso
 chcp 65001 >nul
 cd /d "%~dp0pc"

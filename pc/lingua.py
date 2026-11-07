@@ -1,11 +1,11 @@
-"""Lingua dell'interfaccia: italiano (il testo scritto nel codice) o inglese.
+"""Interface language: Italian (the text written in the code) or English.
 
-I testi restano scritti in italiano nel codice; la traduzione inglese sta in web/lingue/en.json, lo stesso file
-usato dalla finestra del PC e dalla pagina web (web/lingua.js):
-- "testi": frase italiana -> inglese. Le parti che cambiano (nomi, numeri) sono {} nella frase italiana; nella
-  traduzione si usano {} (in ordine) oppure {1}, {2}... per cambiarne l'ordine.
-- "valori": parole che finiscono dentro le frasi ("a destra", "Massima"...), tradotte anche lì.
-La lingua è una sola per PC e dispositivi: la sceglie la finestra del PC o l'app e vale per tutti.
+Texts stay written in Italian in the code; the English translation is in web/lingue/en.json, the same file
+used by the PC window and the web page (web/lingua.js):
+- "testi": Italian sentence -> English. Changing parts (names, numbers) are {} in the Italian sentence; the
+  translation uses {} (in order) or {1}, {2}... to change their order.
+- "valori": words that end up inside sentences ("a destra", "Massima"...), translated there too.
+There's one language for the PC and the devices: the PC window or the app picks it and it applies to everyone.
 """
 import ctypes
 import json
@@ -36,11 +36,11 @@ def _load():
             _patterns.append((len(k), rx, v))
         else:
             _exact[k] = v
-    _patterns.sort(key=lambda p: -p[0])  # le frasi più lunghe (più precise) per prime
+    _patterns.sort(key=lambda p: -p[0])  # longest (most specific) sentences first
 
 
 def default():
-    """Lingua di Windows: italiano se Windows è in italiano, altrimenti inglese."""
+    """Windows language: Italian if Windows is in Italian, English otherwise."""
     try:
         return 'it' if ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0x3FF == 0x10 else 'en'
     except (AttributeError, OSError):
@@ -54,7 +54,7 @@ def use(lang):
 
 
 def _part(s):
-    """Un pezzo variabile dentro una frase: un valore noto, una frase intera o un elenco "a, b"."""
+    """A variable piece inside a sentence: a known value, a whole sentence or a list "a, b"."""
     if s in _values:
         return _values[s]
     r = _translate(s)
@@ -91,7 +91,7 @@ def _translate(s):
 
 
 def t(s, lang=None):
-    """Il testo nella lingua scelta (in italiano resta com'è; senza traduzione resta in italiano)."""
+    """The text in the chosen language (in Italian it stays as it is; without a translation it stays in Italian)."""
     if (lang or current) == 'it' or not s:
         return s
     core = s.strip()
@@ -105,7 +105,7 @@ def t(s, lang=None):
 
 
 def line(text):
-    """Una riga della console "hh:mm:ss [chi] testo": si traduce solo il testo."""
+    """A console line "hh:mm:ss [who] text": only the text is translated."""
     if current == 'it':
         return text
     m = re.match(r'^(\d\d:\d\d:\d\d )?(\[[^\]]{1,40}\] )?(.*)$', text, re.S)

@@ -1,16 +1,16 @@
 'use strict';
-// Schermo Esteso – client: riceve l'H.264 dal PC, lo decodifica in hardware
-// (WebCodecs) e rimanda tocchi e mouse a Windows.
+// Schermo Esteso – client: receives H.264 from the PC, decodes it in hardware
+// (WebCodecs) and sends touches and mouse back to Windows.
 
 const $ = (id) => document.getElementById(id);
 const stage = $('stage');
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(k, v); } catch { /* modalità privata */ } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
 };
 
-// lingua: subito quella ricordata (o del dispositivo), poi quella del PC che arriva appena collegati.
-// Scelta dal menu vale per tutti (PC e altri dispositivi); dalla schermata del PIN solo qui, finché non è abbinato
+// language: the remembered one right away (or the device's), then the PC's, which arrives as soon as we connect.
+// Chosen from the menu it applies to everyone (PC and other devices); from the PIN screen only here, until paired
 Lingua.use(store.get('lingua', navigator.language.startsWith('it') ? 'it' : 'en'));
 $('langMenu').replaceWith(Lingua.picker((l) => send({ t: 'lingua', lingua: l })));
 $('langPin').replaceWith(Lingua.picker(() => {}));
@@ -23,21 +23,21 @@ let ts = 0;
 let lastMsg = 0;
 let retry = 0;
 let retryTimer = null;
-let offlineSince = 0;   // da quando il PC non risponde
-let resting = false;    // il PC dorme (o non c'è da mezzo minuto): lo schermo del dispositivo può spegnersi
-let pcAsleep = false;   // l'ha detto il PC ("riposo")
-// dopo 10 s senza PC (o se ha detto che dorme) un solo messaggio fisso e un tentativo ogni 10 s: il PC che va
-// in sospensione blocca la rete prima di poterlo dire, e i messaggi che cambiano di continuo confondono
+let offlineSince = 0;   // since when the PC hasn't been answering
+let resting = false;    // the PC is asleep (or gone for half a minute): the device screen may turn off
+let pcAsleep = false;   // the PC said so ("riposo")
+// after 10 s without the PC (or if it said it's asleep) a single fixed message and one attempt every 10 s: a PC going
+// to sleep cuts the network before it can say so, and messages that keep changing are confusing
 const calm = () => pcAsleep || (offlineSince && Date.now() - offlineSince > 10000);
 const calmText = () => pcAsleep ? 'Il PC è in sospensione: riprovo a collegarmi ogni 10 secondi.'
   : "Il PC non risponde: forse è in sospensione o è passato a un'altra rete. Riprovo ogni 10 secondi.";
 let mode = store.get('mode', 'touch');
 let penMode = store.get('penMode2', 'auto'); // auto | penna | gomma | mouse
-let pairing = false; // in attesa del PIN: niente controllo "nessun dato da 4 s"
-let pairHold = 0;     // abbinamenti bloccati dal PC fino a quest'ora: niente tentativi a raffica
+let pairing = false; // waiting for the PIN: no "no data for 4 s" check
+let pairHold = 0;     // pairing blocked by the PC until this time: no burst of attempts
 
-// Identità del dispositivo: un codice casuale creato la prima volta e la chiave che il PC
-// consegna dopo il PIN. Con la chiave il PC lo riconosce e non chiede più il PIN.
+// Device identity: a random code created the first time and the key the PC
+// hands over after the PIN. With the key the PC recognizes it and doesn't ask for the PIN anymore.
 let devId = store.get('devId', '');
 if (!devId) {
   devId = (crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join(''));
@@ -46,8 +46,8 @@ if (!devId) {
 const devName = /iPhone/.test(navigator.userAgent) ? 'iPhone'
   : (/iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) ? 'iPad'
   : /Android/.test(navigator.userAgent) ? 'Android' : 'Browser';
-// Area utile per lo schermo virtuale: tutto lo schermo, meno la barra in alto se l'opzione
-// "Sotto la barra" è attiva. Solo nell'app aperta dalla Home (in Safari le barre cambiano) e in orizzontale.
+// Usable area for the virtual screen: the whole screen, minus the top bar if the
+// "Below the bar" option is on. Only in the app opened from the Home Screen (in Safari the bars change) and in landscape.
 function safeTop() {
   const probe = document.createElement('div');
   probe.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top);visibility:hidden';
@@ -59,7 +59,7 @@ function safeTop() {
 function sendArea() {
   const standalone = navigator.standalone || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
   if (!standalone || innerWidth < innerHeight) return;
-  if (document.activeElement && document.activeElement.tagName === 'INPUT') return; // tastiera aperta: niente cambi
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') return; // keyboard open: no changes
   const dpr = window.devicePixelRatio || 1;
   const top = document.body.classList.contains('sottoBarra') ? safeTop() : 0;
   send({ t: 'area', w: Math.round(innerWidth * dpr), h: Math.round((innerHeight - top) * dpr) });
@@ -74,9 +74,9 @@ function screenInfo() {
 let quality = +store.get('quality', '1');
 const QUALITY_NAMES = ['Massima', 'Fluida', 'Media', 'Leggera'];
 
-// Motori di visualizzazione:
-//   diretto     -> WebCodecs + disegno YUV (ritardo minimo)
-//   compatibile -> lettore video di Safari via MSE (stabilissimo, un po' più di ritardo)
+// Display engines:
+//   diretto     -> WebCodecs + YUV drawing (minimum delay)
+//   compatibile -> Safari's video player via MSE (very stable, a bit more delay)
 const ua = navigator.userAgent;
 const isSafari = /Safari/.test(ua) && !/Chrome|Chromium|CriOS|Edg/.test(ua);
 const hasWC = 'VideoDecoder' in window;
@@ -84,9 +84,9 @@ const hasMSE = !!(window.ManagedMediaSource || window.MediaSource);
 let engine = store.get('engine2', hasWC ? 'diretto' : 'compatibile');
 if (engine === 'diretto' && !hasWC) engine = 'compatibile';
 
-// Se la pagina era attiva fino a pochi secondi fa e non è stata chiusa normalmente,
-// Safari l'ha fatta ripartire dopo un crash (memoria): passo al motore compatibile,
-// e se crasha anche quello abbasso la qualità.
+// If the page was active until a few seconds ago and wasn't closed normally,
+// Safari restarted it after a crash (memory): switch to the compatible engine,
+// and if that crashes too, lower the quality.
 let crashed = null;
 (() => {
   const alive = +store.get('alive', '0');
@@ -103,12 +103,12 @@ let statTick = 0;
 const stat = { frames: 0, bytes: 0, rtt: null, drop: 0, fps: 0, rate: 0 };
 
 const report = (r) => send({ t: 'diag', motore: engine, ...r, ua });
-// Su Safari il disegno diretto dei VideoFrame perde memoria a ogni fotogramma: uso sempre il percorso YUV
+// On Safari drawing VideoFrames directly leaks memory on every frame: always use the YUV path
 const renderer = engine === 'compatibile'
   ? new MseRenderer(stage, report)
   : new Renderer(stage, report, isSafari ? 'yuv' : null);
 
-/* ---------------- connessione ---------------- */
+/* ---------------- connection ---------------- */
 
 function setStatus(text) {
   $('status').classList.toggle('hidden', !text);
@@ -133,7 +133,7 @@ function connect() {
   ws.onclose = (e) => {
     ws = null;
     if (pairing && Date.now() < pairHold) {
-      // il PC ha bloccato gli abbinamenti: lascio il messaggio visibile e riprovo più tardi
+      // the PC blocked pairing: leave the message visible and retry later
       pairing = false;
       clearTimeout(retryTimer);
       retryTimer = setTimeout(connect, Math.min(pairHold - Date.now(), 60000));
@@ -142,7 +142,7 @@ function connect() {
     if (pairing) { pairing = false; $('pinBox').classList.remove('show'); }
     scheduleRetry();
   };
-  ws.onerror = () => { /* segue onclose */ };
+  ws.onerror = () => { /* onclose follows */ };
 }
 
 function scheduleRetry() {
@@ -150,12 +150,12 @@ function scheduleRetry() {
   if (document.hidden) return;
   retry++;
   if (!offlineSince) offlineSince = Date.now();
-  if (Date.now() - offlineSince > 30000) rest(true);  // mezzo minuto senza PC: lo schermo può spegnersi
+  if (Date.now() - offlineSince > 30000) rest(true);  // half a minute without the PC: the screen may turn off
   setStatus(calm() ? calmText() : 'Connessione persa, riprovo…');
   retryTimer = setTimeout(connect, calm() ? 10000 : Math.min(300 * retry, 2000));
 }
 
-/** Il PC dorme: niente schermo sempre acceso, il dispositivo si blocca da solo; al risveglio torna acceso. */
+/** The PC is asleep: no always-on screen, the device locks by itself; on wake-up it stays on again. */
 function rest(r) {
   if (r === resting) return;
   resting = r;
@@ -178,21 +178,21 @@ function onMessage(ev) {
     if (m.t === 'config') configure(m);
     else if (m.t === 'lingua') Lingua.use(m.lingua);
     else if (m.t === 'penna') {
-      // il PC ha deciso: sotto la punta non c'è un programma da disegno, quindi scorre e tocca
+      // the PC decided: there's no drawing program under the tip, so it scrolls and taps
       penFinger = m.uso === 'dito';
       if (penFinger) { strokes.length = 0; inkLast = null; ictx.clearRect(0, 0, ink.width, ink.height); }
     }
     else if (m.t === 'quality') {
-      // decisa dal PC (o confermata): aggiorno il menu senza rimandarla indietro
+      // set by the PC (or confirmed): update the menu without sending it back
       quality = m.level; store.set('quality', String(quality));
       if (m.auto) notice(`Qualità ${QUALITY_NAMES[quality]}: impostata in automatico dal PC`, null, null, 5000);
       document.querySelectorAll('#quality button').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.q === quality));
     }
     else if (m.t === 'hello') {
-      // riconosciuto dal PC
+      // recognized by the PC
       offlineSince = 0; pcAsleep = false; rest(false);
       pairing = false; $('pinBox').classList.remove('show');
-      // la qualità la ricorda il PC (arriva subito dopo); la mando solo se l'ho abbassata io dopo un crash
+      // the PC remembers the quality (it arrives right after); I send it only if I lowered it after a crash
       if (crashed) send({ t: 'quality', level: quality });
       report({ avvio: true, qualita: QUALITY_NAMES[quality], dopoCrash: crashed, schermo: screenInfo() });
       sendArea();
@@ -212,7 +212,7 @@ function onMessage(ev) {
     } else if (m.t === 'avviso') {
       notice(m.testo, null, null, 5000);
     } else if (m.t === 'dove') {
-      // spinta del mouse con più dispositivi collegati: "Qui" su quello che si trova da quella parte
+      // mouse push with several devices connected: "Here" on the one that sits on that side
       notice(`Hai spinto il mouse ${m.lato}: lo schermo va ${m.lato} del PC?`, 'Qui', () => send({ t: 'qui' }), (m.secondi || 15) * 1000);
     } else if (m.t === 'dove_fine') {
       $('toast').classList.remove('show');
@@ -246,7 +246,7 @@ function onMessage(ev) {
   }
   if (!decoder || decoder.state !== 'configured') return;
   if (waitingKey && !key) return;
-  // l'iPad non sta al passo: invece di accumulare fotogrammi in memoria, salto al prossimo completo
+  // the iPad can't keep up: instead of piling up frames in memory, skip to the next full one
   if (!key && decoder.decodeQueueSize > 3) { waitingKey = true; stat.skips = (stat.skips || 0) + 1; return; }
   waitingKey = false;
   try {
@@ -256,7 +256,7 @@ function onMessage(ev) {
   }
 }
 
-/* ---------------- decodifica ---------------- */
+/* ---------------- decoding ---------------- */
 
 function b64(s) {
   const bin = atob(s); const out = new Uint8Array(bin.length);
@@ -282,7 +282,7 @@ function configure(m) {
 
 let recovering = false;
 function recover() {
-  // decoder in errore (succede se Safari lo sospende): ne creo uno nuovo e chiedo un fotogramma completo
+  // decoder in error (happens if Safari suspends it): create a new one and ask for a full frame
   if (recovering || !config) return;
   recovering = true;
   setTimeout(() => {
@@ -301,12 +301,12 @@ async function draw(frame) {
   }
 }
 
-/* ---------------- controllo salute ---------------- */
+/* ---------------- health check ---------------- */
 
 setInterval(() => {
   if (!ws) return;
   if (ws.readyState === 1) send({ t: 'ping', ts: performance.now() });
-  // nessun dato da 4 s (Wi-Fi addormentato, PC in pausa...): chiudo e mi ricollego subito
+  // no data for 4 s (Wi-Fi asleep, PC paused...): close and reconnect right away
   if (!pairing && performance.now() - lastMsg > 4000) {
     ws.onclose = null; try { ws.close(); } catch {} ws = null;
     scheduleRetry();
@@ -317,10 +317,10 @@ setInterval(() => {
   stat.fps = stat.frames; stat.rate = stat.bytes * 8 / 1e6;
   stat.decoded = decoded;
   stat.frames = 0; stat.bytes = 0; decoded = 0;
-  // ogni 10 s un riassunto al PC (compare nella finestra del server)
-  // nei primi 20 s ogni 2 s (per capire subito se qualcosa va storto), poi ogni 10 s
+  // a summary to the PC every 10 s (shown in the server window)
+  // in the first 20 s every 2 s (to see right away if something goes wrong), then every 10 s
   statTick++;
-  if (statTick % 2 === 0 && ws && ws.readyState === 1) { // ogni 2 s, per la finestra del PC
+  if (statTick % 2 === 0 && ws && ws.readyState === 1) { // every 2 s, for the PC window
     send({ t: 'stats', fps: stat.fps, dec: stat.decoded, rtt: stat.rtt && Math.round(stat.rtt),
       mbit: +stat.rate.toFixed(1), render: engine + '/' + renderer.method,
       queue: engine === 'compatibile' ? renderer.queueSize : decoder ? decoder.decodeQueueSize : null,
@@ -340,7 +340,7 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     store.set('alive', '0');
-    // in background Safari sospende tutto: chiudo pulito e riparto al ritorno
+    // in the background Safari suspends everything: close cleanly and restart on return
     clearTimeout(retryTimer);
     if (ws) { ws.onclose = null; try { ws.close(); } catch {} ws = null; }
   } else {
@@ -350,7 +350,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pageshow', (e) => { if (e.persisted) connect(); });
 window.addEventListener('online', () => { retry = 0; connect(); });
 
-/* ---------------- schermo sempre acceso ---------------- */
+/* ---------------- always-on screen ---------------- */
 
 let wakeLock = null;
 async function keepAwake() {
@@ -359,15 +359,15 @@ async function keepAwake() {
       wakeLock = await navigator.wakeLock.request('screen');
       wakeLock.addEventListener('release', () => { wakeLock = null; });
     }
-  } catch { /* non concesso: resta il video muto */ }
+  } catch { /* not granted: the muted video stays */ }
   const v = $('nosleep');
   if (v.paused) v.play().catch(() => {});
 }
 
-/* ---------------- tocco e mouse ---------------- */
+/* ---------------- touch and mouse ---------------- */
 
 function norm(e) {
-  // posizione nel video (tenendo conto delle eventuali bande nere)
+  // position in the video (taking any black bars into account)
   const r = stage.getBoundingClientRect();
   const cw = renderer.width, ch = renderer.height;
   const s = Math.min(r.width / cw, r.height / ch);
@@ -377,7 +377,7 @@ function norm(e) {
 }
 
 const pointers = new Map(); // pointerId -> {x, y, sx, sy, t}
-let gesture = null;         // modalità mouse: null | 'drag' | 'two'
+let gesture = null;         // mouse mode: null | 'drag' | 'two'
 let twoStart = 0, twoMoved = false, lastMid = null;
 
 function mid() {
@@ -387,19 +387,19 @@ function mid() {
 }
 
 /* ---------------- Apple Pencil ---------------- */
-// La Pencil diventa una penna di Windows: pressione e inclinazione arrivano ai programmi
-// (firma nei PDF di Edge, disegno, appunti, scrittura a mano). Mentre la Pencil scrive, i tocchi
-// del palmo appoggiato vengono ignorati.
+// The Pencil becomes a Windows pen: pressure and tilt reach the programs
+// (signatures in Edge PDFs, drawing, notes, handwriting). While the Pencil writes, touches
+// from the resting palm are ignored.
 let penId = null, penUpAt = 0;
 let penFinger = false;
-let penTap = null; // inizio dell'ultimo appoggio della Pencil (per il doppio tocco) // in automatica: in questo tratto la Pencil fa da dito (niente inchiostro)
+let penTap = null; // start of the last Pencil touch-down (for the double tap) // automatic mode: in this stroke the Pencil acts as a finger (no ink)
 
-// Inchiostro immediato: il tratto compare subito sull'iPad e sfuma quando arriva quello vero dal PC
-// (rete + compressione + decodifica). Così la scrittura sembra senza ritardo.
+// Instant ink: the stroke appears right away on the iPad and fades when the real one arrives from the PC
+// (network + compression + decoding). This way writing feels delay-free.
 let inkOn = store.get('ink', '1') === '1';
 const ink = $('ink');
 const ictx = ink.getContext('2d');
-const strokes = []; // segmenti {x0, y0, x1, y1, w, t}
+const strokes = []; // segments {x0, y0, x1, y1, w, t}
 let inkLast = null, inkRaf = 0;
 function sizeInk() {
   const r = ink.getBoundingClientRect(), d = window.devicePixelRatio || 1;
@@ -408,7 +408,7 @@ function sizeInk() {
 }
 window.addEventListener('resize', sizeInk);
 sizeInk();
-const inkLife = () => Math.min(600, Math.max(150, (stat.rtt || 60) + 120)); // quanto resta visibile
+const inkLife = () => Math.min(600, Math.max(150, (stat.rtt || 60) + 120)); // how long it stays visible
 function inkPoint(e, start) {
   if (!inkOn || penFinger || (penMode !== 'penna' && penMode !== 'auto')) return;
   const r = ink.getBoundingClientRect();
@@ -440,8 +440,8 @@ function sendPen(kind, e) {
 }
 function penDown(e) {
   keepAwake(); closeMenu();
-  try { stage.setPointerCapture(e.pointerId); } catch { /* tocco già terminato */ }
-  if (pointers.size) cancelAll(); // il palmo era già appoggiato: annullo quei tocchi
+  try { stage.setPointerCapture(e.pointerId); } catch { /* touch already ended */ }
+  if (pointers.size) cancelAll(); // the palm was already resting: cancel those touches
   penId = e.pointerId;
   penFinger = false;
   penTap = { t0: performance.now(), x0: e.clientX, y0: e.clientY };
@@ -450,7 +450,7 @@ function penDown(e) {
 }
 function penMove(e) {
   if (e.pointerId !== penId) return;
-  // la Pencil misura più punti di quelli che arrivano: li mando tutti, la linea viene più fluida
+  // the Pencil measures more points than arrive: send them all, the line comes out smoother
   const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
   for (const c of (list.length ? list : [e])) { sendPen('m', c); inkPoint(c); }
 }
@@ -469,7 +469,7 @@ function onDown(e) {
   if (e.pointerType === 'touch' && penBusy()) return;
   keepAwake();
   closeMenu();
-  try { stage.setPointerCapture(e.pointerId); } catch { /* tocco già terminato */ }
+  try { stage.setPointerCapture(e.pointerId); } catch { /* touch already ended */ }
   const n = norm(e);
   pointers.set(e.pointerId, { ...n, cx: e.clientX, cy: e.clientY, t0: performance.now(), x0: e.clientX, y0: e.clientY });
   if (pointers.size === 3) { cancelAll(); openMenu(); return; }
@@ -479,7 +479,7 @@ function onDown(e) {
       gesture = 'drag';
       send({ t: 'm', e: 'd', b: 0, x: n.x, y: n.y });
     } else if (pointers.size === 2) {
-      // secondo dito: annullo il trascinamento e passo a scorrimento / clic destro
+      // second finger: cancel the drag and switch to scroll / right click
       if (gesture === 'drag') { const f = [...pointers.values()][0]; send({ t: 'm', e: 'u', b: 0, x: f.x, y: f.y }); }
       gesture = 'two'; twoStart = performance.now(); twoMoved = false; lastMid = mid();
     }
@@ -531,7 +531,7 @@ function onUp(e) {
   }
 }
 
-// Doppio tocco (dito, o Pencil dove fa da dito): il PC seleziona la parola con un doppio clic
+// Double tap (finger, or Pencil where it acts as a finger): the PC selects the word with a double click
 let lastTap = null;
 function tapUp(t0, x0, y0, e) {
   const now = performance.now();
@@ -539,7 +539,7 @@ function tapUp(t0, x0, y0, e) {
   if (lastTap && now - lastTap.t < 450 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
     lastTap = null;
     const n = norm(e);
-    send({ t: 'parola', x: n.x, y: n.y, gia: true }); // i due tocchi sono già arrivati a Windows
+    send({ t: 'parola', x: n.x, y: n.y, gia: true }); // both taps have already reached Windows
     notice('Parola selezionata sul PC', 'Copia', () => send({ t: 'tasto', k: 'copia' }), 6000);
   } else {
     lastTap = { t: now, x: e.clientX, y: e.clientY };
@@ -558,7 +558,7 @@ stage.addEventListener('pointerdown', onDown);
 stage.addEventListener('pointermove', onMove);
 stage.addEventListener('pointerup', onUp);
 stage.addEventListener('pointercancel', onUp);
-// niente zoom, menu contestuale o selezione di Safari sopra lo schermo
+// no Safari zoom, context menu or selection over the screen
 for (const t of ['gesturestart', 'gesturechange', 'contextmenu', 'touchstart', 'touchmove'])
   stage.addEventListener(t, (e) => e.preventDefault(), { passive: false });
 
@@ -628,7 +628,7 @@ $('modeTouch').addEventListener('click', () => setMode('touch'));
 $('modeMouse').addEventListener('click', () => setMode('mouse'));
 $('reconnect').addEventListener('click', () => { closeMenu(); retry = 0; connect(); });
 $('changePin').addEventListener('click', () => {
-  // dimentica la chiave: al prossimo collegamento il PC chiederà un PIN nuovo
+  // forget the key: on the next connection the PC will ask for a new PIN
   closeMenu(); store.set('token', ''); retry = 0; connect();
 });
 
@@ -651,7 +651,7 @@ $('pinForm').addEventListener('submit', (e) => {
   send({ t: 'pin', pin: v, nome: devName, ...screenInfo() });
 });
 
-/* ---------------- file ---------------- */
+/* ---------------- files ---------------- */
 
 const api = (path, extra = '') =>
   `${path}?dev=${encodeURIComponent(devId)}&token=${encodeURIComponent(store.get('token', ''))}${extra}`;
@@ -692,9 +692,9 @@ async function refreshFiles() {
   }));
 }
 
-/* Condividi (menu nativo di iPadOS) e anteprima interna.
-   Niente link che aprono il file: in un'app sulla schermata Home non si tornerebbe più indietro. */
-const files = new Map(); // nome -> File già scaricato (gli ultimi 3)
+/* Share (native iPadOS menu) and built-in preview.
+   No links that open the file: in a Home Screen app there would be no way back. */
+const files = new Map(); // name -> File already downloaded (the last 3)
 async function getFile(name) {
   if (files.has(name)) return files.get(name);
   const r = await fetch(fileUrl(name), { cache: 'no-store' });
@@ -722,15 +722,15 @@ async function shareFile(name, btn) {
     await navigator.share({ files: [f], title: name });
     btn?.classList.remove('ready');
   } catch (e) {
-    // Safari concede la condivisione solo subito dopo il tocco: se lo scaricamento è stato lungo
-    // il file ora è pronto e basta toccare di nuovo
+    // Safari allows sharing only right after the tap: if the download took long
+    // the file is ready now and another tap is enough
     if (e.name === 'NotAllowedError') { btn?.classList.add('ready'); fileMsg('File pronto: tocca di nuovo l’icona di condivisione.'); }
     else if (e.name !== 'AbortError') fileMsg('Condivisione non riuscita.');
   } finally { btn?.classList.remove('busy'); }
 }
 function shareButton(name) {
   const b = el('button', { className: 'share', title: 'Condividi', ariaLabel: 'Condividi ' + name });
-  b.innerHTML = $('pvShare').innerHTML; // stessa icona del pannello di anteprima
+  b.innerHTML = $('pvShare').innerHTML; // same icon as the preview panel
   b.addEventListener('click', () => shareFile(name, b));
   return b;
 }
@@ -783,8 +783,8 @@ $('copyShortcut').addEventListener('click', async () => {
   catch { fileMsg('Copia non riuscita: serve la connessione sicura (vedi sotto).'); }
 });
 
-// "Apri qui": il file si apre sul PC con il suo programma, sullo schermo di questo dispositivo
-// (es. un PDF in Edge, da firmare con la Pencil)
+// "Open here": the file opens on the PC with its program, on this device's screen
+// (e.g. a PDF in Edge, to sign with the Pencil)
 function openHere(name) {
   const b = el('button', { textContent: 'Apri qui', title: 'Apri sul PC, su questo schermo' });
   b.addEventListener('click', () => { send({ t: 'apri', nome: name }); closeFiles(); });
@@ -804,7 +804,7 @@ $('picker').addEventListener('change', () => {
   upload(list);
 });
 
-// trascinare file nel pannello (PC, oppure iPad con l'app File affiancata)
+// drag files into the panel (PC, or iPad with the Files app side by side)
 let dragDepth = 0;
 const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
 $('files').addEventListener('dragenter', (e) => {
@@ -819,9 +819,9 @@ $('files').addEventListener('dragleave', () => {
 $('files').addEventListener('drop', (e) => {
   e.preventDefault(); dragDepth = 0;
   $('files').classList.remove('dragging'); $('drop').classList.remove('over');
-  upload([...e.dataTransfer.files].filter((f) => f.size || f.type)); // le cartelle arrivano vuote: le salto
+  upload([...e.dataTransfer.files].filter((f) => f.size || f.type)); // folders arrive empty: skip them
 });
-// file trascinati sullo schermo con il pannello chiuso: apro il pannello
+// files dragged onto the screen with the panel closed: open the panel
 window.addEventListener('dragenter', (e) => { if (hasFiles(e) && !$('files').classList.contains('show')) openFiles(); });
 window.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
 window.addEventListener('drop', (e) => e.preventDefault());
@@ -833,7 +833,7 @@ function upload(list) {
   const bar = $('upload'), fill = bar.firstElementChild, label = bar.lastElementChild;
   bar.classList.remove('hidden'); fill.style.width = '0'; label.textContent = 'Invio…';
   $('pick').disabled = true;
-  // XMLHttpRequest e non fetch: serve l'avanzamento del caricamento
+  // XMLHttpRequest and not fetch: upload progress is needed
   const x = new XMLHttpRequest();
   x.open('POST', api('/api/invia'));
   x.upload.onprogress = (e) => {
@@ -853,7 +853,7 @@ function upload(list) {
 }
 
 let toastTimer = null, toastAction = null;
-// avviso in basso: testo, pulsante facoltativo (label + azione), durata
+// notice at the bottom: text, optional button (label + action), duration
 function notice(text, label, action, ms = 20000) {
   $('toastText').textContent = text;
   $('toastOpen').textContent = label || '';
@@ -865,7 +865,7 @@ function notice(text, label, action, ms = 20000) {
 }
 function showToast(m) {
   if ($('files').classList.contains('show')) refreshFiles();
-  if (!m.nomi.length) return; // solo file tolti: aggiorno l'elenco e basta
+  if (!m.nomi.length) return; // files removed only: just update the list
   const one = m.nomi.length === 1 ? m.nomi[0] : null;
   notice(one ? `Nuovo file da ${m.da}: ${one}` : `${m.nomi.length} nuovi file da ${m.da}`, 'Vedi', () => {
     openFiles();
@@ -877,7 +877,7 @@ $('toastOpen').addEventListener('click', () => {
   if (toastAction) toastAction();
 });
 
-// Appunti condivisi. Safari scrive e legge gli appunti solo dopo un tocco: per questo "Copia" e "Invia".
+// Shared clipboard. Safari writes and reads the clipboard only after a tap: hence "Copy" and "Send".
 function clipFromPC(m) {
   if (m.tipo === 'testo') {
     const short = m.testo.length > 40 ? m.testo.slice(0, 40).trim() + '…' : m.testo;
@@ -888,7 +888,7 @@ function clipFromPC(m) {
   } else {
     notice('Immagine negli appunti del PC', 'Copia', async () => {
       try {
-        // la promessa va passata subito, dentro il tocco: Safari aspetta il download
+        // the promise must be passed right away, within the tap: Safari waits for the download
         const png = fetch(api('/api/appunti/immagine')).then((r) => { if (!r.ok) throw new Error(); return r.blob(); });
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
         notice('Immagine copiata negli appunti', null, null, 3000);
@@ -896,7 +896,7 @@ function clipFromPC(m) {
     });
   }
 }
-// Scrivere sul PC: testo o credenziali (anche scelte dalle Password dell'iPad) nel campo selezionato sul PC
+// Typing on the PC: text or credentials (also picked from the iPad Passwords) into the selected field on the PC
 function typeOnPC(enter) {
   const user = $('typeUser').value, pass = $('typePass').value, text = $('typeText').value;
   if (text) send({ t: 'scrivi', testo: text });

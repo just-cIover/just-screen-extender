@@ -1,12 +1,12 @@
-"""Scambio di file tra PC e dispositivi.
+"""File exchange between the PC and the devices.
 
-Tutto passa dalla cartella "download" dentro l'app (D:\\claudio\\ipad-schermo\\download).
-Ogni file nella cartella è visibile a tutti i dispositivi, collegati ora o in futuro.
-Si può aggiungere un file in tre modi:
-- copiandolo nella cartella con Esplora file (la cartella viene controllata ogni 2 secondi);
-- dal PC con clic destro > Invia a > Schermo Esteso (invia.py);
-- dall'app, con "Aggiungi file" o trascinandolo nel pannello File.
-I file spariscono solo cancellandoli dalla cartella sul PC: dai dispositivi non si eliminano.
+Everything goes through the "downloads" folder inside the app (data\\downloads).
+Every file in the folder is visible to all devices, connected now or in the future.
+A file can be added in three ways:
+- by copying it into the folder with File Explorer (the folder is checked every 2 seconds);
+- from the PC with right-click > Send to > Schermo Esteso (invia.py);
+- from the app, with "Add files" or by dragging it into the Files panel.
+Files disappear only when you delete them from the folder on the PC: devices can't delete them.
 """
 import asyncio
 import json
@@ -22,23 +22,23 @@ from aiohttp import web
 import riposo
 import sicurezza
 
-# IPAD_SCHERMO_CARTELLA serve solo per le prove, per non toccare la cartella vera
+# IPAD_SCHERMO_CARTELLA is only for tests, so the real folder isn't touched
 FOLDER = os.environ.get('IPAD_SCHERMO_CARTELLA') or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'downloads')
-META = os.path.join(os.path.dirname(FOLDER), 'download-info.json')  # chi ha aggiunto cosa (fuori dalla cartella)
+META = os.path.join(os.path.dirname(FOLDER), 'download-info.json')  # who added what (outside the folder)
 CHUNK = 1 << 20
 MAX_FILE = 20 * 1024 ** 3     # 20 GB per file
-MIN_FREE = 2 * 1024 ** 3      # lascio sempre almeno 2 GB liberi sul disco
-SCAN = 2  # secondi tra due controlli della cartella
+MIN_FREE = 2 * 1024 ** 3      # always leave at least 2 GB free on the disk
+SCAN = 2  # seconds between two folder checks
 
 
 def _safe_name(name):
     name = str(name)
-    if re.search(r'%[0-9A-Fa-f]{2}', name):  # alcuni programmi mandano il nome codificato (%C3%A0 = à)
+    if re.search(r'%[0-9A-Fa-f]{2}', name):  # some programs send the name encoded (%C3%A0 = à)
         name = unquote(name)
     name = os.path.basename(name.replace('\\', '/')).strip()
     name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name).strip(' .')
     if re.fullmatch(r'(?i)(con|prn|aux|nul|com\d|lpt\d)(\..*)?', name):
-        name = '_' + name  # nomi riservati di Windows
+        name = '_' + name  # Windows reserved names
     return name[:150] or 'file'
 
 
@@ -67,9 +67,9 @@ class Exchange:
         self.app = app
         self.log = log
         os.makedirs(FOLDER, exist_ok=True)
-        self.known = self._scan()  # nome -> (dimensione, data) all'ultimo controllo
+        self.known = self._scan()  # name -> (size, date) at the last check
 
-    # ---- cartella ----
+    # ---- folder ----
     def _scan(self):
         out = {}
         for e in os.scandir(FOLDER):
@@ -100,7 +100,7 @@ class Exchange:
         return out
 
     def broadcast(self, new=(), sender=None, skip=None):
-        """Avvisa tutti i dispositivi collegati che la cartella è cambiata (e quali file sono nuovi)."""
+        """Tells every connected device that the folder changed (and which files are new)."""
         msg = json.dumps({'t': 'file', 'nomi': list(new), 'da': sender})
         for s in self.app.sessions.values():
             if s.id == skip:
@@ -109,8 +109,8 @@ class Exchange:
                 c.push_text(msg)
 
     async def watch(self):
-        """Si accorge dei file copiati o cancellati con Esplora file."""
-        pending = {}  # file nuovi ancora in copia: aspetto che la dimensione smetta di cambiare
+        """Notices files copied or deleted with File Explorer."""
+        pending = {}  # new files still being copied: wait until the size stops changing
         while True:
             await riposo.nap(SCAN)
             try:
@@ -140,7 +140,7 @@ class Exchange:
                 self.broadcast(added, 'PC' if added else None)
 
     def _added(self, names, sender, skip=None):
-        """File appena salvati dal server: li segno subito come noti e avviso gli altri."""
+        """Files just saved by the server: mark them as known right away and tell the others."""
         now = self._scan()
         for n in names:
             self._note(n, sender)
@@ -149,7 +149,7 @@ class Exchange:
         self.log(f'caricato file {", ".join(names)}', sender)
         self.broadcast(names, sender, skip)
 
-    # ---- accesso ----
+    # ---- access ----
     def _auth(self, request):
         q = request.query
         dev = q.get('dev', '')
@@ -160,7 +160,7 @@ class Exchange:
     def _local(self, request):
         sicurezza.local_only(request, self.app.local_port)
 
-    # ---- rotte ----
+    # ---- routes ----
     async def list_handler(self, request):
         self._auth(request)
         return web.json_response({'file': self.files()})
@@ -170,12 +170,12 @@ class Exchange:
         return await self._receive(request, self.app.devices.get(dev)['nome'], dev)
 
     async def pc_list_handler(self, request):
-        """Elenco per la finestra di controllo del PC."""
+        """List for the PC control window."""
         self._local(request)
         return web.json_response({'file': self.files(), 'cartella': FOLDER})
 
     async def pc_upload_handler(self, request):
-        """File trascinati nella finestra di controllo del PC."""
+        """Files dragged into the PC control window."""
         self._local(request)
         return await self._receive(request, 'PC', None)
 
@@ -198,13 +198,13 @@ class Exchange:
                         if not chunk:
                             break
                         written += len(chunk)
-                        # un file enorme (anche per sbaglio) non deve riempire il disco del PC
+                        # a huge file (even by mistake) must not fill the PC disk
                         if written > MAX_FILE or shutil.disk_usage(FOLDER).free < MIN_FREE + len(chunk):
                             raise web.HTTPRequestEntityTooLarge(max_size=MAX_FILE, actual_size=written,
                                                                 text='spazio sul disco del PC quasi finito')
                         await asyncio.to_thread(f.write, chunk)
                 os.replace(tmp, os.path.join(FOLDER, name))
-                if dev:  # arrivato da un dispositivo: Windows lo tratta come scaricato da Internet
+                if dev:  # came from a device: Windows treats it as downloaded from the Internet
                     sicurezza.mark_from_internet(os.path.join(FOLDER, name))
             except BaseException:
                 if os.path.exists(tmp):
@@ -221,19 +221,19 @@ class Exchange:
         path = os.path.join(FOLDER, name)
         if not _visible(name) or not os.path.isfile(path):
             raise web.HTTPNotFound(text='file non trovato')
-        # i lettori di PDF e video chiedono il file a pezzi: scrivo solo la prima richiesta
+        # PDF and video players ask for the file in pieces: log only the first request
         rng = request.headers.get('Range', '')
         if not rng or rng.startswith('bytes=0-'):
             what = 'scaricato' if request.query.get('scarica') else 'aperto'
             self.log(f'{what} file {name}', self.app.devices.get(dev)['nome'])
         resp = web.FileResponse(path)
         if request.query.get('scarica'):
-            # nome con caratteri speciali codificato come da RFC 5987
+            # name with special characters encoded as per RFC 5987
             resp.headers['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(name)}"
         return resp
 
     async def local_handler(self, request):
-        """Dal PC (invia.py): copia i file nella cartella e avvisa i dispositivi collegati."""
+        """From the PC (invia.py): copies the files into the folder and notifies the connected devices."""
         self._local(request)
         d = await request.json()
         names = []
@@ -241,7 +241,7 @@ class Exchange:
             if not os.path.isfile(p):
                 continue
             if os.path.dirname(os.path.abspath(p)) == os.path.abspath(FOLDER):
-                name = os.path.basename(p)  # già nella cartella
+                name = os.path.basename(p)  # already in the folder
             else:
                 name = _unique(_safe_name(os.path.basename(p)))
                 await asyncio.to_thread(shutil.copy2, p, os.path.join(FOLDER, name))
@@ -265,7 +265,7 @@ class Exchange:
         return path if _visible(name) and os.path.isfile(path) else None
 
     def open_file(self, name):
-        """Apre un file della cartella con il programma predefinito di Windows."""
+        """Opens a file from the folder with the Windows default program."""
         name = _safe_name(name)
         path = os.path.join(FOLDER, name)
         if not (_visible(name) and os.path.isfile(path)):
@@ -274,6 +274,6 @@ class Exchange:
             self.log(f'aperto file {name}', 'PC')
             os.startfile(path)
         else:
-            # programmi e script: non li avvio, mostro il file selezionato in Esplora file
+            # programs and scripts: not started, the file is shown selected in File Explorer
             self.log(f'{name} non viene aperto direttamente (potrebbe essere un programma): lo mostro nella cartella', 'PC')
             subprocess.Popen(['explorer.exe', '/select,', path])

@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
-<!-- Configurazione del Virtual Display Driver per usare l'iPad 6 come secondo schermo.
-     Risoluzioni tutte in 4:3 come il display dell'iPad (nativa 2048x1536). -->
+<!-- Virtual Display Driver configuration for using the iPad 6 as a second screen.
+     Resolutions are all 4:3 like the iPad display (native 2048x1536). -->
 <vdd_settings>
     <monitors>
         <count>1</count>

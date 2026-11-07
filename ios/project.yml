@@ -1,4 +1,4 @@
-# Progetto Xcode generato con XcodeGen (sul Mac della compilazione: `xcodegen generate`).
+# Xcode project generated with XcodeGen (on the build Mac: `xcodegen generate`).
 name: SchermoEsteso
 options:
   bundleIdPrefix: it.schermoesteso
@@ -8,7 +8,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "1.2.0"  # versione dell'app: si cambia qui a ogni release
+    MARKETING_VERSION: "1.2.0"  # app version: change it here for every release
     CURRENT_PROJECT_VERSION: "1"
 targets:
   SchermoEsteso:
@@ -32,13 +32,13 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSRequiresIPhoneOS: true
         ITSAppUsesNonExemptEncryption: false
-        # app a schermo intero: niente barra di iPadOS sopra l'immagine
+        # full-screen app: no iPadOS bar over the picture
         UIRequiresFullScreen: true
         UIStatusBarHidden: true
         UIViewControllerBasedStatusBarAppearance: true
         UILaunchScreen:
           UIColorName: ""
-        # anche in verticale: lo schermo virtuale gira con il dispositivo (si può bloccare dal menu)
+        # portrait too: the virtual screen rotates with the device (can be locked from the menu)
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
@@ -50,7 +50,7 @@ targets:
           - UIInterfaceOrientationPortrait
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
-        # compare nel foglio Condividi delle altre app: il file arriva qui e va al PC
+        # appears in the Share sheet of other apps: the file arrives here and goes to the PC
         CFBundleDocumentTypes:
           - CFBundleTypeName: Qualsiasi file
             LSHandlerRank: Alternate

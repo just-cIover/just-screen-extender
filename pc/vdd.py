@@ -1,8 +1,8 @@
-"""Comandi al Virtual Display Driver: numero di schermi virtuali e risoluzioni disponibili.
+"""Commands to the Virtual Display Driver: number of virtual screens and available resolutions.
 
-Il driver legge C:\\VirtualDisplayDriver\\vdd_settings.xml e accetta comandi sul canale
-\\\\.\\pipe\\MTTVirtualDisplayPipe (aperto a tutti gli utenti, non servono permessi di amministratore).
-Dopo RELOAD_DRIVER tutti gli schermi virtuali si spengono e riaccendono per un attimo.
+The driver reads C:\\VirtualDisplayDriver\\vdd_settings.xml and accepts commands on the pipe
+\\\\.\\pipe\\MTTVirtualDisplayPipe (open to every user, no administrator rights needed).
+After RELOAD_DRIVER all virtual screens turn off and on again for a moment.
 """
 import ctypes
 import os
@@ -23,8 +23,8 @@ INVALID = wintypes.HANDLE(-1).value
 
 
 def command(cmd):
-    """Invia un comando al driver e restituisce la risposta (testo), oppure None se il driver non risponde."""
-    h = _k.CreateFileW(PIPE, 0xC0000000, 0, None, 3, 0, None)  # lettura+scrittura, apri esistente
+    """Sends a command to the driver and returns the answer (text), or None if the driver doesn't answer."""
+    h = _k.CreateFileW(PIPE, 0xC0000000, 0, None, 3, 0, None)  # read+write, open existing
     if not h or h == INVALID:
         return None
     try:
@@ -37,7 +37,7 @@ def command(cmd):
         while True:
             ok = _k.ReadFile(h, buf, len(buf), ctypes.byref(n), None)
             out += buf.raw[:n.value]
-            if not ok and ctypes.get_last_error() != 234:  # 234 = altri dati in arrivo
+            if not ok and ctypes.get_last_error() != 234:  # 234 = more data coming
                 break
             if ok and not n.value:
                 break
@@ -57,7 +57,7 @@ def _load():
 
 
 def read_settings():
-    """(numero di schermi, [(larghezza, altezza)])."""
+    """(number of screens, [(width, height)])."""
     root = _load().getroot()
     count = int(root.findtext('monitors/count', '1'))
     res = [(int(r.findtext('width')), int(r.findtext('height'))) for r in root.iter('resolution')]
@@ -65,7 +65,7 @@ def read_settings():
 
 
 def write_settings(count=None, add=()):
-    """Aggiorna il file del driver. Restituisce True se qualcosa è cambiato (serve un RELOAD_DRIVER)."""
+    """Updates the driver file. Returns True if something changed (a RELOAD_DRIVER is needed)."""
     tree = _load()
     root = tree.getroot()
     changed = False

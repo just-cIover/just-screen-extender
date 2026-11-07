@@ -1,17 +1,17 @@
-"""Spinta del mouse contro il bordo, come il Controllo Universale del Mac.
+"""Mouse push against the edge, like Universal Control on a Mac.
 
-Il PC non può sapere da solo dove si trova fisicamente l'iPad. Se però spingi il puntatore contro un
-bordo del monitor dove non c'è nessuno schermo (es. a destra, perché l'iPad è lì), vuol dire che lo
-schermo del dispositivo va da quella parte: il server lo sposta e il puntatore ci entra.
+The PC can't know by itself where the iPad physically is. But if you push the pointer against an
+edge of the monitor where there's no screen (e.g. on the right, because the iPad is there), it means
+the device screen goes on that side: the server moves it and the pointer goes in.
 
-- Legge i movimenti del mouse con Raw Input: arrivano anche quando il puntatore è fermo contro il
-  bordo, e misurano quanto stai spingendo.
-- Conta solo mouse e touchpad veri. Si scartano: i movimenti in posizione assoluta (trascinamento dei
-  file dai dispositivi, desktop remoto, tavolette), quelli che Windows ricava da tocchi e penna (hanno
-  una firma) e quelli marcati da questo programma (SIGNATURE). Il dispositivo d'origine invece non
-  serve: touchpad di precisione e molti mouse Bluetooth arrivano senza.
-- Una spinta breve (arrivare al bordo per una barra di scorrimento, la barra delle applicazioni o la
-  X di una finestra) non basta: serve una spinta decisa e continua, poi una pausa prima della prossima.
+- Reads mouse movement with Raw Input: it arrives even when the pointer is stopped against the
+  edge, and measures how hard you're pushing.
+- Only real mice and touchpads count. Discarded: movements in absolute position (file drags
+  from the devices, remote desktop, tablets), the ones Windows derives from touch and pen (they have
+  a signature) and the ones marked by this program (SIGNATURE). The source device isn't needed:
+  precision touchpads and many Bluetooth mice arrive without one.
+- A short push (reaching the edge for a scroll bar, the taskbar or a window's X) isn't enough:
+  it takes a firm, continuous push, then a pause before the next one.
 """
 import ctypes
 import threading
@@ -20,13 +20,13 @@ from ctypes import wintypes
 
 import monitors
 
-PUSH_COUNTS = 280    # movimento verso l'esterno (unità del mouse, ~pixel) da accumulare contro il bordo
-PUSH_TIME = 0.4      # secondi di spinta continua, almeno
-GAP = 0.25           # una pausa più lunga di così azzera la spinta
-COOLDOWN = 4.0       # dopo uno spostamento, secondi prima di riconoscerne un altro
+PUSH_COUNTS = 280    # outward movement (mouse units, ~pixels) to accumulate against the edge
+PUSH_TIME = 0.4      # seconds of continuous push, at least
+GAP = 0.25           # a pause longer than this resets the push
+COOLDOWN = 4.0       # after a move, seconds before recognizing another one
 SIDES = ('destra', 'sinistra', 'sopra', 'sotto')
-SIGNATURE = 0x53450001  # dwExtraInfo degli eventi del mouse simulati da Schermo Esteso (inject.py)
-TOUCH_PEN = 0xFF515700  # firma di Windows sul mouse ricavato da tocchi e penna (MI_WP_SIGNATURE)
+SIGNATURE = 0x53450001  # dwExtraInfo of the mouse events simulated by Schermo Esteso (inject.py)
+TOUCH_PEN = 0xFF515700  # Windows signature on mouse input derived from touch and pen (MI_WP_SIGNATURE)
 
 user32 = ctypes.WinDLL('user32', use_last_error=True)
 kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
@@ -79,8 +79,8 @@ def _inside(m, x, y):
 
 
 class Pusher:
-    """Riconosce la spinta contro un bordo libero. Separato dalla lettura del mouse, così si prova a parte.
-    feed() riceve ogni movimento e restituisce (lato, monitor, (x, y)) quando la spinta è riconosciuta."""
+    """Recognizes a push against a free edge. Separate from reading the mouse, so it can be tested on its own.
+    feed() gets every movement and returns (side, monitor, (x, y)) when the push is recognized."""
 
     def __init__(self):
         self.side = None
@@ -96,7 +96,7 @@ class Pusher:
             return None
         m = next((m for m in mons if _inside(m, x, y)), None)
         if not m or monitors.is_virtual(m):
-            self.reset()  # solo dai bordi dei monitor veri del PC
+            self.reset()  # only from the edges of the PC's real monitors
             return None
         right, bottom = m['x'] + m['w'] - 1, m['y'] + m['h'] - 1
         side, push, nx, ny = None, 0, x, y
@@ -109,7 +109,7 @@ class Pusher:
         elif y <= m['y'] and dy < 0:
             side, push, ny = 'sopra', -dy, m['y'] - 1
         if not side or any(_inside(o, nx, ny) for o in mons):
-            # non contro un bordo, o lì c'è già un altro schermo (il puntatore ci passa da solo)
+            # not against an edge, or there's already another screen there (the pointer goes through by itself)
             if not side and now - self.last > GAP:
                 self.reset()
             return None
@@ -125,7 +125,7 @@ class Pusher:
 
 
 class EdgeWatcher:
-    """Legge il mouse in un thread suo (Raw Input su una finestra invisibile) e chiama on_push(lato, monitor, punto)."""
+    """Reads the mouse in its own thread (Raw Input on an invisible window) and calls on_push(side, monitor, point)."""
 
     def __init__(self, on_push, log=print):
         self.on_push = on_push
@@ -135,7 +135,7 @@ class EdgeWatcher:
         self._mons, self._mons_at = [], 0.0
 
     def monitors(self, now):
-        if now - self._mons_at > 1.0:  # la disposizione cambia di rado: la rileggo al massimo una volta al secondo
+        if now - self._mons_at > 1.0:  # the layout rarely changes: I read it again at most once a second
             self._mons, self._mons_at = monitors.list_monitors(), now
         return self._mons
 
@@ -148,10 +148,10 @@ class EdgeWatcher:
         if buf.header.dwType != RIM_TYPEMOUSE:
             return
         if buf.mouse.usFlags & MOUSE_MOVE_ABSOLUTE:
-            return  # posizione assoluta (trascinamento dai dispositivi, desktop remoto, tavolette): non una spinta
+            return  # absolute position (drag from the devices, remote desktop, tablets): not a push
         extra = buf.mouse.ulExtraInformation
         if extra == SIGNATURE or extra & 0xFFFFFF00 == TOUCH_PEN:
-            return  # simulato da questo programma, o ricavato da tocchi e penna
+            return  # simulated by this program, or derived from touch and pen
         dx, dy = buf.mouse.lLastX, buf.mouse.lLastY
         if not dx and not dy:
             return
@@ -169,17 +169,17 @@ class EdgeWatcher:
             if msg == WM_INPUT:
                 try:
                     self._on_input(lparam)
-                except Exception as e:  # un errore qui non deve fermare la lettura del mouse
+                except Exception as e:  # an error here must not stop reading the mouse
                     self.log(f'Spinta del mouse: errore {e!r}')
             return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
-        self._proc = WNDPROC(proc)  # va tenuto in vita
+        self._proc = WNDPROC(proc)  # must be kept alive
         inst = kernel32.GetModuleHandleW(None)
         cls = WNDCLASSW(lpfnWndProc=self._proc, hInstance=inst, lpszClassName='SchermoEstesoBordi')
         user32.RegisterClassW(ctypes.byref(cls))
         hwnd = user32.CreateWindowExW(0, cls.lpszClassName, 'Schermo Esteso bordi', 0, 0, 0, 0, 0,
                                       HWND_MESSAGE, None, inst, None)
-        rid = RAWINPUTDEVICE(1, 2, RIDEV_INPUTSINK, hwnd)  # pagina 1, uso 2 = mouse (anche i touchpad)
+        rid = RAWINPUTDEVICE(1, 2, RIDEV_INPUTSINK, hwnd)  # page 1, usage 2 = mouse (touchpads too)
         if not hwnd or not user32.RegisterRawInputDevices(ctypes.byref(rid), 1, ctypes.sizeof(rid)):
             self.log(f'Spinta del mouse non disponibile (errore {ctypes.get_last_error()})')
             return
@@ -197,14 +197,14 @@ class EdgeWatcher:
 
 
 def place(side, mon, pt, size, others):
-    """Dove mettere uno schermo grande size=(w, h) sul lato indicato del monitor mon, all'altezza (o alla
-    larghezza) del punto in cui hai spinto, senza sovrapporsi agli altri schermi.
-    Restituisce (x, y), oppure None se su quel lato non c'è posto."""
+    """Where to put a screen of size=(w, h) on the given side of monitor mon, at the height (or
+    width) of the point where you pushed, without overlapping the other screens.
+    Returns (x, y), or None if there's no room on that side."""
     w, h = size
     px, py = pt
     if side in ('destra', 'sinistra'):
         x = mon['x'] + mon['w'] if side == 'destra' else mon['x'] - w
-        lo, hi = mon['y'] - h + 1, mon['y'] + mon['h'] - 1  # deve toccare il monitor almeno per un pixel
+        lo, hi = mon['y'] - h + 1, mon['y'] + mon['h'] - 1  # it must touch the monitor by at least one pixel
         y = max(lo, min(hi, py - h // 2))
         cand = [(x, y)] + [(x, v) for v in range(lo, hi + 1, 50)]
         cand.sort(key=lambda c: abs(c[1] - y))

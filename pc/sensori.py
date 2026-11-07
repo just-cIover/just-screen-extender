@@ -1,8 +1,8 @@
-"""Temperature del PC, lette da LibreHardwareMonitor.
+"""PC temperatures, read from LibreHardwareMonitor.
 
-LibreHardwareMonitor gira con i permessi di amministratore (attività "Schermo Esteso - sensori",
-creata da tools\\sensori.ps1) e pubblica i sensori sul suo server web interno, solo con password
-(salvata in data\\certs\\sensori.json, fuori da git). Qui li leggo ogni 2 secondi in un thread a parte.
+LibreHardwareMonitor runs with administrator rights (task "Schermo Esteso - sensori",
+created by tools\\sensori.ps1) and publishes the sensors on its built-in web server, password only
+(saved in data\\certs\\sensori.json, outside git). Here I read them every 2 seconds in a separate thread.
 """
 import base64
 import hashlib
@@ -15,11 +15,11 @@ import urllib.error
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(os.path.dirname(HERE), 'data')  # dati personali (fuori da git)
+DATA = os.path.join(os.path.dirname(HERE), 'data')  # personal data (outside git)
 CONFIG = os.path.join(DATA, 'certs', 'sensori.json')
 EVERY = 2.0
 
-# sensori mostrati: (inizio dell'identificativo, nome nella finestra)
+# sensors shown: (start of the identifier, name in the window)
 SHOWN = [
     (re.compile(r'^/(intelcpu|amdcpu)/\d+/temperature/'), 'CPU'),
     (re.compile(r'^/(nvme|hdd|ssd)/\d+/temperature/0$'), 'Disco'),
@@ -35,16 +35,16 @@ def _number(text):
 
 class Sensors:
     def __init__(self):
-        self.data = None  # {'elenco': [...], 'media': x} oppure None se non disponibili
+        self.data = None  # {'elenco': [...], 'media': x} or None if not available
         self.error = None
-        self.wanted = 0.0  # ultima volta che qualcuno ha chiesto le temperature (la finestra del PC)
+        self.wanted = 0.0  # last time someone asked for the temperatures (the PC window)
         try:
             with open(CONFIG, encoding='utf-8') as f:
                 c = json.load(f)
             self.url = c['url']
             basic = lambda pw: 'Basic ' + base64.b64encode(f"{c['utente']}:{pw}".encode()).decode()
-            # LibreHardwareMonitor 0.9.6 salva solo l'impronta SHA-256 della password e, dopo un riavvio, accetta
-            # quella al posto della password: provo la password e, se viene rifiutata, l'impronta
+            # LibreHardwareMonitor 0.9.6 stores only the SHA-256 fingerprint of the password and, after a restart, accepts
+            # that instead of the password: I try the password and, if it's refused, the fingerprint
             self.auths = [basic(c['password']), basic(hashlib.sha256(c['password'].encode()).hexdigest())]
         except (OSError, ValueError, KeyError):
             self.url = None
@@ -53,13 +53,13 @@ class Sensors:
 
     def _loop(self):
         while True:
-            if time.monotonic() - self.wanted > 10:  # finestra del PC chiusa: non serve leggerle
+            if time.monotonic() - self.wanted > 10:  # PC window closed: no need to read them
                 time.sleep(1)
                 continue
             try:
                 self.data = self._read()
                 self.error = None
-            except Exception as e:  # LibreHardwareMonitor chiuso o in avvio: riprovo
+            except Exception as e:  # LibreHardwareMonitor closed or starting: retry
                 self.data = None
                 self.error = str(e)
             time.sleep(EVERY)
@@ -74,7 +74,7 @@ class Sensors:
             except urllib.error.HTTPError as e:
                 if e.code != 401 or i == len(self.auths) - 1:
                     raise
-        if i:  # la prossima volta parto da quella che ha funzionato
+        if i:  # next time start from the one that worked
             self.auths.reverse()
         found = []
 

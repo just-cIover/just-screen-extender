@@ -1,12 +1,12 @@
-"""Cattura dello schermo virtuale e compressione H.264 con FFmpeg.
+"""Capture of the virtual screen and H.264 compression with FFmpeg.
 
-FFmpeg cattura con Desktop Duplication (ddagrab, tutto in GPU), comprime con
-Intel Quick Sync (h264_qsv) e scrive un flusso FLV su stdout. L'FLV indica la
-lunghezza di ogni fotogramma in testa, così ogni fotogramma si inoltra appena
-arriva, senza aspettare il successivo.
+FFmpeg captures with Desktop Duplication (ddagrab, all on the GPU), compresses with
+Intel Quick Sync (h264_qsv) and writes an FLV stream to stdout. FLV puts the
+length of each frame up front, so every frame is forwarded as soon as it
+arrives, without waiting for the next one.
 
-Se FFmpeg si blocca o si chiude (cambio risoluzione, schermata UAC, driver
-riavviato...) viene riavviato da solo.
+If FFmpeg hangs or exits (resolution change, UAC screen, driver
+restarted...) it is restarted automatically.
 """
 import asyncio
 import base64
@@ -16,11 +16,11 @@ import re
 import shutil
 import time
 
-NO_WINDOW = 0x08000000  # FFmpeg senza finestra nera quando l'app gira senza terminale
-FRAME_TIMEOUT = 3.0  # secondi senza fotogrammi => FFmpeg è bloccato, lo riavvio
-QSV_RETRY = 60    # secondi: dopo il passaggio alla CPU si riprova la scheda grafica
+NO_WINDOW = 0x08000000  # FFmpeg without a black window when the app runs without a terminal
+FRAME_TIMEOUT = 3.0  # seconds without frames => FFmpeg is stuck, restart it
+QSV_RETRY = 60    # seconds: after switching to the CPU, try the graphics card again
 
-# Livelli di qualità: l'iPad scende di livello da solo se Safari va in crisi di memoria.
+# Quality levels: the iPad drops a level by itself if Safari runs out of memory.
 QUALITY = [
     {'nome': 'Massima', 'fps': 60, 'scala': 1.0, 'bitrate': '14M', 'maxrate': '20M'},
     {'nome': 'Fluida', 'fps': 30, 'scala': 1.0, 'bitrate': '10M', 'maxrate': '14M'},
@@ -30,7 +30,7 @@ QUALITY = [
 
 
 def out_size(w, h, scala):
-    # dimensioni pari (richiesto da H.264)
+    # even sizes (required by H.264)
     return int(w * scala) // 2 * 2, int(h * scala) // 2 * 2
 
 
@@ -49,7 +49,7 @@ FFMPEG = find_ffmpeg()
 
 
 async def probe_outputs(max_outputs=6):
-    """Dimensioni di ogni uscita catturabile da ddagrab: {indice: (larghezza, altezza)}."""
+    """Size of each output ddagrab can capture: {index: (width, height)}."""
     found = {}
     for i in range(max_outputs):
         p = await asyncio.create_subprocess_exec(
@@ -64,8 +64,8 @@ async def probe_outputs(max_outputs=6):
     return found
 
 
-# un fotogramma completo almeno ogni secondo di tempo vero (non ogni N fotogrammi: con lo schermo fermo
-# ne passano pochi), così dopo un intoppo l'immagine si riprende subito
+# a full frame at least every second of real time (not every N frames: with a still screen
+# few go by), so after a hiccup the picture recovers right away
 KEY_EVERY_SECOND = 'expr:gte(t,n_forced*1)'
 
 
@@ -81,8 +81,8 @@ def encoder_args(kind, s):
 
 
 def ffmpeg_cmd(kind, output_idx, s, size=None):
-    # niente dup_frames=0: con lo schermo fermo non uscirebbe nessun fotogramma e il controllo "FFmpeg bloccato"
-    # lo riavvierebbe ogni 3 s. Le copie dell'immagine ferma, compresse, pesano poche centinaia di byte.
+    # no dup_frames=0: with a still screen no frame would come out and the "FFmpeg stuck" check
+    # would restart it every 3 s. Compressed copies of the still picture weigh a few hundred bytes.
     grab = f"ddagrab=output_idx={output_idx}:framerate={s['fps']}:draw_mouse=1"
     if kind == 'qsv':
         chain = grab + ',hwmap=derive_device=qsv,format=qsv'
@@ -99,16 +99,16 @@ def ffmpeg_cmd(kind, output_idx, s, size=None):
 
 
 def codec_string(avcc):
-    """Stringa codec WebCodecs (es. avc1.4d0028) dal record di configurazione AVC."""
+    """WebCodecs codec string (e.g. avc1.4d0028) from the AVC configuration record."""
     return 'avc1.%02x%02x%02x' % (avcc[1], avcc[2], avcc[3])
 
 
 class Capture:
-    """Avvia FFmpeg, legge i fotogrammi e li passa a on_config / on_frame."""
+    """Starts FFmpeg, reads the frames and passes them to on_config / on_frame."""
 
     def __init__(self, settings, get_target, on_config, on_frame, log):
         self.s = settings
-        self.get_target = get_target  # -> (indice ddagrab, larghezza, altezza) oppure None
+        self.get_target = get_target  # -> (ddagrab index, width, height) or None
         self.on_config = on_config
         self.on_frame = on_frame
         self.log = log
@@ -117,7 +117,7 @@ class Capture:
         self.last_frame = 0.0
         self.running = False
         self.restarts = 0
-        self.fallback_at = None  # quando si è passati alla CPU perché Quick Sync dava errore (poi si riprova)
+        self.fallback_at = None  # when we switched to the CPU because Quick Sync gave an error (then it's tried again)
         self.level = 0
         self.apply_level(settings.get('quality', 0))
 
@@ -125,7 +125,7 @@ class Capture:
         level = max(0, min(int(level), len(QUALITY) - 1))
         self.level = level
         self.s.update({k: QUALITY[level][k] for k in ('fps', 'bitrate', 'maxrate')})
-        self.s['gop'] = QUALITY[level]['fps']  # un fotogramma completo al secondo
+        self.s['gop'] = QUALITY[level]['fps']  # one full frame per second
         return level
 
     async def run(self):
@@ -154,15 +154,15 @@ class Capture:
                 fails = qsv_fails = 0
             else:
                 fails += 1
-                # alla CPU solo se è proprio il codificatore a dare errore: se la cattura dello schermo si ferma
-                # (blocco schermo, finestra UAC, schermo che si accende) Quick Sync non c'entra
+                # switch to the CPU only if it's really the encoder that fails: if screen capture stops
+                # (lock screen, UAC window, a screen turning on) Quick Sync has nothing to do with it
                 if self.enc_error and not self.grab_error:
                     qsv_fails += 1
                 if qsv_fails >= 2 and self.kind == 'qsv' and self.s.get('encoder', 'auto') == 'auto':
                     self.log(f'Quick Sync non risponde: passo alla compressione via CPU (x264), riprovo tra {QSV_RETRY} s')
                     self.kind, self.fallback_at = 'x264', time.monotonic()
             self.restarts += 1
-            # pausa breve, più lunga se fallisce subito più volte di fila
+            # short pause, longer if it keeps failing right away
             await asyncio.sleep(0.3 if time.monotonic() - started > 5 else min(0.5 * (fails + 1), 3))
 
     async def _run_once(self, idx, w, h):
@@ -183,7 +183,7 @@ class Capture:
         got_frames = False
         try:
             rd = self.proc.stdout
-            head = await rd.readexactly(13)  # intestazione FLV (9) + PreviousTagSize0 (4)
+            head = await rd.readexactly(13)  # FLV header (9) + PreviousTagSize0 (4)
             if head[:3] != b'FLV':
                 raise ValueError('flusso FLV non valido')
             while True:
@@ -192,7 +192,7 @@ class Capture:
                 data = await rd.readexactly(size)
                 await rd.readexactly(4)
                 if th[0] != 9 or size < 5:
-                    continue  # solo i tag video
+                    continue  # video tags only
                 frame_type, codec = data[0] >> 4, data[0] & 0x0F
                 if codec != 7:
                     continue
@@ -212,7 +212,7 @@ class Capture:
                 self.proc.kill()
             await self.proc.wait()
             await err_task
-            if not self.access_lost:  # nel caso "schermo ricreato" la riga chiara c'è già
+            if not self.access_lost:  # in the "screen recreated" case the clear line is already there
                 self.log(f'Cattura fermata (codice {self.proc.returncode})')
         return got_frames
 
@@ -220,7 +220,7 @@ class Capture:
         while True:
             await asyncio.sleep(0.5)
             if self.fallback_at and time.monotonic() - self.fallback_at > QSV_RETRY:
-                self.proc.kill()  # ora di riprovare Quick Sync (lo fa run)
+                self.proc.kill()  # time to try Quick Sync again (run does it)
                 return
             if time.monotonic() - self.last_frame > FRAME_TIMEOUT:
                 self.log('Nessun fotogramma da FFmpeg da 3 s: lo riavvio')
@@ -246,11 +246,11 @@ class Capture:
             elif 'qsv' in low or 'mfx' in low:
                 self.enc_error = True
             if self.access_lost and ('external library' in text or 'Terminating thread' in text):
-                continue  # seguito tecnico dello stesso evento
+                continue  # technical follow-up of the same event
             self.log('ffmpeg: ' + text)
 
     def restart(self):
-        """Riavvia FFmpeg (per esempio dopo un cambio di monitor)."""
+        """Restarts FFmpeg (for example after a monitor change)."""
         if self.proc and self.proc.returncode is None:
             self.proc.kill()
 

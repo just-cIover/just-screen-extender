@@ -1,9 +1,9 @@
-# Temperature per Schermo Esteso: LibreHardwareMonitor parte all'accesso, con i permessi che servono
-# per leggere i sensori, ridotto vicino all'orologio. Da eseguire come amministratore.
+# Temperatures for Schermo Esteso: LibreHardwareMonitor starts at sign-in, with the rights needed
+# to read the sensors, minimized next to the clock. Run as administrator.
 param([string]$Exe, [string]$Report = "$env:TEMP\schermo-esteso-sensori.txt")
 $out = @()
 $dir = Split-Path $Exe
-# impostazioni: parte ridotto, va nell'area di notifica, chiudere la finestra lo riduce
+# settings: starts minimized, goes to the notification area, closing the window minimizes it
 $cfg = Join-Path $dir 'LibreHardwareMonitor.config'
 @'
 <?xml version="1.0" encoding="utf-8"?>

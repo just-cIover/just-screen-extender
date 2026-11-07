@@ -1,8 +1,8 @@
 import CoreMedia
 
-/// Fotogrammi H.264 dal PC -> campioni per il decodificatore hardware dell'iPad.
-/// Il PC manda la configurazione (record avcC con SPS e PPS) e poi i fotogrammi in formato AVCC
-/// (ogni unità NAL preceduta dalla sua lunghezza): è proprio il formato che CoreMedia vuole.
+/// H.264 frames from the PC -> samples for the iPad hardware decoder.
+/// The PC sends the configuration (avcC record with SPS and PPS) and then the frames in AVCC format
+/// (each NAL unit preceded by its length): exactly the format CoreMedia wants.
 enum H264 {
     static func formatDescription(avcC: Data) -> CMVideoFormatDescription? {
         let b = [UInt8](avcC)
@@ -31,7 +31,7 @@ enum H264 {
         i += 1
         guard readSets(count: ppsCount), sets.count >= 2 else { return nil }
 
-        // puntatori validi tutti insieme per la chiamata a CoreMedia
+        // pointers that are valid all together for the CoreMedia call
         let buffers = sets.map { s -> UnsafeMutablePointer<UInt8> in
             let p = UnsafeMutablePointer<UInt8>.allocate(capacity: s.count)
             p.initialize(from: s, count: s.count)
@@ -71,7 +71,7 @@ enum H264 {
             sampleSizeEntryCount: 1, sampleSizeArray: &size, sampleBufferOut: &sample)
         guard status == noErr, let sample else { return nil }
 
-        // mostra appena decodificato, senza orari di riproduzione: ritardo minimo
+        // show as soon as decoded, without presentation times: minimum delay
         if let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: true),
            CFArrayGetCount(attachments) > 0 {
             let dict = unsafeBitCast(CFArrayGetValueAtIndex(attachments, 0), to: CFMutableDictionary.self)

@@ -1,12 +1,12 @@
-"""Protezioni comuni: cosa si può aprire sul PC, richieste solo dal PC, intestazioni di sicurezza."""
+"""Shared protections: what can be opened on the PC, requests only from the PC, security headers."""
 import os
 import re
 
 from aiohttp import web
 
-# Tipi che un dispositivo può far aprire sul PC con "Apri qui": documenti e file multimediali.
-# Niente programmi, script, collegamenti o documenti Office con macro: aprirli vorrebbe dire
-# eseguire codice arrivato da un dispositivo.
+# Types a device can have opened on the PC with "Open here": documents and media files.
+# No programs, scripts, shortcuts or Office documents with macros: opening them would mean
+# running code that came from a device.
 SAFE_OPEN = {
     '.pdf', '.txt', '.md', '.csv', '.rtf', '.log', '.json', '.xml',
     '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.heic', '.heif', '.tif', '.tiff',
@@ -20,27 +20,27 @@ def safe_to_open(name):
 
 
 def mark_from_internet(path):
-    """Segna il file come "scaricato da Internet" (Mark of the Web): Windows SmartScreen e la
-    Visualizzazione protetta di Office lo trattano con le dovute cautele."""
+    """Marks the file as "downloaded from the Internet" (Mark of the Web): Windows SmartScreen and
+    Office Protected View treat it with due caution."""
     try:
         with open(path + ':Zone.Identifier', 'w', encoding='ascii') as f:
             f.write('[ZoneTransfer]\r\nZoneId=3\r\n')
     except OSError:
-        pass  # disco non NTFS: niente marcatura
+        pass  # non-NTFS disk: no marking
 
 
 def clean_text(value, limit=40):
-    """Testo arrivato da un dispositivo (es. il nome): senza caratteri di controllo, così non può
-    spezzare o falsificare le righe della console."""
+    """Text coming from a device (e.g. the name): without control characters, so it can't
+    break or fake console lines."""
     return re.sub(r'[\x00-\x1f\x7f  ]', ' ', str(value or '')).strip()[:limit]
 
 
 def local_only(request, local_port):
-    """Richieste ammesse solo dalla finestra dell'app su questo PC.
-    - indirizzo di provenienza locale;
-    - Host esatto (blocca i siti che si fingono il PC con il "DNS rebinding");
-    - se il browser indica l'origine, deve essere la finestra dell'app (blocca le pagine web
-      aperte sul PC che provano a comandare l'app o a leggere la console)."""
+    """Requests allowed only from the app window on this PC.
+    - local source address;
+    - exact Host (blocks sites pretending to be the PC with "DNS rebinding");
+    - if the browser states the origin, it must be the app window (blocks web pages
+      open on the PC that try to control the app or read the console)."""
     hosts = {f'127.0.0.1:{local_port}', f'localhost:{local_port}'}
     if request.remote not in ('127.0.0.1', '::1') or request.host not in hosts:
         raise web.HTTPForbidden(text='Solo dalla finestra dell\'app su questo PC.')
@@ -54,10 +54,10 @@ async def headers(request, handler):
     resp = await handler(request)
     h = resp.headers
     h.setdefault('X-Content-Type-Options', 'nosniff')
-    h.setdefault('Referrer-Policy', 'no-referrer')  # i link contengono la chiave del dispositivo
+    h.setdefault('Referrer-Policy', 'no-referrer')  # links contain the device key
     h.setdefault('X-Frame-Options', 'DENY')
     if request.path.startswith('/api/file/'):
-        # file caricati dai dispositivi: mai eseguiti come pagina dell'app (niente script, origine isolata)
+        # files uploaded by devices: never run as an app page (no scripts, isolated origin)
         h['Content-Security-Policy'] = "sandbox; default-src 'none'; img-src 'self'; media-src 'self'"
     elif request.path in ('/', '/index.html'):
         host = request.host
