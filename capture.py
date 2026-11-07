@@ -63,18 +63,26 @@ async def probe_outputs(max_outputs=6):
     return found
 
 
+# un fotogramma completo almeno ogni secondo di tempo vero (non ogni N fotogrammi: con lo schermo fermo
+# ne passano pochi), così dopo un intoppo l'immagine si riprende subito
+KEY_EVERY_SECOND = 'expr:gte(t,n_forced*1)'
+
+
 def encoder_args(kind, s):
     if kind == 'qsv':
         return ['-c:v', 'h264_qsv', '-preset', 'veryfast', '-profile:v', 'main',
                 '-async_depth', '1', '-bf', '0', '-look_ahead', '0',
-                '-g', str(s['gop']), '-b:v', s['bitrate'], '-maxrate', s['maxrate'], '-bufsize', s['bufsize']]
+                '-g', str(s['gop']), '-forced_idr', '1', '-force_key_frames', KEY_EVERY_SECOND,
+                '-b:v', s['bitrate'], '-maxrate', s['maxrate'], '-bufsize', s['bufsize']]
     return ['-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-profile:v', 'main',
-            '-pix_fmt', 'yuv420p', '-bf', '0', '-g', str(s['gop']),
+            '-pix_fmt', 'yuv420p', '-bf', '0', '-g', str(s['gop']), '-force_key_frames', KEY_EVERY_SECOND,
             '-b:v', s['bitrate'], '-maxrate', s['maxrate'], '-bufsize', s['bufsize']]
 
 
 def ffmpeg_cmd(kind, output_idx, s, size=None):
-    grab = f"ddagrab=output_idx={output_idx}:framerate={s['fps']}:draw_mouse=1"
+    # dup_frames=0: solo i fotogrammi che cambiano. Con lo schermo fermo non parte niente, e iPad e iPhone
+    # non devono ricevere e decodificare 30 copie al secondo della stessa immagine (batteria e rete)
+    grab = f"ddagrab=output_idx={output_idx}:framerate={s['fps']}:draw_mouse=1:dup_frames=0"
     if kind == 'qsv':
         chain = grab + ',hwmap=derive_device=qsv,format=qsv'
         if size:

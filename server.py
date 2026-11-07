@@ -46,7 +46,9 @@ DEFAULTS = {
     'appunti': True,    # appunti condivisi tra PC e dispositivi
 }
 QUALITY_LABELS = ['Massima', 'Fluida', 'Media', 'Leggera']
-MAX_QUEUE = 8        # fotogrammi in coda per client oltre i quali salto al prossimo fotogramma completo
+MAX_QUEUE = 4        # fotogrammi in coda per client oltre i quali salto al prossimo fotogramma completo
+                     # (pochi: se il Wi-Fi rallenta meglio saltare all'immagine più recente che accumulare ritardo)
+SEND_BUFFER = 256 * 1024  # buffer di rete di Windows per ogni dispositivo: piccolo, così niente coda nascosta
 GRACE = 15           # secondi dopo la chiusura dell'app prima di spegnere il suo schermo
 STARTUP_GRACE = 20   # all'avvio aspetto un po' i dispositivi prima di spegnere gli schermi senza nessuno
 LOW_BATTERY = 15      # % sotto cui avviso che la batteria del dispositivo è quasi scarica
@@ -450,6 +452,21 @@ class App:
     async def ws_handler(self, request):
         ws = web.WebSocketResponse(heartbeat=5, max_msg_size=1 << 20, compress=False)
         await ws.prepare(request)
+        # Windows di suo può tenere in coda megabyte di video verso un Wi-Fi lento (ritardo che il server non
+        # vede): con un buffer piccolo il server se ne accorge subito e salta ai fotogrammi più recenti
+        tr = request.transport
+        sock = tr.get_extra_info('socket') if tr else None
+        if sock is not None:
+            try:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, SEND_BUFFER)
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            except OSError:
+                pass
+        if tr is not None:
+            try:
+                tr.set_write_buffer_limits(high=SEND_BUFFER // 2)
+            except (AttributeError, ValueError, RuntimeError):
+                pass
         q = request.query
         dev_id = q.get('dev', '')[:64]
         if not dev_id:
@@ -608,6 +625,10 @@ class App:
         if not path or not m or not s.capture_key or not pt:
             return
         under = finestre.process_name(finestre.user32.WindowFromPoint(finestre.wintypes.POINT(*pt))) or 'il desktop'
+        if not sicurezza.safe_to_open(path):
+            log(f'ha trascinato {name}: è nella cartella condivisa, ma programmi e script non li trascino nei '
+                'programmi del PC', s.name)
+            return
         try:
             effect = await asyncio.to_thread(trascina.drop_at, path, *pt)
         except Exception as e:
@@ -785,8 +806,9 @@ class App:
 
     async def keepalive(self):
         while True:
-            await asyncio.sleep(0.05)
-            self.injector.keepalive()
+            busy = self.injector.keepalive()
+            # con un dito o la penna appoggiati ogni 50 ms; altrimenti basta controllare 4 volte al secondo
+            await asyncio.sleep(0.05 if busy else 0.25)
 
     async def watch_monitors(self):
         """Se cambia la disposizione degli schermi, riaggancio la cattura di chi ne è toccato."""
@@ -797,6 +819,8 @@ class App:
                 if (s.clients and s.capture_task and not s.capture_task.done() and s.sent_frames
                         and time.time() - s.stats.get('ora', time.time()) > 8):
                     s.check_quality()
+            if not any(s.capture_key for s in self.sessions.values()):
+                continue  # nessuno schermo in uso: niente da controllare
             outs = monitors.dxgi_outputs()
             for s in self.sessions.values():
                 if not s.capture_key:

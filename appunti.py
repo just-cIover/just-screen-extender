@@ -21,6 +21,7 @@ CF_UNICODETEXT, CF_DIB = 13, 8
 GMEM_MOVEABLE = 0x2
 MAX_TEXT = 1_000_000        # caratteri
 MAX_IMAGE = 25 * 1024 * 1024  # byte
+MAX_PIXELS = 50_000_000        # es. 8000 x 6000: oltre, rifiuto (difesa dalle "bombe di decompressione")
 
 user32.GetClipboardData.restype = wintypes.HANDLE
 user32.SetClipboardData.restype = wintypes.HANDLE
@@ -223,7 +224,10 @@ class Clipboard:
             raise web.HTTPRequestEntityTooLarge(max_size=MAX_IMAGE, actual_size=len(data))
         try:
             from PIL import Image
-            Image.open(io.BytesIO(data)).verify()  # solo immagini vere
+            img = Image.open(io.BytesIO(data))
+            if img.width * img.height > MAX_PIXELS:
+                raise ValueError('immagine troppo grande')
+            img.verify()  # solo immagini vere
         except Exception:
             raise web.HTTPBadRequest(text='non è un\'immagine')
         await self._apply(write_image, data, session, f'immagine, {len(data) // 1024} KB')
