@@ -5,11 +5,13 @@ creata da tools\\sensori.ps1) e pubblica i sensori sul suo server web interno, s
 (salvata in data\\certs\\sensori.json, fuori da git). Qui li leggo ogni 2 secondi in un thread a parte.
 """
 import base64
+import hashlib
 import json
 import os
 import re
 import threading
 import time
+import urllib.error
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -40,7 +42,10 @@ class Sensors:
             with open(CONFIG, encoding='utf-8') as f:
                 c = json.load(f)
             self.url = c['url']
-            self.auth = 'Basic ' + base64.b64encode(f"{c['utente']}:{c['password']}".encode()).decode()
+            basic = lambda pw: 'Basic ' + base64.b64encode(f"{c['utente']}:{pw}".encode()).decode()
+            # LibreHardwareMonitor 0.9.6 salva solo l'impronta SHA-256 della password e, dopo un riavvio, accetta
+            # quella al posto della password: provo la password e, se viene rifiutata, l'impronta
+            self.auths = [basic(c['password']), basic(hashlib.sha256(c['password'].encode()).hexdigest())]
         except (OSError, ValueError, KeyError):
             self.url = None
             return
@@ -60,9 +65,17 @@ class Sensors:
             time.sleep(EVERY)
 
     def _read(self):
-        req = urllib.request.Request(self.url, headers={'Authorization': self.auth})
-        with urllib.request.urlopen(req, timeout=2) as r:
-            root = json.load(r)
+        for i, auth in enumerate(self.auths):
+            req = urllib.request.Request(self.url, headers={'Authorization': auth})
+            try:
+                with urllib.request.urlopen(req, timeout=2) as r:
+                    root = json.load(r)
+                break
+            except urllib.error.HTTPError as e:
+                if e.code != 401 or i == len(self.auths) - 1:
+                    raise
+        if i:  # la prossima volta parto da quella che ha funzionato
+            self.auths.reverse()
         found = []
 
         def walk(n):
